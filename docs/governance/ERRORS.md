@@ -21,7 +21,9 @@ Do not confuse **anticipated risks** with **observed defects**. C11 requires at 
 ## Observed defects (actual occurrences only)
 | Error ID | Milestone/time | Reproduction | Root cause | Corrective change | Regression evidence | AI error? |
 |---|---|---|---|---|---|---|
-| _none_ | | | | | | |
+| ERR-001 | M00 / 2026-11-15 | Review of `docs/milestones/M00/PLAN.md` draft | AI proposed Spring Boot 3.x alternatives despite course mandate for Boot 4.x | Removed Boot 3.x, locked baseline to Spring Boot 4.0.9 & Spring AI 2.0.2 | `docs/milestones/M00/PLAN.md` Section 2 | Yes (AI-1) |
+| ERR-002 | M00 / 2026-11-15 | Architecture review of QA4 outage flow | AI assumed synchronous PostgreSQL auditing during PostgreSQL outage | Designed local WAL buffer (`audit-deferred.wal`) with post-outage continuous reconciliation | `docs/milestones/M00/PLAN.md` Section 6 | Yes (AI-2) |
+| ERR-003 | M00 / 2026-11-15 | Architecture review of Redis failure | AI proposed in-memory rate limiting fallback during Redis outage | Gated in-memory to dev/test; write tools fail closed on Redis outage; pre-dispatch checks | `docs/milestones/M00/PLAN.md` Section 7 | Yes (AI-3) |
 
 ## Reporting template
 ```
