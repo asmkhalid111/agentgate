@@ -1,0 +1,22 @@
+# Java/Maven
+**/target/
+*.class
+*.log
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+# Secrets and local state
+.env
+.env.*
+!.env.example
+**/*-local.yml
+**/*-secret*.yml
+*.pem
+*.key
+# DB/storage/benchmark temporary outputs
+.data/
+local-data/
+# OS
+.DS_Store
+Thumbs.db
