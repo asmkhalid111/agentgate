@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: agentgate-gateway
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+  ai:
+    mcp:
+      server:
+        protocol: STREAMABLE
+        name: agentgate-mcp-server
+        version: 1.0.0
+        streamable-http:
+          mcp-endpoint: /mcp
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-} spanId=%X{spanId:-}] - %msg%n"
+  level:
+    root: INFO
+    com.agentgate.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.ai.mcp: DEBUG
+

@@ -1,0 +1,49 @@
+package com.agentgate.gateway.common;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.net.URI;
+import java.time.Instant;
+
+/**
+ * RFC 9457 Problem Details Exception Handler for AgentGate.
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthenticationException(AuthenticationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problem.setTitle("Authentication Required");
+        problem.setType(URI.create("https://agentgate.dev/errors/unauthorized"));
+        problem.setProperty("errorCode", ErrorCodes.UNAUTHORIZED);
+        problem.setProperty("timestamp", Instant.now().toString());
+        return problem;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDeniedException(AccessDeniedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        problem.setTitle("Access Denied");
+        problem.setType(URI.create("https://agentgate.dev/errors/forbidden"));
+        problem.setProperty("errorCode", ErrorCodes.ACCESS_DENIED);
+        problem.setProperty("timestamp", Instant.now().toString());
+        return problem;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(Exception ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An internal gateway error occurred.");
+        problem.setTitle("Internal Server Error");
+        problem.setType(URI.create("https://agentgate.dev/errors/internal"));
+        problem.setProperty("errorCode", ErrorCodes.INTERNAL_ERROR);
+        problem.setProperty("timestamp", Instant.now().toString());
+        return problem;
+    }
+}
+
