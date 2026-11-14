@@ -9,19 +9,16 @@ Updated: 2026-11-15 (initial planning state)
 - Source file uploaded: `CSE444_Course_Projects(1).docx` (not automatically included in repository).
 
 ## Current state
-- Milestone: M00 NOT STARTED.
+- Milestone: M00 IN REVIEW (Revision 1 submitted).
 - Last approved milestone: NONE.
-- Production code: NONE. A governance pack exists only.
+- Production code: NONE. Governance pack and M00 plan revision only.
 - Known checkpoint change request: NOT ISSUED.
-- Proposed, **not yet ratified** architecture: Java21, Boot4, Maven, Spring MVC+virtual threads, Spring AI MCP, PostgreSQL, Keycloak, Redis, Flyway, Thymeleaf, Resilience4j, Micrometer, Docker Compose.
+- Proposed, **revised baseline awaiting approval**: Java 21 LTS, Spring Boot 4.0.9, Spring AI 2.0.2, springdoc 3.0.x, Keycloak 26.x, PostgreSQL 16, Redis 7, Flyway, Thymeleaf, Resilience4j, Micrometer, Docker Compose (<=2.5GB container memory budget).
 
 ## Open decisions / risks
-- Exact tested dependency versions and MCP protocol behavior (including per-agent `tools/list` filtering).
-- Single enforceable execution pipeline and end-user trust model.
-- Policy-cache <=10s activation + <=5min low-risk-only outage semantics.
-- Immediate kill-switch consistency vs cached decisions.
-- Rate limit persistence, audit hash chain concurrency, DB-outage audit fallback, 100 calls/sec overhead.
-- Compose memory allocation on an 8GB laptop.
+- Dependency compilation and context load verification in M01 (Spike 1).
+- Spring AI MCP protocol negotiation and dynamic per-identity `tools/list` filtering in M01 (Spike 2).
+- Final reviewer ratification of M00 Revision 1 (Local WAL audit fallback, Redis fail-closed write semantics, Signed User Assertion JWTs).
 
 ## Handoff contract
 After an *approved* milestone update this page with: last approved milestone, commit ID, test results summary, architecture decisions, open blockers and next milestone. Link to `docs/milestones/Mxx/COMPLETION.md` and evidence rather than pasting long reports. Never overwrite a failed test record.

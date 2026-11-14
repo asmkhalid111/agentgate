@@ -1,531 +1,483 @@
-# Milestone M00 Plan: Baseline Architecture, Scope & Technical Feasibility
+# Milestone M00 Plan: Baseline Architecture, Scope & Technical Feasibility (Revision 1)
 
-**Status:** DRAFT (Awaiting Architecture Reviewer Approval)  
+**Status:** REVISED DRAFT (Addressing Architecture Reviewer Revision 1 Feedback)  
 **Milestone:** M00  
 **Project:** CSE 444 Project 1 — AgentGate (Governance Gateway for AI Agents' Tool Calls)  
 **Author:** Student Implementation Team  
 **Reviewer:** External Architecture Reviewer (ChatGPT)  
 **Date:** 2026-11-15  
-**Primary Coverage:** C1, C7, C8, C11 (Foundational planning for FR1–FR10, QA1–QA5, C1–C12)  
+**Primary Coverage:** C1, C7, C8, C11 (Foundational architectural planning for FR1–FR10, QA1–QA5, C1–C12)  
 
 ---
 
-## 1. Executive Summary & Gated Mode Declaration
+## 1. Executive Summary & Gated Operating Mode Declaration
 
-This document constitutes the comprehensive architecture baseline and technical feasibility plan for **Project AgentGate**, fulfilling the requirements of Milestone **M00**. 
+This document constitutes the revised architecture baseline and technical feasibility plan for **Project AgentGate**, incorporating all mandatory corrections requested in **Revision 1** of the external architecture review.
 
-In strict adherence to the project governance rules established in `AGENTS.md` and `prompts/00-MASTER-INITIALIZATION.md`:
-- **This milestone is strictly PLAN-ONLY.**
+In strict compliance with `AGENTS.md` and project governance:
+- **This milestone is strictly PLAN ONLY.**
 - **No application code, `pom.xml`, Docker Compose configurations, or production secrets have been created or modified.**
 - **No requirement is claimed as implemented, runnable, or verified.**
-- **Implementation (Milestone M01) will NOT commence until this M00 plan receives an explicit `APPROVED` verdict from the external architecture reviewer (ChatGPT).**
+- **Implementation (Milestone M01) will NOT begin until this revised plan receives an explicit `APPROVED` verdict from the external architecture reviewer (ChatGPT).**
 
 ---
 
-## 2. Local Environment Prerequisites & Baseline Inventory
+## 2. Corrected Technology Baseline & Dependency Matrix
 
-A non-destructive, read-only inspection of the local environment (`E:\Codes\Software-Architecture-Project`) was conducted on 2026-11-15.
+The technology stack is strictly aligned with the course mandate requiring **Java 21** and **Spring Boot 4.x**. All previous references to Spring Boot 3.x and milestone releases have been eliminated as proposed implementation alternatives.
 
-| Component / Tool | Detected Version / Status | Required Baseline | Actionable Recommendation (Non-Blocking for M00) |
+| Component / Layer | Selected Stable Baseline Version | Upstream Compatibility & Integration Role | Verification Spike / Task (M01) |
 |---|---|---|---|
-| **Operating System** | Windows 10/11 (PowerShell 7.5.4) | Cross-platform | Native Windows PowerShell scripts with bash equivalents. |
-| **Git** | `2.55.0.windows.3` | Installed & initialized | Git repository initialized; baseline governance committed (`e328bb1`). |
-| **Java JDK** | **Not detected on system PATH** | Java 21 LTS (or 25) | User must install Eclipse Adoptium Temurin 21 (`winget install EclipseAdoptium.Temurin.21.JDK`) before M01. |
-| **Maven** | Not detected globally on PATH | Maven 3.9+ / Wrapper | M01 will bundle the official Maven Wrapper (`mvnw` / `mvnw.cmd`), making a global installation optional. |
-| **Docker / Compose** | **Docker not detected on PATH** | Docker Desktop 24+ with Compose v2 | User must install Docker Desktop (`winget install Docker.DockerDesktop`) or configure WSL2 Docker engine before running M01 containers. |
-| **WSL2** | `Ubuntu` (Stopped, WSL v2) | Optional dev environment | Available if Linux container toolchain is preferred. |
-| **Hardware Fit** | Host machine 16GB+ RAM available | 8GB RAM Laptop Budget | System comfortably meets the 8GB RAM minimum. Docker Compose containers are capped to 2.5GB combined. |
+| **Java JDK** | **Java 21 LTS** (Eclipse Adoptium Temurin) | Language runtime; Project Loom virtual threads, pattern matching, records. | Pre-flight environment check (`java -version`). |
+| **Spring Boot** | **4.0.9** | Core application framework, auto-configuration, dependency management. | Spike 1: Dependency resolution and clean context load. |
+| **Spring AI** | **2.0.2** | Native Model Context Protocol (MCP) server & client starters (`spring-ai-mcp-*`). | Spike 1 & 2: MCP protocol negotiation and transport test. |
+| **springdoc-openapi** | **3.0.x** (compatible with Boot 4.0.x) | OpenAPI 3.0 specification auto-generation and Swagger UI. | Spike 1: Verify springdoc 3.0.x auto-configuration with Boot 4. |
+| **Spring Security** | Managed by Spring Boot 4 (Spring Security 7.x) | OAuth2 Resource Server, JWT token validation, method security, CSRF. | Spike 2: Keycloak client credentials JWT validation slice. |
+| **PostgreSQL** | **16-alpine** | Relational data store for tools, policies, approval states, and hash-chained audit log. | Docker Compose health check & Flyway baseline migration. |
+| **Flyway** | Managed by Spring Boot 4 (Flyway 10.x+) | Automated, repeatable database schema migrations (`V1__initial_schema.sql`). | M01 database migration initialization test. |
+| **Redis** | **7-alpine** | Sub-millisecond atomic sliding-window rate counters, quotas, and instant kill switches. | Spike 3: Redis Lua script atomic increment benchmark. |
+| **Keycloak** | **26.x** | Standards-compliant OAuth2 / OIDC Identity Provider (dev mode). | M01 Docker Compose realm import (`agentgate-realm.json`). |
+| **Resilience4j** | **2.2.0** (or Boot 4 compatible starter) | Downstream circuit breakers, rate limiters, retries, time limiters. | M08 integration (configured in M01 base). |
+| **ArchUnit** | **1.3.0** | Static architecture testing enforcing modular monolith boundaries (C6). | M01 automated architecture test. |
+| **k6** | **0.50+** | Reproducible load testing and latency benchmarking (QA2). | Verified via `scripts/benchmark-latency.js`. |
+
+> [!NOTE]
+> **Compilation & Compatibility Assertion Policy:** In accordance with reviewer instructions, compatibility between Spring Boot 4.0.9, Spring AI 2.0.2, and springdoc-openapi 3.0.x is proposed based on upstream specifications. We explicitly **do not** claim these dependencies compile until an actual Maven build succeeds during M01. Resolving any dependency convergence issues is an explicit M01 verification task.
 
 ---
 
-## 3. Requirements Traceability Matrix & Scope Boundary
+## 3. Environment Inventory & Prerequisites
 
-### 3.1 In-Scope Functional Requirements (FR1–FR10)
+A non-destructive, read-only inspection of the local workstation (`E:\Codes\Software-Architecture-Project`) was performed:
 
-| ID | Requirement Paraphrase | Primary Milestone | Governing Design Principle & Architectural Component |
+| Prerequisite | Detected State | Impact on M00 | Resolution for Milestone M01 |
 |---|---|---|---|
-| **FR1** | Tool Registry (MCP + REST tools, OpenAPI import, risk levels low/medium/high, owning team, unified MCP endpoint with dynamic permission-filtered view) | M02 | `registry`, `mcp`. Dynamic catalog projection based on authenticated caller identity. |
-| **FR2** | Agent Identity (OAuth2 client-credentials with Keycloak; client ID extraction; optional authenticated end-user context) | M01 / M03 | `identity`. Cryptographically verified JWT bearer tokens. Untrusted headers explicitly rejected. |
-| **FR3** | Policies (Default-deny, agent + tool + argument conditions, versioned, hot-reload <=10s, dry-run mode logging without blocking) | M03 | `policy`. Ordered evaluation engine; versioned in DB; in-memory cache with <=10s eviction. |
-| **FR4** | Human Approval (High-risk tool calls pause in PENDING; approver notified via web page & webhook; approve/reject/edit; timeout rejection; clear client result) | M05 | `approval`. State pattern state machine; webhook observer; argument re-validation on edit. |
-| **FR5** | Guards (JSON schema validation before forwarding; clearance-based redaction of email, BD phone, NID; oversized result truncation with notice) | M04 | `guard`. Chain of Responsibility + Strategy pattern for regex/masking; payload size limiter. |
-| **FR6** | Limits (Per-agent/tool rate limits, daily quotas, hourly write blast-radius cap; breach alerts) | M06 | `limits`. Atomic sliding window via Redis Lua script (or DB counter fallback); alert publisher. |
-| **FR7** | Audit Trail (Immutable record of agent, user, tool, redacted args, policy rule, approval, latency, outcome; SHA-256 hash chaining; search & export) | M07 | `audit`. Append-only table with cryptographic hash chain $H_n = \text{SHA-256}(H_{n-1} \parallel R_n)$; offline verifier CLI. |
-| **FR8** | Emergency Kill Switch (Instant disable of agent, tool, or all write tools; cancels pending approvals; fails closed) | M06 | `limits` / `execution`. Atomic flag bypasses policy cache; synchronous eviction of in-flight approvals. |
-| **FR9** | Policy Playground (Simulate call against active or draft policies; returns decision + matched rule ID) | M03 | `policy`. Dry evaluation harness executing identical decision tree without side effects. |
-| **FR10** | Downstream Health (Per-tool circuit breakers and timeouts; down tools hidden from `tools/list` until recovered) | M08 | `resilience`. Resilience4j circuit breakers; health-aware tool filter for MCP catalog discovery. |
-
-### 3.2 In-Scope Quality Attributes (QA1–QA5)
-
-| ID | Exact Measure from Specification | Milestone | Verification Method & Target Metric |
-|---|---|---|---|
-| **QA1** | **Security:** 30 scripted malicious calls (injected refunds, cross-customer reads, argument smuggling) 100% blocked/held; <=5% false blocks on 200 legitimate calls. | M09 | Automated test suite (`scripts/redteam.ps1` / `.sh`) executing exact vectors; 0/30 bypasses permitted; $\le 10/200$ false positives. |
-| **QA2** | **Performance:** Gateway adds $\le 30\text{ ms}$ overhead at p95 under 100 calls/sec load (excluding human approval wait). | M10 | k6 load script comparing direct downstream latency vs gateway latency: $\Delta p95 \le 30\text{ ms}$. |
-| **QA3** | **Auditability:** Auditor locates call explanation in $<1\text{ minute}$; unauthorized mutation of any stored audit row is detected by `verify` command. | M07 / M10 | Timed walkthrough drill; SQL row mutation test followed by automated hash chain verification failure. |
-| **QA4** | **Fail-Safe Availability:** On policy store outage, medium- and high-risk tools fail closed; low-risk tools function on last-known cache for $\le 5\text{ minutes}$. | M03 / M10 | Fault injection test disconnecting DB; verify medium/high immediately reject with 503/ProblemDetails; low-risk succeeds for $t \le 300\text{ s}$ and fails closed thereafter. |
-| **QA5** | **Adoption:** Unfamiliar developer imports a new REST tool via OpenAPI, sets risk level and policy in $<10\text{ minutes}$ with zero code changes. | M09 / M10 | Standardized timed user journey with instructions, verified by execution log and stopwatch. |
-
-### 3.3 Common Requirements (C1–C12)
-
-- **C1 (Stack & Resource Budget):** Java 21, Spring Boot 4.x / 3.4.x, Docker Compose one-command startup (`docker compose up --build -d`), total container RAM $\le 2.5\text{ GB}$ (fitting an 8GB laptop), zero paid cloud APIs.
-- **C2 (Configuration):** Profiles (`dev`, `test`, `prod`), `.env.example` placeholders, validated typed `@ConfigurationProperties`, zero credentials in Git.
-- **C3 (API Standards):** springdoc OpenAPI, Spring Security on every endpoint, Bean Validation, RFC 9457 Problem Details, keyset/pageable pagination.
-- **C4 (Observability):** Spring Boot Actuator (`/health`, `/info`, `/prometheus`), Micrometer metrics, distributed tracing with trace IDs propagated across JSON logs.
-- **C5 (Testing Rigor):** JUnit 5 unit/slice tests, Testcontainers (PostgreSQL, Redis, Keycloak), ArchUnit architecture rules, runnable k6 scripts.
-- **C6 (Architecture Verification):** ArchUnit test suite enforcing modular monolith package boundaries.
-- **C7 (Architecture Documentation):** C4 diagrams (Context, Container, Component), $\ge 4$ ADRs with empirical data, Mini-ATAM utility tree ($\ge 6$ scenarios).
-- **C8 (Pattern Justification):** Explicit mapping table tying every design pattern to a requirement, real participating classes, and rejected alternatives.
-- **C9 (Evidence Discipline):** Complete evidence reports in `docs/evidence/` with raw outputs, charts, failed runs, and remediation logs.
-- **C10 (Change Request):** Dedicated `M-CR` milestone tracking delta between existing core code and added components.
-- **C11 (Process Integrity):** Granular incremental Git commits; `AI_USAGE_LOG.md` recording $\ge 3$ genuine AI errors, root causes, and fixes.
-- **C12 (Defense Readiness):** 15-minute live defense plan covering ADR walkthrough and live code modification.
-
-### 3.4 Explicit Scope Exclusions (What We Will NOT Build)
-
-1. **No External LLM Dependencies or Paid APIs:** The gateway does not call OpenAI, Anthropic, or Gemini for core governance. All agents are simulated using scripted MCP clients (`scripts/agent-client.py` or Java integration clients).
-2. **No Custom Identity Provider:** We will not implement custom user databases or OAuth2 servers from scratch; Keycloak (open-source) is used strictly as a standards-compliant OIDC/OAuth2 server.
-3. **No Microservice Mesh or Kubernetes:** The gateway is strictly a modular monolith. No distributed RPC, Consul, or k8s manifests will be generated.
-4. **No Complex Frontend Frameworks:** No React, Angular, or Vue single-page apps. The admin approval interface and playground will use minimal server-rendered Thymeleaf templates with Tailwind/vanilla CSS.
-5. **No Projects 2–5 from CSE 444:** Only Project 1 (AgentGate) is implemented.
+| **OS & Shell** | Windows 10/11, PowerShell 7.5.4 | Compatible | All commands documented with native PowerShell and Bash parity. |
+| **Git** | `2.55.0.windows.3` | Ready | Initialized; baseline governance and M00 plan committed incrementally. |
+| **Java JDK** | *Not detected on PATH* | Non-blocking for M00 | Student must run `winget install EclipseAdoptium.Temurin.21.JDK` before M01 code generation. *(Unverified locally until installed)*. |
+| **Maven** | *Not detected globally on PATH* | Non-blocking for M00 | M01 will bundle the official Maven Wrapper (`mvnw` / `mvnw.cmd`), making a global Maven install optional. |
+| **Docker / Compose** | *Not detected on PATH* | Non-blocking for M00 | Student must install Docker Desktop (`winget install Docker.DockerDesktop`) or configure WSL2 Docker engine before M01 runtime tests. |
+| **Host Memory** | 16GB physical RAM | Ready | Comfortably satisfies the 8GB laptop constraint (C1). Compose stack memory target is capped to $\le 2.5\text{ GB}$. |
 
 ---
 
-## 4. Architecture Design & System Decomposition
+## 4. MCP Architecture & Protocol Compatibility
 
-### 4.1 C4 System Context Diagram
+### 4.1 Spring AI MCP Starters & Transport
+- **Preferred Starters:** The gateway utilizes official Spring AI starters:
+  - `org.springframework.ai:spring-ai-mcp-server-spring-boot-starter:2.0.2`
+  - `org.springframework.ai:spring-ai-mcp-client-spring-boot-starter:2.0.2`
+- **Transport Mechanism:** Streamable HTTP (JSON-RPC 2.0 over HTTP POST / Server-Sent Events SSE) at `/mcp/message`. Streamable HTTP supersedes legacy STDIO and raw SSE, providing full compatibility with remote AI agents.
+- **Protocol Specification Version:** MCP Specification version **`2024-11-05`** (the standard baseline in Spring AI 2.0.2).
+- **July 28, 2026 Specification Changes:** We acknowledge the prospective July 28, 2026 MCP specification changes (e.g. advanced bidirectional streaming extensions, standardized structured error schema updates). However, in accordance with reviewer guidance, **we do not claim support for the July 2026 version without empirical evidence**. Our baseline adheres strictly to verified `2024-11-05` semantics, with protocol version negotiation designed to accommodate updates.
 
-```mermaid
-flowchart TD
-    subgraph External_Actors ["Callers & Administrators"]
-        Agent["AI Agent / Scripted Client\n(OAuth2 Client Credentials)"]
-        User["End User\n(Optional Propagated Context)"]
-        Approver["Security Officer / Approver\n(Web UI / Webhook)"]
-        Admin["Gateway Administrator\n(Admin UI / CLI)"]
-    end
+### 4.2 Dynamic Per-Identity Tool Discovery & Execution Security
+The official Spring AI MCP server starter auto-discovers and registers `@McpTool` beans globally. To enforce FR1 and FR2, the gateway wraps tool discovery and execution with a custom security interceptor:
+1. **Dynamic Catalog Filtering (`tools/list`):** When an agent sends a JSON-RPC `tools/list` request, the request passes through Spring Security. The authenticated `AgentIdentity` is extracted from the OAuth2 token. The gateway queries `ToolRegistryService.findPermittedTools(agentIdentity)` and projects a customized tool list containing **only** tools the agent is authorized to call.
+2. **Authorized Invocation (`tools/call`):** Any `tools/call` request must specify a tool permitted for the caller. If an agent attempts to invoke a tool outside its clearance, the gateway rejects the call before dispatching to downstream tools.
+3. **No Premature Custom Transport:** We do **not** commit to building a custom JSON-RPC transport. If M01 Spike 1 reveals that Spring AI 2.0.2's starter internals strictly prevent dynamic per-request `tools/list` projection, we will document the exact technical incompatibility in `docs/milestones/M01/PLAN.md` and obtain reviewer approval before introducing any custom transport controller.
 
-    subgraph AgentGate_System ["AgentGate Governance Platform"]
-        Gateway["AgentGate Modular Monolith\n(Spring Boot 4.x / Java 21)"]
-    end
-
-    subgraph Supporting_Infra ["Local Supporting Infrastructure"]
-        Keycloak["Keycloak 26.x\n(OAuth2 / OIDC IdP)"]
-        Postgres["PostgreSQL 16\n(Persistent Storage & Audit)"]
-        Redis["Redis 7\n(Quotas & Emergency Kill Flags)"]
-    end
-
-    subgraph Downstream_Services ["Target Business Tools"]
-        MockREST["apps/demo-tools\n(Mock REST Endpoints: Order, Refund)"]
-        MockMCP["apps/demo-tools\n(Mock MCP Tool Servers)"]
-    end
-
-    Agent -->|"1. Authenticate (client_credentials)"| Keycloak
-    Agent -->|"2. MCP JSON-RPC (tools/list, tools/call)\n+ Bearer JWT"| Gateway
-    Approver -->|"View Pending / Approve / Edit / Reject"| Gateway
-    Admin -->|"Manage Tools, Policies, Emergency Kill Switch"| Gateway
-
-    Gateway -->|"Verify JWT / Public Keys"| Keycloak
-    Gateway -->|"Read/Write Policies, Audit Hash Chain, Tools"| Postgres
-    Gateway -->|"Atomic Quotas, Rate Limits, Kill Flags"| Redis
-    Gateway -->|"Governed Invocation (HTTP / Streamable MCP)"| Downstream_Services
-```
-
-### 4.2 C4 Container & Package Decomposition (Modular Monolith)
-
-The gateway lives in `apps/gateway` as a clean modular monolith. Inter-package communication is restricted to explicit public service interfaces, validated via ArchUnit (C6).
-
-```text
-apps/gateway/src/main/java/com/agentgate/gateway/
-├── identity/          # FR2: OAuth2 JWT validation, AgentIdentity, TrustedUserContext
-├── registry/          # FR1: Tool catalog, OpenAPI importer, RiskLevel enum, Schema definitions
-├── mcp/               # FR1: MCP Streamable HTTP transport, JSON-RPC router, dynamic filtered tools/list
-├── execution/         # Core: GovernedExecutionPipeline orchestrator, Command execution
-├── policy/            # FR3, FR9, QA4: PolicyEngine, DefaultDeny evaluator, In-memory cache, Playground
-├── guard/             # FR5: SchemaValidator, ClearanceRedactor (email/BD phone/NID), Truncator
-├── approval/          # FR4: ApprovalStateMachine, WebhookNotifier, ApprovalController (Thymeleaf)
-├── limits/            # FR6, FR8: RateLimiter, DailyQuotaManager, BlastRadiusLimiter, KillSwitchManager
-├── resilience/        # FR10: Resilience4j CircuitBreakers, Timeouts, DownstreamHealthMonitor
-├── audit/             # FR7, QA3: HashChainAuditService, AuditEventPublisher, VerificationCLI
-├── admin/             # FR1, FR3, FR8: Admin web portal, tool import controller, policy editor
-├── observability/    # C4: Micrometer metrics, TraceContextFilter, Structured JSON logging
-└── common/            # RFC 9457 ProblemDetail handler, base exceptions, domain value types
-```
+### 4.3 Minimal MCP Compatibility Test (M01 Acceptance Test)
+An independent, scripted MCP client (`scripts/mcp-client-test.py` or `.ps1`) will be executed against the running gateway in M01 to demonstrate:
+1. **Authenticated Connectivity:** Client connects over Streamable HTTP with an OAuth2 Bearer token; unauthenticated requests receive HTTP 401.
+2. **Dynamic Tool Discovery:** Agent A (Finance clearance) lists tools and sees `[lookup_order, issue_refund]`; Agent B (Support clearance) lists tools and sees `[lookup_order]` only.
+3. **Authorized Tool Execution:** Agent A successfully executes `lookup_order` via `tools/call` and receives structured JSON-RPC result.
+4. **Rejection of Unauthorized Direct Invocation:** Agent B attempts `tools/call` on `issue_refund`; gateway rejects with JSON-RPC error `-32601` (Method Not Found) or `-32001` (Access Denied).
+5. **Authentication Failure Handling:** Calling with an expired or forged JWT fails at the Spring Security filter with HTTP 401 before any MCP processing.
+6. **Real MCP Protocol Message Compatibility:** Verified compliance with JSON-RPC 2.0 envelopes (`jsonrpc: "2.0"`, `id`, `method`, `params`, `result`, `error`).
 
 ---
 
-## 5. Single Governed Execution Pipeline Specification
+## 5. Unified Governed Execution Pipeline Specification
 
-Every tool invocation—regardless of whether it originates from the MCP endpoint (`tools/call`) or a REST gateway proxy—**must** traverse the unified, non-bypassable `GovernedExecutionPipeline`.
+Every tool invocation—originating from MCP `tools/call` or a REST gateway proxy—traverses this single, non-bypassable 11-step pipeline.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client as AI Agent (MCP Client)
+    participant Client as MCP Agent Client
     participant Pipe as GovernedExecutionPipeline
-    participant Ident as Identity & User Context
+    participant Ident as Identity & Anti-Spoof
     participant Kill as Emergency Kill Switch
     participant Reg as Registry & Resilience Filter
-    participant Limit as Limits & Quota Guard
+    participant Limit as Quotas & Rate Limits
     participant Schema as Schema Validation Guard
     participant Policy as Policy Engine (Default-Deny)
     participant Appr as Approval State Machine
     participant Target as Downstream Tool (REST/MCP)
-    participant Redact as Output Redaction Guard
+    participant Redact as PII Redaction & Truncation
     participant Audit as Hash-Chain Audit Logger
 
     Client->>Pipe: execute(ToolCallRequest)
-    Pipe->>Ident: 1. Extract & verify AgentIdentity & UserContext
-    alt Identity Invalid / Spoofed
-        Ident-->>Pipe: 401 Unauthorized / Context Mismatch
-        Pipe->>Audit: Audit failure event (tamper-evident)
-        Pipe-->>Client: Error (RFC 9457 / MCP Protocol Error)
-    end
+    Pipe->>Ident: 1. Extract Bearer JWT & verify end-user assertion
+    Pipe->>Kill: 2. Check atomic kill-switch (Agent, Tool, All Writes)
+    Pipe->>Reg: 3. Verify tool exists & Circuit Breaker is CLOSED
+    Pipe->>Limit: 4. Check sliding-window rate limit & daily/write quota
+    Pipe->>Schema: 5. Validate input arguments against JSON Schema
+    Pipe->>Policy: 6. Evaluate default-deny policy rules
 
-    Pipe->>Kill: 2. Check Emergency Kill Switch (Agent, Tool, All Writes)
-    alt Kill Switch Active
-        Kill-->>Pipe: 403 Forbidden (Emergency Disable)
-        Pipe->>Audit: Audit kill-switch block
-        Pipe-->>Client: Error ("Tool or agent disabled by admin")
-    end
-
-    Pipe->>Reg: 3. Verify Tool Exists & Circuit Breaker is CLOSED
-    alt Tool Down / Circuit OPEN
-        Reg-->>Pipe: 503 Service Unavailable
-        Pipe->>Audit: Audit circuit-breaker rejection
-        Pipe-->>Client: Error ("Downstream tool unhealthy")
-    end
-
-    Pipe->>Limit: 4. Atomic Rate Limit & Daily/Write Quota Check
-    alt Quota Breached
-        Limit-->>Pipe: 429 Too Many Requests
-        Pipe->>Audit: Audit quota breach alert
-        Pipe-->>Client: Error ("Quota or rate limit exceeded")
-    end
-
-    Pipe->>Schema: 5. Validate Input Arguments against JSON Schema
-    alt Schema Violation
-        Schema-->>Pipe: 422 Unprocessable Content
-        Pipe->>Audit: Audit schema rejection (record invalid args)
-        Pipe-->>Client: Error ("Invalid input arguments")
-    end
-
-    Pipe->>Policy: 6. Evaluate Default-Deny Policies (Agent, User, Args)
-    alt Denied by Policy
-        Policy-->>Pipe: DENY (Rule # matched)
-        Pipe->>Audit: Audit policy denial
-        Pipe-->>Client: Error ("Call denied by policy")
-    end
-
-    alt Requires Approval (High-Risk Tool or Policy Trigger)
-        Pipe->>Appr: 7. Create PENDING Approval (Notify Web/Webhook)
-        Appr-->>Pipe: Suspended / Awaiting Decision
-        Note over Appr: Approver Approves, Edits, or Rejects.<br/>Timeout auto-rejects.
-        alt Approver Rejects or Timeout Expires
-            Appr-->>Pipe: REJECTED / TIMEOUT
-            Pipe->>Audit: Audit approval rejection
-            Pipe-->>Client: Error ("Call rejected by human approver")
-        else Approver Edits Arguments
-            Appr-->>Pipe: EDITED (New Args)
+    alt Requires Human Approval (High-Risk or Policy Rule)
+        Pipe->>Appr: 7. Suspend call into PENDING state & notify approver
+        alt Approver Edits Arguments
+            Appr-->>Pipe: Arguments Edited
             Pipe->>Schema: Re-validate Edited Arguments
             Pipe->>Policy: Re-evaluate Policies with Edited Arguments
+        else Approver Rejects, Expires, or Cancelled by Kill Switch
+            Appr-->>Pipe: REJECTED / EXPIRED / CANCELLED
+            Pipe->>Audit: Record rejection in audit chain
+            Pipe-->>Client: Error ("Call rejected by approver / timeout / kill switch")
         end
     end
 
-    Pipe->>Target: 8. Invoke Downstream Tool via Resilient Client
+    Note over Pipe,Target: Two-Phase Write & Pre-Dispatch Check
+    Pipe->>Kill: 8a. Last-Chance Kill Switch & Pre-Dispatch Check
+    Pipe->>Audit: 8b. Record ToolExecutionIntent (DISPATCHED)
+    Pipe->>Target: 8c. Invoke downstream tool via resilient client
     Target-->>Pipe: Raw Result Payload (JSON / String)
 
-    Pipe->>Redact: 9. Redact PII (Email, BD Phone, NID) & Truncate if Oversized
-    Redact-->>Pipe: Sanitized Result Payload
-
-    Pipe->>Audit: 10. Synchronously Append Cryptographic Hash-Chain Record
-    Audit-->>Pipe: Hash Chain Updated (H_n)
-
-    Pipe-->>Client: 11. Return Governed Result Payload
+    Pipe->>Redact: 9. Redact PII (Email, BD Phone, NID) & truncate if oversized
+    Pipe->>Audit: 10. Record ToolExecutionOutcome & Append Hash-Chain (H_n)
+    Pipe-->>Client: 11. Deliver scrubbed, governed result
 ```
 
-### 5.1 Re-evaluation and Synchronous vs Asynchronous Rules
+---
 
-1. **Synchronous Checks:** Steps 1 through 6 are executed synchronously on the calling thread (virtual thread). Any violation short-circuits execution immediately, raises an audit event, and returns.
-2. **Re-evaluation on Argument Edit:** If an approver modifies arguments during Step 7, the pipeline **must not** proceed directly to downstream invocation. It resets to Step 5 (Schema Validation) and Step 6 (Policy Evaluation) using the edited arguments.
-3. **Audit Execution:** Audit recording (Step 10) is transactional. The hash calculation $H_n = \text{SHA-256}(H_{n-1} \parallel \text{canonicalJson}(R_n))$ requires atomic sequence ordering. Failure to write the audit record aborts client delivery and triggers fail-closed rollback.
+## 6. Policy-Store Failure & Audit Durability (QA4 & FR7 Resolution)
+
+A fundamental tension exists between **QA4** (low-risk tools continue working during policy-store failure for up to 5 minutes) and **FR7** (every tool call must be recorded in a tamper-evident audit chain) when PostgreSQL is the storage engine for both.
+
+### 6.1 Low-Risk Policy Caching & Outage Enforcement (QA4)
+1. **In-Memory Policy Cache:** Policies are loaded into an in-memory Caffeine cache on startup and updated via scheduled poll / push event ($\le 10\text{ s}$).
+2. **Outage Detection:** PostgreSQL connectivity is monitored via a dedicated health probe / circuit breaker. On the first JDBC connection failure, the `PolicyEngine` enters `DEGRADED_OUTAGE` mode.
+3. **Monotonic Outage Clock:** The gateway records `outageStartNano = System.nanoTime()`.
+4. **Strict 5-Minute Enforcement:** For every low-risk tool call during an outage, elapsed time is calculated:
+   $$\Delta t = \frac{\text{System.nanoTime}() - \text{outageStartNano}}{10^9}$$
+   - If $\Delta t \le 300\text{ seconds}$ (5 minutes): The call is evaluated against the last-known cached policy set.
+   - If $\Delta t > 300\text{ seconds}$: Low-risk tools immediately **fail closed**, returning RFC 9457 `503 Service Unavailable` with detail `"Policy cache expired (>5m); gateway fail-closed."`
+
+### 6.2 Fail-Closed Rationale for Medium- and High-Risk Tools
+Medium- and high-risk tools (e.g. financial refunds, customer PII modifications, write operations) carry catastrophic operational and security risk. In the absence of an authoritative, live policy store, revocations or emergency rule updates cannot be guaranteed. Therefore, **medium- and high-risk tools fail closed immediately at $t = 0$ of a PostgreSQL outage**, returning HTTP 503.
+
+### 6.3 Audit Durability During Outages (Local WAL Buffer)
+During a PostgreSQL outage, the gateway **cannot** write synchronously to PostgreSQL. To satisfy FR7 without losing audit durability:
+1. **Local Durable Write-Ahead Log (WAL):** When PostgreSQL is offline, audit records are written to a local append-only WAL file (`var/audit-fallback/audit-deferred.wal`) with synchronous disk flushing (`fsync`).
+2. **Deferred Record Structure:**
+   $$\text{DeferredRecord} = \{ \text{seqId}, \text{timestamp}, \text{agentId}, \text{userId}, \text{toolId}, \text{canonicalJson(redactedArgs)}, \text{outcome}, H_{local\_n} \}$$
+   Each entry is linked via a local SHA-256 chain: $H_{local\_n} = \text{SHA-256}(H_{local\_n-1} \parallel \text{payload})$.
+3. **What Happens if the Fallback Audit Mechanism Fails? (e.g. disk full):**
+   - **FAIL CLOSED.** If an audit record cannot be durably written to either PostgreSQL or the local WAL buffer, **the tool call must not execute**. Auditability is a non-negotiable security requirement. The pipeline aborts with HTTP 500/503 (`"Audit durability failure: execution aborted."`).
+
+### 6.4 Audit Reconciliation & Hash-Chain Integrity
+When PostgreSQL reconnects:
+1. A background `AuditReconciliationWorker` acquires an exclusive database lock on the audit chain head (`SELECT FOR UPDATE`).
+2. The worker reads `audit-deferred.wal` sequentially from the beginning of the outage.
+3. For each deferred record, the worker calculates the global hash based on the current chain head:
+   $$H_{db\_new} = \text{SHA-256}(H_{db\_prev} \parallel \text{deferredPayload})$$
+4. The record is inserted into `audit_log` with `reconciled_from_outage = true`, original invocation timestamp, and the continuous global hash.
+5. The transaction commits, the WAL segment is marked processed, and the chain remains continuous, tamper-evident, and verifiable by `verify-audit` without fork corruption.
+
+### 6.5 Irreversibility of External Writes, Two-Phase Recording & Idempotency
+- **Physical Reality:** Once an external HTTP REST or MCP write call executes against downstream `demo-tools` (e.g. issuing a refund), that operation cannot be rolled back by rolling back a database transaction inside the gateway.
+- **Two-Phase Recording:**
+  - **Phase 1 (Pre-Invocation):** Record `ToolExecutionIntent` with status `DISPATCHED`, `idempotency_key`, timestamp, and sanitized arguments.
+  - **Phase 2 (Post-Invocation):** Record `ToolExecutionOutcome` with status `COMPLETED` (or `FAILED`), downstream response code, latency, and redacted result.
+- **Idempotency Guarantee:**
+  - Every write tool call requires an `Idempotency-Key` header (or one is derived from `agentId + toolId + SHA-256(arguments)`).
+  - If a client retries a call that is already `DISPATCHED`: The gateway returns HTTP 409 Conflict (`"Request currently in flight"`).
+  - If a client retries a call that is `COMPLETED`: The gateway returns the cached outcome from the audit log without re-invoking the downstream tool.
 
 ---
 
-## 6. Detailed Architectural Reasoning & Trade-Off Analysis
+## 7. Redis & Kill-Switch Failure Behavior
 
-### 6.1 Spring MVC with Virtual Threads (Java 21) vs Spring WebFlux
-- **Decision:** **Spring MVC with Virtual Threads** (enabled via `spring.threads.virtual.enabled=true`).
-- **Rationale:**
-  - **Thread-Local Security Context:** Spring Security's `SecurityContextHolder` works seamlessly across virtual threads without reactive context propagation pitfalls.
-  - **Ecosystem Compatibility:** Flyway, standard JDBC/JPA, and classic blocking downstream HTTP clients (e.g. `RestClient`) operate with maximum reliability and clear call stacks.
-  - **Debugging & Teachable Architecture:** Virtual threads provide lightweight concurrency (thousands of concurrent requests) while preserving simple, imperative, top-to-bottom procedural code.
-- **Rejected Alternative:** Spring WebFlux. While reactive streams offer non-blocking I/O, they introduce significant cognitive overhead, complex debugging (`Mono`/`Flux`), difficult stack traces, and frequent reactive-blocking bridge traps (e.g., when calling JDBC or synchronous crypto routines). Under Java 21, virtual threads achieve equivalent I/O concurrency without reactive complexity.
+### 7.1 Separate Behavioral Modes
+1. **Normal Redis Operation:** Redis 7 manages atomic sliding-window rate counters (via Lua scripts), daily quotas, hourly blast-radius write caps, and distributed emergency kill-switch flags.
+2. **Development-Only In-Memory Profile:** An in-memory Caffeine rate limiter and local atomic boolean map are gated strictly behind `@Profile("dev")` or `@Profile("test")`. A startup validation check ensures that if `spring.profiles.active` contains `prod`, Redis **must** be reachable; the application will refuse to start if Redis is absent in production.
+3. **Redis Failure During Normal (Production) Operation:**
+   - **Write Tools & High-Risk Tools:** **Fail closed immediately (HTTP 503).** If Redis is unreachable, the system cannot verify rate limits, hourly write caps, or emergency kill switches. Allowing writes without quota verification violates security guarantees.
+   - **Low-Risk Read Tools:** Fall back to a strict local in-memory circuit-breaker rate limit (e.g. max 5 reads/sec per instance) for up to 2 minutes, after which all calls fail closed if Redis does not recover.
 
-### 6.2 Agent Identity vs End-User Context Trust Model
-- **Core Security Boundary:**
-  - **Registered Agent Identity:** Authenticated via OAuth2 Client Credentials (`client_id`, Bearer JWT issued by Keycloak). This is the cryptographically verified machine identity.
-  - **End-User Context:** Represents the human or customer on whose behalf the agent is acting.
-- **Anti-Spoofing Rule:** An untrusted caller **cannot** simply supply `X-User-Id: customer-123` to impersonate an end user. The gateway enforces one of two mutually verified mechanisms:
-  1. **Signed User Assertion Token:** A signed JWT issued by an identity provider carrying user claims, validated by Keycloak/Gateway public keys.
-  2. **Scoped Agent Grant:** If the client credentials grant authorizes acting on behalf of a user, the user ID must be validated against an active delegation session stored in Redis/DB.
-  3. Any unverified user header results in immediate rejection (RFC 9457 `401 Unauthorized`).
+### 7.2 Kill-Switch Activation & In-Flight Invalidation
+1. **Kill Switch while Approvals are Pending:**
+   - When an administrator activates a kill switch (disabling an agent, a tool, or all write tools):
+     - The flag is atomically written to Redis and PostgreSQL.
+     - The `ApprovalStateMachine` immediately queries active kill switches and transitions all matching pending approvals to `CANCELLED` with reason `"Cancelled by administrator kill switch"`.
+     - Approvers and clients are notified immediately; pending requests cannot be approved.
+2. **Kill Switch Immediately Before Downstream Dispatch (Last-Chance Pre-Dispatch Check):**
+   - Even if a call was previously approved or verified, Step 8a of the pipeline executes a synchronous, non-cached assertion:
+     ```java
+     killSwitchManager.assertNotKilled(agentId, toolId, isWrite);
+     ```
+   - If the tool or agent was disabled milliseconds prior to dispatch, execution is aborted, state is recorded as `ABORTED_BY_KILL_SWITCH`, and an audit record is created.
 
-### 6.3 MCP Client Approval Semantics & Disconnection Behavior
-- **Protocol Constraint:** The Model Context Protocol (MCP) operates over JSON-RPC. A standard client tool call expects a response or an error; it cannot suspend for days without transport connection loss.
-- **Approval Lifecycle Mechanics:**
-  - When a tool call requires human approval, the gateway sets a state machine record to `PENDING` with a configurable timeout (e.g., default 3 minutes for synchronous hold, or longer for decoupled operations).
-  - **Mode A (Synchronous Hold):** The virtual thread blocks on a Java `CompletableFuture` / Redis pub-sub latch until the human approves, edits, or rejects, or until the timeout fires. If approved within the window, the tool executes and the client receives the result.
-  - **Mode B (Timeout / Disconnect):** If the HTTP connection drops or the timeout expires before an approver responds, the approval transitions to `TIMEOUT_REJECTED`. The gateway cleans up in-flight resources and ensures no orphan tool call is ever executed.
-  - **Idempotency:** Each approval request carries a unique `approval_id` and idempotency key, preventing double-execution on client retries.
-
-### 6.4 Policy Hot-Reload (<=10s) and Outage Fail-Safe Semantics (QA4)
-- **Normal Operation:** Policies are stored in PostgreSQL with integer version numbers. An in-memory Caffeine cache holds the compiled policy AST with a 10-second refresh schedule / event-driven invalidation. Changes take effect across all threads in $<10\text{ s}$ without service restart.
-- **Outage Semantics (QA4):** If PostgreSQL becomes unreachable:
-  - **Medium-Risk & High-Risk Tools:** **Fail closed immediately.** Returns RFC 9457 `503 Service Unavailable` with message `"Policy store unreachable; high/medium risk tools disabled."`
-  - **Low-Risk Tools:** Fall back to the last-known in-memory cached policy set for a maximum grace period of **5 minutes ($300\text{ s}$)** from the moment of DB failure.
-  - Once the 5-minute threshold is exceeded without DB recovery, all tools fail closed.
-  - **Kill Switch Override:** Emergency kill switches stored in Redis or local memory bypass the policy cache entirely to ensure instantaneous lockout.
-
-### 6.5 Rate Limits and Atomic Counter Storage
-- **Decision:** Redis 7 with Lua scripts as primary store; in-memory Caffeine / DB atomic counter as fallback.
-- **Rationale:** Checking rate limits (e.g., 100 requests/sec), daily quotas, and blast-radius write caps (e.g., 20 writes/hour) requires atomic compare-and-increment operations. In Redis, a single Lua script executes atomically in $<0.5\text{ ms}$, ensuring zero race conditions under concurrent load.
-- **Fallback:** If Redis is disabled or fails, an in-memory sliding-window counter operates locally for single-node development, ensuring testability without external infrastructure.
-
-### 6.6 Cryptographic Audit Hash-Chain Serialization (FR7, QA3)
-- **Hash-Chain Formula:**  
-  $$H_0 = \text{SHA-256}("AgentGate-Genesis-Block")$$  
-  $$H_n = \text{SHA-256}(H_{n-1} \parallel \text{timestamp} \parallel \text{agentId} \parallel \text{userId} \parallel \text{toolId} \parallel \text{canonicalJson(redactedArgs)} \parallel \text{decision} \parallel \text{outcome})$$
-- **Concurrency & Tamper-Evidence:**
-  - Audit records receive a monotonically increasing sequence ID (`audit_seq`).
-  - To prevent hash chain collisions under 100 calls/sec concurrency, audit records are processed through a synchronized append buffer (or PostgreSQL advisory lock on audit chain head), ensuring strict linear order.
-  - An offline verification script (`scripts/verify-audit.ps1` / `.sh`) walks the table, recalculates every hash, and fails immediately if any row or sequence link has been modified.
+### 7.3 Redis Persistence & Cold Recovery Strategy
+- In `compose.yaml`, Redis is configured with an Append-Only File (AOF):
+  ```yaml
+  command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+  ```
+- On gateway startup or Redis reconnection, `KillSwitchManager` re-synchronizes the Redis state from the authoritative PostgreSQL `kill_switch_state` table, ensuring complete recovery after a cold reboot.
 
 ---
 
-## 7. Recommended Toolchain, Dependency Versions & Multiplatform Commands
+## 8. Strengthened Approval Execution Semantics
 
-### 7.1 Verified Version Matrix
+### 8.1 Formal State Machine & Transitions
+High-risk tool invocations pause as approvals managed by a formal state machine (`ApprovalStateMachine`):
 
-| Layer / Library | Recommended Version | Rationale / Verification Spike |
-|---|---|---|
-| **Java JDK** | 21 LTS (Eclipse Adoptium) | Required baseline; virtual threads, pattern matching, record patterns. |
-| **Spring Boot** | 3.4.2 / 3.4.3 (or 4.0.0-M1 when available) | Stable GA baseline compatible with Spring AI 1.0.0-M6; prompt notes "Boot 4.x" which will be verified via Spike 1. |
-| **Spring AI** | 1.0.0-M6 (or 2.0.x baseline) | Provides Spring AI MCP server and client starters (`spring-ai-mcp-*`). |
-| **Spring Security** | 6.4.x (managed by Boot) | Resource server, JWT validation, method security, custom AuthorizationManager. |
-| **PostgreSQL** | 16-alpine | Standard enterprise relational storage; JSONB support for schemas and policies. |
-| **Flyway** | 10.x (managed by Boot) | Predictable, repeatable schema migrations in `apps/gateway/src/main/resources/db/migration/`. |
-| **Redis** | 7-alpine | Sub-millisecond atomic quotas, sliding-window limits, kill-switch flags. |
-| **Keycloak** | 26.x | Lightweight OIDC/OAuth2 server running in development mode (`start-dev`). |
-| **Resilience4j** | 2.2.0 | Circuit breakers, rate limiters, retries, time limiters for downstream calls. |
-| **springdoc-openapi**| 2.8.x | Auto-generates OpenAPI 3.0 documentation for all gateway endpoints. |
-| **ArchUnit** | 1.3.0 | Automated unit tests enforcing modular monolith architectural boundaries. |
-| **k6** | 0.50+ | Performance benchmarking tool for QA2 (100 calls/sec overhead). |
+```text
+       [ Tool Call Initiated ]
+                  │
+                  ▼
+              ( PENDING )
+              │   │   │  └────────────────────────────────┐
+      Approve │   │   │ Reject / Timeout / Kill Switch   │ Approver Edits Args
+              │   │   │                                   ▼
+              │   │   │                              ( EDITED )
+              │   │   │                                   │
+              │   │   │                     Schema & Policy Re-check
+              │   │   │                                   ├──────────────┐
+              │   │   │                            Valid  │              │ Invalid
+              │   │   │                                   ▼              ▼
+              │   │   │                       ( APPROVED_WITH_EDITS ) ( REJECTED )
+              │   │   ▼                                   │
+              │   └─► ( REJECTED / EXPIRED / CANCELLED )  │
+              ▼                                           │
+         ( APPROVED ) ◄───────────────────────────────────┘
+              │
+    [ Pre-Dispatch Assertion ]
+              ├──────────────────────────────┐
+       Passed │                       Failed │ (Kill switch / breaker open)
+              ▼                              ▼
+    [ Downstream Invocation ]         ( CANCELLED_PRE_DISPATCH )
+```
 
-### 7.2 Cross-Platform Command Equivalency (Windows PowerShell vs Linux/macOS)
+- **States:** `PENDING`, `APPROVED`, `APPROVED_WITH_EDITS`, `REJECTED`, `EXPIRED`, `CANCELLED`, `EDITED`.
+- **Transitions:**
+  - $\text{PENDING} \xrightarrow{\text{approver approves}} \text{APPROVED}$
+  - $\text{PENDING} \xrightarrow{\text{approver rejects}} \text{REJECTED}$
+  - $\text{PENDING} \xrightarrow{\text{timeout elapsed}} \text{EXPIRED}$
+  - $\text{PENDING} \xrightarrow{\text{kill switch activated / client disconnect}} \text{CANCELLED}$
+  - $\text{PENDING} \xrightarrow{\text{approver edits args}} \text{EDITED}$
 
-| Action | Windows PowerShell Command | Linux / macOS Bash Command |
-|---|---|---|
-| **Clean Build** | `.\mvnw.cmd clean package -DskipTests` | `./mvnw clean package -DskipTests` |
-| **Run All Tests** | `.\mvnw.cmd test` | `./mvnw test` |
-| **Run Single Test** | `.\mvnw.cmd test -Dtest=GovernedPipelineTest` | `./mvnw test -Dtest=GovernedPipelineTest` |
-| **Compose Start** | `docker compose up --build -d` | `docker compose up --build -d` |
-| **Compose Logs** | `docker compose logs -f gateway` | `docker compose logs -f gateway` |
-| **Compose Stop** | `docker compose down -v` | `docker compose down -v` |
-| **Audit Verification** | `powershell -File .\scripts\verify-audit.ps1` | `bash ./scripts/verify-audit.sh` |
-| **Red-Team Suite** | `powershell -File .\scripts\redteam.ps1` | `bash ./scripts/redteam.sh` |
+### 8.2 Revalidation of Edited Arguments
+If an approver modifies arguments:
+1. The new arguments **must** be re-validated by `SchemaValidator` against the tool's JSON Schema.
+2. The new arguments **must** be re-evaluated by `PolicyEngine`. If the edited argument violates policy (e.g. refund amount edited to 2,500 BDT, exceeding the 2,000 BDT cap), the edit is rejected and the approver is notified.
+3. Only if both checks pass does the state transition to `APPROVED_WITH_EDITS`.
+
+### 8.3 Configurable Timeout Behavior
+- Configured globally via `agentgate.approval.default-timeout: PT3M` (3 minutes) and overridable per-tool in the registry (`approval_timeout_seconds`).
+- A scheduled timer monitors pending approvals. When the timeout expires, an atomic conditional update transitions the state:
+  ```sql
+  UPDATE approvals SET status = 'EXPIRED' WHERE id = :id AND status = 'PENDING';
+  ```
+- If the transition succeeds, the waiting thread is unblocked and returns an expiration error.
+
+### 8.4 MCP Client Response Semantics
+- **After Approval:** Client receives standard JSON-RPC 2.0 response with tool `result`.
+- **After Rejection / Expiration / Cancellation:** Client receives standard JSON-RPC 2.0 error:
+  - Rejection: `{ "code": -32000, "message": "Approval rejected by human approver: [reason]" }`
+  - Expired: `{ "code": -32001, "message": "Approval request timed out after [X] seconds." }`
+  - Cancelled: `{ "code": -32002, "message": "Approval cancelled: target tool or agent disabled by kill switch." }`
+- **Client Disconnection:** If the client drops the HTTP connection while pending, the virtual thread marks the approval `DISCONNECTED_PENDING_OUTCOME`. The approval remains actionable by the human; if approved, the outcome is stored under the `idempotency_key` so a reconnecting client receives the result without duplicate execution.
+
+### 8.5 Pre-Dispatch Re-verification
+An approved request **never** executes blindly. Step 8a of the pipeline re-checks:
+1. Active kill switch status (Agent, Tool, All Writes).
+2. Downstream tool health and circuit breaker status.
+3. Active rate limits and quotas.
+If any check fails, dispatch is aborted, the approval is marked `REVOKED_PRE_DISPATCH`, and the event is audited.
 
 ---
 
-## 8. Prioritized Technical Spikes for Milestone M01
+## 9. Identity & Authorization Model
 
-Before building complex business features, four targeted technical spikes will be executed during M01 to retire critical dependency and protocol uncertainties:
+### 9.1 Machine Identity vs Trusted End-User Context
+- **Registered Agent Identity:** Authenticated via OAuth2 Client Credentials (`client_id`, Bearer JWT issued by Keycloak).
+- **Anti-Spoofing Rule:** Unverified HTTP headers (e.g. `X-User-Id: customer-123`) are strictly rejected.
+- **Trusted End-User Context Implementation:**
+  - Selected Mechanism: **Signed End-User Assertion Token (RFC 7519 JWT)** passed in the `X-User-Assertion` header.
+  - The assertion token is signed by Keycloak (or a trusted enterprise IdP) and carries user identity claims (`sub: "<userId>"`, `aud: "agentgate"`, `exp`).
+  - The gateway validates the assertion signature against Keycloak's public keys (`/certs` JWKS endpoint).
+  - The calling agent's client credentials token must carry the OAuth2 scope `delegation:act_as_user`.
+  - If the scope is absent, or the assertion signature/expiration is invalid, the request is rejected immediately with HTTP 401.
 
-### Spike 1: Spring AI MCP Streamable Transport & Dynamic Tool Security
-- **Objective:** Determine how Spring AI MCP handles dynamic, per-identity tool discovery and execution authorization.
-- **Hypothesis:** Default Spring AI MCP auto-configuration registers static `@McpTool` beans globally. An anonymous or unauthorized client could invoke `tools/list` and see every tool.
-- **Proof-of-Concept:** Implement an MCP HTTP interceptor / custom JSON-RPC dispatcher that extracts the OAuth2 Bearer token, queries `ToolRegistryService.findPermittedTools(agentIdentity)`, and returns a filtered list. If Spring AI's starter does not permit per-request dynamic filtering, build a clean custom JSON-RPC Spring MVC controller implementing the MCP specification directly.
-- **Success Criteria:** Agent A sees only Tools [T1, T2]; Agent B sees only Tools [T2, T3]; unauthenticated calls receive HTTP 401.
+### 9.2 Keycloak Web Roles & RBAC for Web Interface
+The administrative and approval web interfaces use Spring Security OAuth2 Login (OIDC Authorization Code Flow with PKCE) backed by Keycloak.
 
-### Spike 2: Keycloak Client Credentials & Mocked JWT Security Slices
-- **Objective:** Configure Keycloak realm provisioning for automated tests without slow container startup.
-- **Hypothesis:** Integration tests can use Testcontainers Keycloak for smoke tests, but slice tests should use Spring Security's `SecurityMockMvcRequestPostProcessors.jwt()` with custom `JwtAuthenticationConverter` to verify identity parsing in $<100\text{ ms}$.
-- **Success Criteria:** Unit tests verify valid client, invalid signature, expired token, and missing scopes without network I/O.
+| Role Name | Granted Permissions & Accessible Endpoints |
+|---|---|
+| **`ROLE_ADMIN`** | Tool registration, OpenAPI import, policy editing/publishing, emergency kill switch activation (`/admin/**`). |
+| **`ROLE_APPROVER`** | Viewing pending approvals, approving/rejecting/editing pending tool calls (`/approvals/**`). |
 
-### Spike 3: Redis vs In-Memory Sliding-Window Quota Concurrency
-- **Objective:** Benchmark atomic counter increment under 100 concurrent threads.
-- **Hypothesis:** Redis Lua script maintains consistency with zero over-allocation under load.
-- **Success Criteria:** 100 concurrent threads competing for a limit of 20 calls permit exactly 20 calls and block 80 with HTTP 429.
+### 9.3 Comprehensive Endpoint Authorization & CSRF Protection
+```java
+http
+    .authorizeHttpRequests(auth -> auth
+        // Public endpoints
+        .requestMatchers("/actuator/health", "/actuator/info", "/error", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+        // Machine-to-machine MCP endpoint (Bearer token)
+        .requestMatchers("/mcp/**").hasAuthority("SCOPE_agent:invoke")
+        // Admin web portal
+        .requestMatchers("/admin/**").hasRole("ADMIN")
+        // Approval web portal
+        .requestMatchers("/approvals/**").hasAnyRole("APPROVER", "ADMIN")
+        // Deny all other routes
+        .anyRequest().denyAll()
+    )
+    .csrf(csrf -> csrf
+        // Enable CSRF on browser-based form endpoints (Thymeleaf with CookieCsrfTokenRepository)
+        .ignoringRequestMatchers("/mcp/**", "/api/**") // Stateless Bearer token APIs are exempt from CSRF
+    );
+```
 
-### Spike 4: 8GB Laptop Docker Compose Resource Budget
-- **Objective:** Prove the entire stack starts and runs smoothly within 2.5GB RAM.
-- **Allocated Memory Limits in `compose.yaml`:**
+---
+
+## 10. Quality-Attribute Validation Methodology
+
+### 10.1 QA1: Security Red-Team Test Suite (30 Malicious + 200 Legitimate)
+Automated test suite (`scripts/redteam.ps1` / `.sh`) executing exact vectors:
+- **30 Scripted Malicious Requests (100% must be blocked or held):**
+  - **Vectors 1–10 (Argument Smuggling & Injection):** SQL injection in parameters (`' OR '1'='1`), JSON smuggling, prompt injection payloads attempting to alter tool behavior.
+  - **Vectors 11–20 (Cross-Customer Data Access):** Agent authenticated for Customer A attempting to read orders/records belonging to Customer B; calls with forged/untrusted `X-User-Id` headers.
+  - **Vectors 21–30 (Policy & Cap Breaches):** Refund requests $> 2,000\text{ BDT}$; calls exceeding hourly write caps; calls to unauthorized admin tools; calls during active kill switch.
+- **200 Legitimate Requests ($\le 5\%$ false block rate, max 10/200):**
+  - 150 low-risk read operations (customer looking up own order status, within rate limits).
+  - 50 permitted write operations (refunds $\le 2,000\text{ BDT}$ held for approval and approved).
+- **Target Measure:** 30/30 malicious calls blocked or held; $\le 10/200$ legitimate calls falsely blocked.
+
+### 10.2 QA2: Performance Measurement ($\Delta p95 \le 30\text{ ms}$ at 100 cps)
+Reproducible k6 load script (`scripts/benchmark-latency.js`):
+1. **Direct Downstream Baseline:** Run 500 requests directly against `apps/demo-tools` at 100 cps. Record baseline latency: $p95_{direct}$.
+2. **Gateway Warm-Up:** 30 seconds at 20 cps to warm up JVM, virtual threads, JIT compilation, and connection pools.
+3. **Steady-State Measurement:** 120 seconds of sustained 100 cps load across 10 concurrent simulated agents executing low-risk read calls through the gateway. Record: $p95_{gateway}$.
+4. **Overhead Calculation:**
+   $$\Delta p95 = p95_{gateway} - p95_{direct} \le 30\text{ ms}$$
+5. **Synchronous Audit Performance Trade-Off:** Synchronous SHA-256 hash chaining requires database inserts. To maintain $\Delta p95 \le 30\text{ ms}$, the gateway uses HikariCP (20 connections), prepared statements, and SSD write buffers.
+
+### 10.3 QA3: Auditability & Tamper-Detection
+1. **Traceability Drill:** An auditor queries the admin API using a `trace_id` or `agent_id`; full context (agent, user, tool, redacted args, deciding policy rule, approval details, outcome) must be displayed in $<1\text{ minute}$.
+2. **Tamper Detection Test (`scripts/verify-audit.ps1`):**
+   - Execute 100 tool calls to establish an audit chain.
+   - Run verification script: asserts 100% validity.
+   - Execute SQL script modifying one byte in row 42:
+     ```sql
+     UPDATE audit_log SET outcome = 'TAMPERED' WHERE sequence_id = 42;
+     ```
+   - Re-run verification script: fails immediately, reports corrupted row 42, and exits with non-zero code.
+
+### 10.4 QA4: Policy-Store Outage Chaos Test
+1. Execute steady-state tool calls.
+2. Stop PostgreSQL: `docker compose stop postgres`.
+3. Invoke high-risk / medium-risk tool: asserts immediate fail-closed HTTP 503 ($<100\text{ ms}$).
+4. Invoke low-risk tool: succeeds using cached policies; audit event written to local WAL buffer.
+5. Advance clock / wait 301 seconds: invoke low-risk tool; asserts fail-closed HTTP 503.
+6. Restart PostgreSQL: `docker compose start postgres`.
+7. Verify `AuditReconciliationWorker` ingests WAL records and reconciles global hash chain.
+8. Run `verify-audit`: asserts complete chain integrity.
+
+### 10.5 QA5: Timed New REST Tool Onboarding Walkthrough
+An external developer (unfamiliar with codebase) follows a 4-step walkthrough:
+1. Log into `/admin/tools` and upload an OpenAPI 3.0 JSON specification (`CustomerFeedbackService`).
+2. Assign risk level (`LOW`), owning team (`Support`), and input schema.
+3. Configure a default-deny policy rule allowing Agent `support-bot` to invoke the tool.
+4. Execute a sample call in `/admin/playground`.
+- **Target:** Entire workflow completed in $<10\text{ minutes}$ with zero Java code edits or redeployments.
+
+### 10.6 C1: 8GB Laptop Resource Budget & Verification
+- **Target:** Total container RAM consumption $\le 2.5\text{ GB}$.
+- **Container Memory Limits in `compose.yaml`:**
   - `gateway`: `mem_limit: 1024m` (JVM heap `-Xmx512m`)
   - `keycloak`: `mem_limit: 768m` (JVM heap `-Xmx384m`)
   - `postgres`: `mem_limit: 256m`
   - `redis`: `mem_limit: 128m`
   - `demo-tools`: `mem_limit: 256m`
-  - **Total System RAM Footprint:** $\approx 2.4\text{ GB}$, leaving $>5\text{ GB}$ free for the host OS.
-- **Success Criteria:** `docker compose up --build -d` achieves healthy status in $<90\text{ s}$ without triggering host swap or OOM.
+- **Verification:** Run `docker stats --no-stream` under full 100 cps load. Verify that total container memory $\le 2.5\text{ GB}$ and host retains $>5\text{ GB}$ available physical memory. Container memory limits alone do not prove compatibility; actual measured runtime consumption will be reported in M01/M10.
 
 ---
 
-## 9. Architecture Decision Record (ADR) Candidates
+## 11. Preserved Milestone Boundaries & Roadmap Integrity
 
-In accordance with requirement C7, the following four foundational ADRs are formulated for implementation:
-
-1. **ADR-0001: Selection of Spring MVC with Virtual Threads over Spring WebFlux for AgentGate Gateway**
-   - *Context:* High-concurrency I/O gateway requiring clean security context propagation and simple maintainability.
-   - *Decision:* Adopt Spring MVC on Java 21 Virtual Threads.
-   - *Consequences:* Straightforward blocking code with near-reactive scalability; avoids reactive complexity.
-2. **ADR-0002: Modular Monolith with Package Boundary Enforcement over Microservices Architecture**
-   - *Context:* Single-command deployment requirement (C1), 8GB laptop budget, and strict delivery timeline.
-   - *Decision:* Build a single deployable artifact in `apps/gateway` structured by domain features, verified via ArchUnit.
-   - *Consequences:* Zero network overhead between internal modules; easy local testing; avoids distributed systems failure modes.
-3. **ADR-0003: Redis Atomic Sliding-Window and Key-Value Store for Quotas and Instant Kill-Switch**
-   - *Context:* Need sub-millisecond atomic rate limits (FR6) and instantaneous kill-switch propagation (FR8).
-   - *Decision:* Use Redis 7 with Lua scripts as the atomic state store, with an in-memory fallback for local unit testing.
-   - *Consequences:* Zero race conditions; sub-millisecond overhead; adds Redis container to Docker Compose.
-4. **ADR-0004: SHA-256 Cryptographic Hash-Chained Audit Trail with Strict Sequence Locking**
-   - *Context:* Tamper-evident audit requirement (FR7, QA3) where any modified row must be detectable.
-   - *Decision:* Store records with an immutable hash chain $H_n = \text{SHA-256}(H_{n-1} \parallel R_n)$ using database sequence serialization.
-   - *Consequences:* Guarantees cryptographic audit integrity; requires disciplined batching or sequencing to maintain 100 cps performance.
+The milestone scope boundaries remain strictly preserved:
+- **Milestone M01 Responsibility:**
+  - Multi-module Maven setup (`pom.xml`, `apps/gateway`, `apps/demo-tools`).
+  - Maven Wrapper (`mvnw`, `mvnw.cmd`).
+  - Docker Compose (`compose.yaml`) with Keycloak 26, Postgres 16, Redis 7, Demo-Tools.
+  - Basic Spring Boot 4.0.9 application with Spring Security resource server.
+  - Spike 1 (Dependency compilation check) & Spike 2 (Minimal authenticated MCP connectivity test).
+  - Actuator health and readiness endpoints.
+  - CI smoke test workflow.
+- **Future Milestone Boundaries:**
+  - Full quota concurrency verification is strictly in **M06**.
+  - Full audit-chain benchmarking and tampering drills are strictly in **M07**.
+  - No premature implementation of M02–M10 in M01.
+  - Checkpoint change request is preserved as a separate milestone: **M-CR**.
 
 ---
 
-## 10. Design Pattern to Requirement Mapping Ledger (C8)
+## 12. Architecture Decision Records (ADRs) & Pattern Mapping
 
-| Design Pattern | Requirement Served | Candidate Location | Participating Classes (Proposed) | Rejected Alternative & Rationale |
+### 12.1 Four Core ADR Candidates
+1. **ADR-0001: Selection of Spring MVC with Virtual Threads over Spring WebFlux**
+   - *Decision:* Adopt Spring MVC with Java 21 Virtual Threads (`spring.threads.virtual.enabled=true`).
+   - *Rationale:* Eliminates reactive cognitive overhead and context-propagation traps (`SecurityContextHolder`) while achieving near-reactive I/O concurrency with clean imperative code.
+2. **ADR-0002: Modular Monolith with Package Boundary Enforcement over Microservices**
+   - *Decision:* Deploy a single modular monolith (`apps/gateway`) with boundaries enforced by ArchUnit (C6).
+   - *Rationale:* Eliminates distributed latency and network failure modes; satisfies 8GB RAM budget and single-command startup (C1).
+3. **ADR-0003: Redis Atomic Sliding-Window and Key-Value Store with Fail-Closed Outage Semantics**
+   - *Decision:* Use Redis 7 with Lua scripts for rate limits and kill switches; fail closed on Redis outage for write operations.
+   - *Rationale:* Sub-millisecond atomic counter operations prevent concurrency races; fail-closed behavior ensures security integrity.
+4. **ADR-0004: SHA-256 Cryptographic Hash-Chained Audit Trail with Local WAL Outage Fallback**
+   - *Decision:* Append-only audit table with cryptographic hash chaining $H_n = \text{SHA-256}(H_{n-1} \parallel R_n)$ and local disk WAL fallback during database outages.
+   - *Rationale:* Guarantees mathematical tamper-evidence (QA3) and satisfies FR7 durability even during PostgreSQL outages.
+
+### 12.2 Design Pattern Justification Ledger (C8)
+
+| Pattern | Requirement | Candidate Location | Participating Classes | Rejected Alternative & Rationale |
 |---|---|---|---|---|
-| **Chain of Responsibility** | FR3, FR5 | `com.agentgate.gateway.guard`, `execution` | `PipelineStage`, `SchemaValidationStage`, `PolicyEvaluationStage`, `RedactionStage` | Hard-coded procedural monolithic method: rejected because adding a new guard would require modifying existing core code rather than registering a new bean. |
-| **Strategy** | FR3, FR5 | `com.agentgate.gateway.policy`, `guard` | `RedactionStrategy`, `EmailRedactionStrategy`, `BangladeshiPhoneRedactor`, `NidRedactor` | Giant `switch-case` regex block: rejected because clearance-based redaction requires modular, independently testable algorithms. |
-| **Decorator / Proxy** | FR1, FR10 | `com.agentgate.gateway.execution`, `resilience` | `GovernedToolInvoker`, `ResilientToolInvokerProxy` | Direct HTTP client calls from controller: rejected because resilience, timeouts, and metrics must wrap execution transparently. |
-| **Adapter** | FR1 | `com.agentgate.gateway.registry.adapter` | `ToolExecutionAdapter`, `RestToolAdapter`, `McpDownstreamAdapter` | Separate execution paths for REST and MCP: rejected because all tools must be represented by a unified internal model. |
-| **State** | FR4 | `com.agentgate.gateway.approval` | `ApprovalState`, `PendingState`, `ApprovedState`, `RejectedState`, `ApprovalStateMachine` | Raw database status flags with ad-hoc `if` conditions: rejected because state transitions (e.g. edit requires re-validation) must be strictly enforced. |
-| **Observer** | FR4, FR6, FR7 | `com.agentgate.gateway.approval`, `audit` | `ApprovalEventPublisher`, `WebhookNotificationListener`, `AuditEventListener` | Direct synchronous method chaining: rejected because notification failures (e.g. slow webhook) must not block or fail the primary transaction. |
-| **Command** | FR1, FR4, FR7 | `com.agentgate.gateway.execution` | `ToolExecutionCommand`, `CommandContext`, `CommandResult` | Passing unstructured JSON maps across methods: rejected because audit, replay, and human approval edits require strongly-typed, immutable command objects. |
+| **Chain of Responsibility** | FR3, FR5 | `execution`, `guard` | `PipelineStage`, `SchemaValidationStage`, `PolicyEvaluationStage`, `RedactionStage` | Hardcoded monolithic method: rejected because adding guards must not modify existing core code. |
+| **Strategy** | FR3, FR5 | `guard`, `policy` | `RedactionStrategy`, `EmailRedactionStrategy`, `BangladeshiPhoneRedactor`, `NidRedactor` | Giant regex switch block: rejected because clearance-based redaction requires modular algorithms. |
+| **Decorator / Proxy** | FR1, FR10 | `execution`, `resilience` | `GovernedToolInvoker`, `ResilientToolInvokerProxy` | Direct HTTP client calls: rejected because circuit breakers and timeouts must wrap execution transparently. |
+| **Adapter** | FR1 | `registry.adapter` | `ToolExecutionAdapter`, `RestToolAdapter`, `McpDownstreamAdapter` | Separate execution paths for REST and MCP: rejected because all tools must share a single internal representation. |
+| **State** | FR4 | `approval` | `ApprovalState`, `PendingState`, `ApprovedState`, `RejectedState`, `ApprovalStateMachine` | Raw database status flags with ad-hoc conditionals: rejected because approval transitions must be strictly enforced. |
+| **Observer** | FR4, FR6, FR7 | `approval`, `audit` | `ApprovalEventPublisher`, `WebhookNotificationListener`, `AuditEventListener` | Synchronous method chaining: rejected because slow notification webhooks must not fail core transactions. |
+| **Command** | FR1, FR4, FR7 | `execution` | `ToolExecutionCommand`, `CommandContext`, `CommandResult` | Unstructured JSON maps: rejected because audit, replay, and human approval edits require strongly-typed immutable commands. |
 
 ---
 
-## 11. Mini-ATAM Utility Tree Scenarios (C7)
+## 13. Mini-ATAM Utility Tree Scenarios (C7)
 
-| ID | Quality Attribute Driver | Stimulus | Environment | Target Response Measure | Architecture Sensitivity & Trade-Off |
+| ID | Driver | Stimulus | Environment | Target Response Measure | Sensitivity & Trade-Off |
 |---|---|---|---|---|---|
-| **S1** | **Security** (QA1) | 30 scripted malicious tool calls (SQLi, prompt injection, cross-customer data access, refund over 2,000 BDT). | Normal production load. | 100% (30/30) calls blocked or held for approval. Legitimate false blocks $\le 5\%$. | **Sensitivity:** Strictness of default-deny rules vs legitimate usability. **Trade-off:** Security guarantees vs false-positive rate. |
-| **S2** | **Performance** (QA2) | Sustained 100 calls/sec load across 10 concurrent agents. | Steady state, approvals excluded. | Gateway added latency overhead $\Delta p95 \le 30\text{ ms}$. | **Sensitivity:** In-memory caching vs database audit write latency. **Trade-off:** Synchronous cryptographic audit durability vs response speed. |
-| **S3** | **Auditability** (QA3) | Auditor queries trace of a specific call; malicious DB admin modifies an audit row. | Post-incident investigation. | Auditor finds full call context in $<1\text{ min}$; `verify-audit` command detects tampering immediately. | **Sensitivity:** Completeness of redacted arguments vs storage volume. **Trade-off:** Tamper-evident hash chaining vs concurrent insert throughput. |
-| **S4** | **Availability** (QA4) | PostgreSQL database crashes or becomes unreachable. | Live production gateway. | Medium/High risk tools fail closed immediately; Low-risk tools continue using cached policies for $\le 5\text{ min}$. | **Sensitivity:** Accuracy of policy cache vs disaster availability. **Trade-off:** High availability for low-risk calls vs potential stale policy window. |
-| **S5** | **Modifiability** (QA5) | External developer adds a new REST service via OpenAPI import. | Gateway admin web portal. | New tool imported, categorized, and governed in $<10\text{ min}$ with zero Java code edits. | **Sensitivity:** Dynamic schema registration vs static compile-time safety. **Trade-off:** Runtime dynamic flexibility vs strict static type validation. |
-| **S6** | **Safety / Operability** | Administrator activates emergency kill switch for a compromised agent. | Under active attack. | Target agent blocked instantaneously; all pending approvals for agent cancelled immediately. | **Sensitivity:** Cache invalidation speed. **Trade-off:** Centralized atomic flag check per request vs pure in-memory decoupled cache. |
-| **S7** | **Resilience** | Downstream tool server experiences 100% packet loss / crash. | Peak traffic. | Circuit breaker opens after 5 failures; tool automatically hidden from `tools/list`; recovers within 30s of restore. | **Sensitivity:** Circuit breaker sensitivity thresholds. **Trade-off:** Fast failure suppression vs premature tool masking. |
-| **S8** | **Resource Fit** (C1) | Full multi-container system started via `docker compose up --build -d`. | 8GB RAM host machine. | System fully up and passing health probes in $<90\text{ s}$; total container RAM $\le 2.5\text{ GB}$. | **Sensitivity:** JVM heap sizing and container memory limits. **Trade-off:** Minimal memory footprint vs garbage collection pause latency. |
-
----
-
-## 12. Top 10 Anticipated Failure Modes, Preventive Tests & Contingencies
-
-| ID | Failure Mode Description | Root Cause / Mechanism | Preventive Test in Pipeline | Contingency Plan |
-|---|---|---|---|---|
-| **F01** | Spring AI MCP starter exposes unauthenticated `tools/list` or `tools/call`. | Starter defaults to open HTTP endpoint without binding Spring Security. | `McpSecurityIntegrationTest`: Anonymous GET/POST to MCP endpoint must return HTTP 401. | Wrap MCP handling in custom secured Spring MVC controller with explicit `@PreAuthorize`. |
-| **F02** | Agent A sees tools belonging exclusively to Agent B in `tools/list`. | Catalog discovery returns global registry without caller permission filtering. | `DynamicToolListingTest`: Query `tools/list` with Agent A and Agent B tokens; assert distinct lists. | Dynamic projection query joining `tools` and `agent_permissions` on every listing request. |
-| **F03** | Caller spoofs end-user identity via unverified `X-User-Id` HTTP header. | Gateway trusts client-supplied headers without signature verification. | `UserSpoofingSecurityTest`: Send valid agent token with arbitrary user header; assert rejection. | Enforce signed user assertion tokens or reject unmapped user contexts. |
-| **F04** | Approval argument edit bypasses schema and policy validation. | Workflow forwards edited arguments directly to downstream tool without re-check. | `ApprovalArgumentTamperTest`: Edit pending argument to exceed 2,000 BDT limit; assert policy denies execution. | State machine forces `EDITED` state back through `SchemaValidationStage` and `PolicyEvaluationStage`. |
-| **F05** | High concurrency causes rate limit counter race condition. | Read-modify-write pattern on database or non-atomic cache. | `RateLimitConcurrencyTest`: 100 concurrent threads against quota of 10; assert exactly 10 pass, 90 fail. | Redis Lua script or PostgreSQL `SELECT FOR UPDATE` atomic decrement. |
-| **F06** | Audit hash chain breaks or deadlocks under 100 calls/sec. | Concurrent threads calculate hash using non-linearized sequence numbers. | `ConcurrentAuditHashTest`: Ingest 1,000 rapid calls; run `verify-audit` CLI; assert 100% chain integrity. | Monotonic sequence lock or single-threaded transactional event worker for hash calculation. |
-| **F07** | Sensitive PII (NID / Phone) leaks into audit log or client response. | Regex fails on alternative formats (e.g. spaced phone numbers, 13/17 digit NID variants). | `PiiRedactionComprehensiveTest`: Test 50 edge-case formats for email, BD phone, and NID. | Robust regex engine with fallback character masking and clearance-based bypass. |
-| **F08** | Emergency kill switch fails to stop in-flight or cached requests. | Request thread relies on stale 10-second policy cache. | `KillSwitchInFlightTest`: Trigger kill switch while requests are pending; assert immediate cancellation. | Emergency switch is checked at Step 2 of pipeline via atomic Redis/in-memory flag, bypassing policy cache. |
-| **F09** | Policy store outage causes low-risk tool to run indefinitely or high-risk to execute unverified. | Cache TTL logic missing or fails to distinguish risk levels. | `DatabaseOutageChaosTest`: Terminate PostgreSQL container; verify medium/high fail closed, low works $\le 5\text{ min}$. | Explicit risk-level branch in `PolicyEngine`: medium/high strictly requires live DB or fails closed; low checks timestamped cache. |
-| **F10** | Docker Compose exceeds 8GB laptop memory, crashing host OS. | Containers configured without strict JVM `-Xmx` or Docker `mem_limit`. | `DockerResourceBudgetTest`: Execute `docker stats` during full load; assert total RAM $\le 2.5\text{ GB}$. | Strict `mem_limit` and `Xmx` settings in `compose.yaml` for every service container. |
-
----
-
-## 13. Proposed Repository File Structure & Milestone M01 Skeleton
-
-Upon approval of this M00 plan, Milestone M01 will construct the following exact repository skeleton:
-
-```text
-agentgate/
-├── pom.xml                                      # Root aggregator POM (Java 21, Spring Boot 3.4.x / 4.x)
-├── mvnw / mvnw.cmd / .mvn/                      # Maven Wrapper binaries
-├── compose.yaml                                 # Multi-container Compose (Gateway, Keycloak, Postgres, Redis, Demo-Tools)
-├── .env.example                                 # Environment placeholders (zero secrets in Git)
-├── .gitignore                                   # Standard Java, Maven, IDE, OS ignores
-├── apps/
-│   ├── gateway/                                 # The Core Modular Monolith
-│   │   ├── pom.xml
-│   │   └── src/
-│   │       ├── main/
-│   │       │   ├── java/com/agentgate/gateway/
-│   │       │   │   ├── GatewayApplication.java
-│   │       │   │   ├── identity/                # Security config, JWT converter, AgentIdentity
-│   │       │   │   ├── registry/                # Tool entity, Repository, RiskLevel
-│   │       │   │   ├── mcp/                     # MCP JSON-RPC controller & protocol models
-│   │       │   │   ├── execution/               # GovernedExecutionPipeline & PipelineStage
-│   │       │   │   ├── policy/                  # PolicyEngine, PolicyEntity, Cache
-│   │       │   │   ├── guard/                   # SchemaValidator, RedactionStrategy
-│   │       │   │   ├── approval/                # ApprovalEntity, StateMachine, Webhook
-│   │       │   │   ├── limits/                  # RateLimiter, QuotaManager, KillSwitch
-│   │       │   │   ├── resilience/              # ResilienceConfig, HealthMonitor
-│   │       │   │   ├── audit/                   # AuditLogEntity, HashChainService
-│   │       │   │   ├── admin/                   # Admin controllers & Thymeleaf views
-│   │       │   │   ├── observability/           # TraceFilter, Actuator config
-│   │       │   │   └── common/                  # ProblemDetails, BaseException
-│   │       │   └── resources/
-│   │       │       ├── application.yml          # Typed @ConfigurationProperties
-│   │       │       ├── application-dev.yml
-│   │       │       ├── application-test.yml
-│   │       │       └── db/migration/
-│   │       │           └── V1__initial_schema.sql # PostgreSQL baseline DDL
-│   │       └── test/
-│   │           ├── java/com/agentgate/gateway/
-│   │           │   ├── architecture/            # ArchUnit boundary tests
-│   │           │   └── smoke/                   # Application context & health tests
-│   │           └── resources/
-│   │               └── application-test.yml
-│   └── demo-tools/                              # Mock Downstream Services
-│       ├── pom.xml
-│       └── src/main/java/com/agentgate/demotools/
-│           ├── DemoToolsApplication.java
-│           └── rest/                            # Mock Orders & Refunds endpoints
-├── infra/
-│   └── keycloak/
-│       └── agentgate-realm.json                 # Pre-configured test clients & scopes
-├── scripts/
-│   ├── smoke-test.ps1 / .sh                    # Health & readiness validator
-│   ├── redteam.ps1 / .sh                       # QA1 security red-team suite
-│   ├── benchmark-latency.ps1 / .sh             # QA2 k6 performance benchmark
-│   └── verify-audit.ps1 / .sh                  # QA3 cryptographic audit chain verifier
-└── docs/
-    ├── milestones/
-    │   └── M00/
-    │       └── PLAN.md                          # THIS APPROVED DOCUMENT
-    ├── architecture/
-    │   ├── adr/                                 # ADR-0001 through ADR-0004
-    │   └── c4/                                  # C4 diagram sources
-    └── quality/
-        ├── UTILITY_TREE.md                      # Mini-ATAM scenarios
-        └── PATTERN_MAP.md                       # Pattern justification table
-```
+| **S1** | **Security** (QA1) | 30 scripted malicious tool calls. | Production load. | 100% (30/30) blocked or held; legitimate false blocks $\le 5\%$. | Sensitivity: Rule strictness. Trade-off: Security vs false-positive usability. |
+| **S2** | **Performance** (QA2) | Sustained 100 cps load across 10 agents. | Steady state. | Added latency $\Delta p95 \le 30\text{ ms}$. | Sensitivity: Audit write speed. Trade-off: Cryptographic durability vs latency. |
+| **S3** | **Auditability** (QA3) | Auditor queries trace; row 42 modified. | Audit review. | Context found in $<1\text{ min}$; tamper detected by `verify-audit`. | Sensitivity: Argument completeness. Trade-off: Tamper-evidence vs storage size. |
+| **S4** | **Availability** (QA4) | PostgreSQL database crashes. | Production gateway. | Medium/High fail closed immediately; Low works on cache $\le 5\text{ min}$ with WAL audit. | Sensitivity: Cache TTL. Trade-off: Low-risk availability vs stale policy risk. |
+| **S5** | **Modifiability** (QA5) | External developer adds REST tool via OpenAPI. | Admin web portal. | Tool imported and governed in $<10\text{ min}$ with zero code changes. | Sensitivity: Dynamic schema registry. Trade-off: Runtime flexibility vs compile-time types. |
+| **S6** | **Safety / Operability** | Admin triggers kill switch for compromised agent. | Under active attack. | Target agent blocked immediately; all pending approvals cancelled. | Sensitivity: Invalidation speed. Trade-off: Atomic flag check vs pure in-memory caching. |
+| **S7** | **Resilience** | Downstream tool server crashes. | Peak traffic. | Circuit breaker opens after 5 failures; tool hidden from `tools/list`. | Sensitivity: Breaker thresholds. Trade-off: Fast failure suppression vs premature masking. |
+| **S8** | **Resource Fit** (C1) | Full stack started via `docker compose up -d`. | 8GB RAM host. | Healthy in $<90\text{ s}$; total container RAM $\le 2.5\text{ GB}$. | Sensitivity: JVM heap sizing. Trade-off: Low memory footprint vs GC pause latency. |
 
 ---
 
 ## 14. Milestone M00 Acceptance Criteria & Reviewer Sign-Off Gate
 
-### 14.1 M00 Exit Criteria (What Constitutes M00 Done)
-1. **Requirements Alignment:** Complete mapping of FR1–FR10, QA1–QA5, and C1–C12, with no scope creep or omissions.
-2. **Architecture Defense:** Documented rationale for Spring MVC + Virtual Threads, Modular Monolith, Redis Quota store, and Hash-Chain audit integrity.
-3. **Execution Pipeline Precision:** Unambiguous step-by-step pipeline detailing synchronous vs asynchronous stages, argument edit re-evaluation, and fail-closed branches.
-4. **Toolchain & Spike Feasibility:** Clear path for Java 21, Docker Compose memory budgeting, and four defined M01 technical spikes.
-5. **Zero Premature Code:** Strictly no application code, Maven pom, Docker Compose, or dependencies created prior to approval.
+### 14.1 M00 Exit Gate Criteria
+1. **Revision 1 Mandates Complete:** All 10 items from Architecture Review Revision 1 addressed and documented.
+2. **Corrected Baseline:** Java 21, Spring Boot 4.0.9, Spring AI 2.0.2, springdoc 3.0.x, Keycloak 26, Postgres 16, Redis 7.
+3. **Audit Durability & Outage Architecture:** Sound local WAL buffer and reconciliation mechanism resolving QA4/FR7 tension without corrupting hash chain.
+4. **Redis & Kill-Switch Failure Semantics:** Fail-closed write operations on Redis failure; in-memory rate limiter strictly gated to dev profile; pre-dispatch assertions.
+5. **Approval State Machine:** Full state transitions, configurable timeouts, JSON-RPC client response semantics, and argument re-validation on edit.
+6. **Identity Anti-Spoofing:** Cryptographically signed user assertion JWTs validated against Keycloak JWKS; Keycloak RBAC with `ADMIN` and `APPROVER` roles; CSRF protection.
+7. **Strict Milestone Boundaries:** M01 restricted to runnable foundation and MCP connectivity; full quotas in M06; audit benchmarking in M07.
+8. **Zero Premature Code:** Strictly no application code, `pom.xml`, or Docker Compose files generated.
 
-### 14.2 Specific Architectural Decisions Requiring External Reviewer (ChatGPT) Approval
-
-Before implementing Milestone M01, the external architecture reviewer is asked to review and explicitly ratify:
-
-1. **Concurrence with Spring MVC + Virtual Threads vs WebFlux:** Confirmation that Spring MVC with Virtual Threads is accepted as the optimal, defensible architecture under Java 21.
-2. **Acceptance of Redis as Quota/Kill-Switch Store:** Confirmation that including Redis 7 in Docker Compose for atomic counters and instantaneous kill switches is justified and complies with the 8GB RAM budget.
-3. **Execution Pipeline Sequence:** Agreement on the 11-step execution order, specifically that Schema Validation and Policy Evaluation are re-executed if an approver edits arguments.
-4. **QA4 Outage Grace Period Semantics:** Ratification of the 5-minute last-known-cache grace period strictly for low-risk tools, while medium- and high-risk tools fail closed immediately.
-5. **Approval to Proceed to M01:** Formal verdict of **`APPROVED`** to begin M01 skeleton implementation.
+### 14.2 Specific Decisions Submitted for Architecture Reviewer (ChatGPT) Approval
+1. **Ratification of Technology Baseline:** Formal acceptance of Java 21, Spring Boot 4.0.9, Spring AI 2.0.2, and springdoc 3.0.x (with unresolved compatibility designated as M01 Spike 1).
+2. **Approval of Outage & Audit Durability Design:** Acceptance of local WAL buffering with post-outage continuous reconciliation for low-risk calls, with medium/high risk failing closed.
+3. **Approval of Redis & Kill-Switch Fail-Closed Behavior:** Acceptance that write operations fail closed if Redis is down, and approval of pre-dispatch kill-switch checks.
+4. **Approval of Identity & RBAC Model:** Acceptance of signed `X-User-Assertion` JWTs and Keycloak `ADMIN`/`APPROVER` roles with CSRF protection.
+5. **Formal Approval to Proceed to M01:** Issuance of an official verdict of **`APPROVED`** to commence Milestone M01 implementation.
 
 ---
-
-*End of Milestone M00 Implementation Plan.*
+*End of Milestone M00 Plan (Revision 1).*
