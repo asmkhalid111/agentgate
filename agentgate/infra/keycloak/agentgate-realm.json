@@ -1,0 +1,134 @@
+{
+  "realm": "agentgate",
+  "enabled": true,
+  "displayName": "AgentGate Governance Realm",
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Administrator role with full tool management and emergency kill switch privileges"
+      },
+      {
+        "name": "APPROVER",
+        "description": "Security officer role authorized to approve or edit high-risk tool calls"
+      },
+      {
+        "name": "USER",
+        "description": "Standard service account role"
+      }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "agent:invoke",
+      "description": "Authority to connect and invoke tools through the AgentGate MCP endpoint",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "tool:admin",
+      "description": "Authority to execute restricted administrative maintenance tools",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "delegation:act_as_user",
+      "description": "Authority to act on behalf of end users with verified azp binding",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "agent-finance-bot",
+      "name": "Finance Automation Bot",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "finance_dev_secret_123",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email",
+        "agent:invoke",
+        "tool:admin",
+        "delegation:act_as_user"
+      ]
+    },
+    {
+      "clientId": "agent-support-bot",
+      "name": "Customer Support Bot",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "support_dev_secret_123",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email",
+        "agent:invoke"
+      ]
+    },
+    {
+      "clientId": "agent-unauthorized-bot",
+      "name": "Unauthorized Rogue Bot",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "unauth_dev_secret_123",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-agent-finance-bot",
+      "enabled": true,
+      "serviceAccountClientId": "agent-finance-bot",
+      "realmRoles": ["ADMIN", "APPROVER"]
+    },
+    {
+      "username": "service-account-agent-support-bot",
+      "enabled": true,
+      "serviceAccountClientId": "agent-support-bot",
+      "realmRoles": ["USER"]
+    },
+    {
+      "username": "service-account-agent-unauthorized-bot",
+      "enabled": true,
+      "serviceAccountClientId": "agent-unauthorized-bot",
+      "realmRoles": ["USER"]
+    }
+  ]
+}
+
