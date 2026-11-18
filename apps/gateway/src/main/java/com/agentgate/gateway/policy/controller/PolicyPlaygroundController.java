@@ -29,6 +29,7 @@ public class PolicyPlaygroundController {
             String toolName,
             Map<String, Object> arguments,
             String userId,
+            Map<String, Object> userContext,
             String riskLevel,
             PolicyRule draftRule
     ) {}
@@ -51,11 +52,19 @@ public class PolicyPlaygroundController {
             } catch (Exception ignored) {}
         }
 
+        String resolvedUserId = request.userId();
+        if (resolvedUserId == null && request.userContext() != null) {
+            Object uid = request.userContext().get("userId");
+            if (uid != null) {
+                resolvedUserId = uid.toString();
+            }
+        }
+
         ToolExecutionContext ctx = new ToolExecutionContext(
                 request.agentId() != null ? request.agentId() : "anonymous",
                 request.toolName() != null ? request.toolName() : "unknown_tool",
                 request.arguments() != null ? request.arguments() : Collections.emptyMap(),
-                request.userId(),
+                resolvedUserId,
                 risk
         );
 

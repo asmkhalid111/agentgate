@@ -40,7 +40,7 @@ public class RestToolAdapter implements ToolAdapter {
             Map<String, Object> remainingArgs = new HashMap<>(context.arguments() != null ? context.arguments() : Map.of());
 
             // Replace path variables in endpoint URL, e.g. {orderId}
-            for (Map.Entry<String, Object> entry : context.arguments().entrySet()) {
+            for (Map.Entry<String, Object> entry : new HashMap<>(remainingArgs).entrySet()) {
                 String placeholder = "{" + entry.getKey() + "}";
                 if (resolvedUrl.contains(placeholder)) {
                     resolvedUrl = resolvedUrl.replace(placeholder, String.valueOf(entry.getValue()));

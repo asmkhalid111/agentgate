@@ -3,8 +3,11 @@ package com.agentgate.gateway.registry.controller;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.domain.RiskLevel;
+import com.agentgate.gateway.registry.event.ToolDeletedEvent;
+import com.agentgate.gateway.registry.event.ToolRegisteredEvent;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
 import com.agentgate.gateway.registry.service.OpenApiImporterService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +23,15 @@ public class ToolRegistryController {
 
     private final RegisteredToolRepository repository;
     private final OpenApiImporterService importerService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public ToolRegistryController(RegisteredToolRepository repository, OpenApiImporterService importerService) {
+    public ToolRegistryController(
+            RegisteredToolRepository repository,
+            OpenApiImporterService importerService,
+            ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.importerService = importerService;
+        this.eventPublisher = eventPublisher;
     }
 
     @GetMapping
@@ -66,12 +74,16 @@ public class ToolRegistryController {
         );
 
         repository.save(tool);
+        eventPublisher.publishEvent(new ToolRegisteredEvent(tool));
         return ResponseEntity.status(HttpStatus.CREATED).body(tool);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTool(@PathVariable String id) {
-        repository.deleteById(id);
+        repository.findById(id).ifPresent(tool -> {
+            repository.deleteById(id);
+            eventPublisher.publishEvent(new ToolDeletedEvent(tool.name()));
+        });
         return ResponseEntity.noContent().build();
     }
 
@@ -86,6 +98,9 @@ public class ToolRegistryController {
         }
 
         List<RegisteredTool> imported = importerService.importOpenApi(spec, baseUrl, owningTeam);
+        for (RegisteredTool tool : imported) {
+            eventPublisher.publishEvent(new ToolRegisteredEvent(tool));
+        }
         return ResponseEntity.ok(imported);
     }
 
