@@ -1,6 +1,11 @@
 # Roadmap — gated implementation
 
-> **Current Execution Strategy:** See the [Revised Three-Day Delivery Plan](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/plans/THREE_DAY_DELIVERY_PLAN.md), which groups the remaining scope (M01 Remediation, M02–M10, FR1–FR10, QA1–QA5, and C1–C12) into a focused 3-day sequential delivery model awaiting reviewer approval.
+> **Current Execution Strategy:** See the [Approved Three-Day Delivery Plan](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/plans/THREE_DAY_DELIVERY_PLAN.md) (v1.1.0), which organizes delivery into a streamlined 5-milestone structure (`M00`–`M04`):
+> - **M00:** Architecture Baseline ([M00 Completion](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M00/COMPLETION.md)) — **APPROVED**
+> - **M01:** Environment & Secure Foundation ([M01 Completion](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M01/COMPLETION.md)) — **APPROVED**
+> - **M02:** Day 1 Core Gateway ([M02 Completion](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M02/COMPLETION.md)) — **IMPLEMENTED** (Awaiting Reviewer Sign-Off)
+> - **M03:** Day 2 Governance Controls (Guards, Approvals, Limits, Kill Switches) — Scheduled
+> - **M04:** Day 3 Verification, Audit & Submission (Audit Trail, Resilience, QA1–QA5, CI, Live Defence) — Scheduled
 
 Rules: one milestone at a time; plan -> architecture review -> approval -> implement -> reproducible tests -> completion report -> review. `M-CR` is inserted after the instructor issues the change request; do not invent it.
 
