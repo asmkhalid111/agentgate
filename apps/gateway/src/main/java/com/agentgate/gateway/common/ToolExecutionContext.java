@@ -1,11 +1,11 @@
-package com.agentgate.gateway.pipeline;
+package com.agentgate.gateway.common;
 
 import com.agentgate.gateway.registry.domain.RiskLevel;
 
 import java.util.Map;
 
 /**
- * Context passed along the gateway execution pipeline.
+ * Common context passed along the gateway execution pipeline and policy engine.
  */
 public record ToolExecutionContext(
         String agentId,

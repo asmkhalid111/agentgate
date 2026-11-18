@@ -1,8 +1,8 @@
 package com.agentgate.gateway.mcp;
 
+import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.identity.AgentContextHolder;
 import com.agentgate.gateway.identity.AgentIdentity;
-import com.agentgate.gateway.pipeline.ToolExecutionContext;
 import com.agentgate.gateway.pipeline.ToolExecutionPipeline;
 import com.agentgate.gateway.pipeline.ToolExecutionResult;
 import com.agentgate.gateway.registry.domain.RegisteredTool;

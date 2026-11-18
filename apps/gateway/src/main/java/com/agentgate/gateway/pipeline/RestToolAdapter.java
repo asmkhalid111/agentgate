@@ -1,5 +1,6 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.fasterxml.jackson.databind.ObjectMapper;

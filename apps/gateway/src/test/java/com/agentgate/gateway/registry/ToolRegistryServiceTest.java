@@ -1,6 +1,11 @@
 package com.agentgate.gateway.registry;
 
+import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.pipeline.*;
+import com.agentgate.gateway.policy.domain.PolicyAction;
+import com.agentgate.gateway.policy.domain.PolicyRule;
+import com.agentgate.gateway.policy.repository.PolicyRepository;
+import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.domain.RiskLevel;
@@ -34,6 +39,12 @@ public class ToolRegistryServiceTest {
 
     @Autowired
     private ToolExecutionPipeline pipeline;
+
+    @Autowired
+    private PolicyRepository policyRepository;
+
+    @Autowired
+    private StructuredPolicyEvaluator evaluator;
 
     @BeforeEach
     void setUp() {
@@ -187,6 +198,20 @@ public class ToolRegistryServiceTest {
         );
         repository.save(mcpTool);
         repository.addPermission("downstream_mcp_echo", "agent-finance-bot");
+
+        policyRepository.save(new PolicyRule(
+                "pol-mcp-test",
+                "Allow MCP Echo",
+                "agent-finance-*",
+                "downstream_mcp_echo",
+                List.of(),
+                PolicyAction.ALLOW,
+                false,
+                1,
+                1,
+                true
+        ));
+        evaluator.reloadPolicies();
 
         ToolExecutionContext ctx = new ToolExecutionContext(
                 "agent-finance-bot",
