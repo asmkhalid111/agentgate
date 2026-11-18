@@ -24,6 +24,9 @@ public class JwtAgentAuthenticationConverter implements Converter<Jwt, AbstractA
         Set<GrantedAuthority> authorities = new HashSet<>();
         for (String scope : scopes) {
             authorities.add(new SimpleGrantedAuthority("SCOPE_" + scope));
+            if ("tool:admin".equalsIgnoreCase(scope) || "admin".equalsIgnoreCase(scope)) {
+                roles.add("ADMIN");
+            }
         }
         for (String role : roles) {
             String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
