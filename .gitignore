@@ -1,0 +1,13 @@
+# IDE and Editors
+.idea/
+.vscode/
+*.iml
+
+# Java / Maven build output
+**/target/
+*.class
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

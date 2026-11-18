@@ -1,5 +1,9 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.common.ToolExecutionContext;
+import com.agentgate.gateway.policy.domain.PolicyAction;
+import com.agentgate.gateway.policy.domain.PolicyDecision;
+import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
 import org.slf4j.Logger;
@@ -14,15 +18,20 @@ public class ToolExecutionPipeline {
     private static final Logger log = LoggerFactory.getLogger(ToolExecutionPipeline.class);
     private final RegisteredToolRepository toolRepository;
     private final List<ToolAdapter> adapters;
+    private final StructuredPolicyEvaluator policyEvaluator;
 
-    public ToolExecutionPipeline(RegisteredToolRepository toolRepository, List<ToolAdapter> adapters) {
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
+        this.policyEvaluator = policyEvaluator;
     }
 
     /**
      * Executes a tool through the shared governance pipeline.
-     * Enforces tool status and direct agent invocation authorization.
+     * Enforces tool status, direct agent authorization, and policy rules.
      */
     public ToolExecutionResult execute(ToolExecutionContext context) {
         RegisteredTool tool = toolRepository.findByName(context.toolName())
@@ -33,10 +42,24 @@ public class ToolExecutionPipeline {
             throw new IllegalStateException("Tool '" + context.toolName() + "' is currently disabled");
         }
 
-        // Direct invocation authorization check (Mandatory Reviewer Amendment 4)
+        // Direct invocation authorization check (Reviewer Amendment 4)
         if (!toolRepository.isAgentPermitted(context.toolName(), context.agentId())) {
             log.warn("Security violation: Agent '{}' unauthorized for tool '{}'", context.agentId(), context.toolName());
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
+        }
+
+        ToolExecutionContext enrichedContext = context.withRiskLevel(tool.riskLevel());
+
+        // Policy Evaluation (FR3, QA4)
+        PolicyDecision decision = policyEvaluator.evaluate(enrichedContext);
+        if (decision.action() == PolicyAction.DENY) {
+            log.warn("Call blocked by policy: rule='{}', reason='{}'", decision.matchedRuleName(), decision.reason());
+            return ToolExecutionResult.failure("POLICY_DENIED: " + decision.reason(), decision.evaluationTimeMs());
+        }
+
+        if (decision.action() == PolicyAction.REQUIRE_APPROVAL) {
+            log.info("Call requires human approval: rule='{}'", decision.matchedRuleName());
+            return ToolExecutionResult.failure("REQUIRE_APPROVAL: Call held for human approval [Rule: " + decision.matchedRuleName() + "]", decision.evaluationTimeMs());
         }
 
         ToolAdapter adapter = adapters.stream()
@@ -44,7 +67,6 @@ public class ToolExecutionPipeline {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Unsupported protocol: " + tool.protocolType()));
 
-        ToolExecutionContext enrichedContext = context.withRiskLevel(tool.riskLevel());
         return adapter.execute(tool, enrichedContext);
     }
 }
