@@ -1,5 +1,7 @@
 # Roadmap — gated implementation
 
+> **Current Execution Strategy:** See the [Revised Three-Day Delivery Plan](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/plans/THREE_DAY_DELIVERY_PLAN.md), which groups the remaining scope (M01 Remediation, M02–M10, FR1–FR10, QA1–QA5, and C1–C12) into a focused 3-day sequential delivery model awaiting reviewer approval.
+
 Rules: one milestone at a time; plan -> architecture review -> approval -> implement -> reproducible tests -> completion report -> review. `M-CR` is inserted after the instructor issues the change request; do not invent it.
 
 | ID | Milestone | Deliverable / exit gate | Coverage |
