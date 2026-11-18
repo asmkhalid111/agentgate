@@ -1,0 +1,42 @@
+CREATE TABLE IF NOT EXISTS agent_client (
+    id VARCHAR(64) PRIMARY KEY,
+    client_id VARCHAR(128) NOT NULL UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS registered_tools (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
+    input_schema TEXT NOT NULL,
+    risk_level VARCHAR(20) NOT NULL DEFAULT 'LOW',
+    owning_team VARCHAR(100) NOT NULL,
+    endpoint_url VARCHAR(500) NOT NULL,
+    protocol_type VARCHAR(20) NOT NULL DEFAULT 'REST',
+    http_method VARCHAR(10) NOT NULL DEFAULT 'POST',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tool_agent_permissions (
+    tool_name VARCHAR(100) NOT NULL,
+    agent_id VARCHAR(100) NOT NULL,
+    PRIMARY KEY (tool_name, agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS policies (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    agent_pattern VARCHAR(100) NOT NULL,
+    tool_pattern VARCHAR(100) NOT NULL,
+    conditions_json TEXT,
+    action VARCHAR(20) NOT NULL,
+    dry_run BOOLEAN NOT NULL DEFAULT FALSE,
+    priority INT NOT NULL DEFAULT 100,
+    version INT NOT NULL DEFAULT 1,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

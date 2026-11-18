@@ -8,7 +8,8 @@ spring:
     username: sa
     password: ""
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
   data:
     redis:
       repositories:
