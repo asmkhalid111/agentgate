@@ -9,9 +9,10 @@ Updated: 2026-11-19 (Day 1 Implementation Complete, Awaiting Reviewer Gate)
 - Source file uploaded: `CSE444_Course_Projects(1).docx` (not automatically included in repository).
 
 ## Current state
-- Milestone: **THREE-DAY PLAN — DAY 1 COMPLETE** (Awaiting Reviewer Exit Gate Inspection).
+- Milestone: **M02 (DAY 1 CORE GATEWAY) IMPLEMENTED** — Awaiting External Reviewer Sign-Off.
+- Active Completion Report: [docs/milestones/M02/COMPLETION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M02/COMPLETION.md).
 - Last approved plan: Three-Day Delivery Plan v1.1.0 (`cfc111f`).
-- Commits on Day 1:
+- Commits on Day 1 (M02):
   - `56e4e2b`: JWT security hardening, fail-fast production decoder, and test mock isolation (Task 1.0).
   - `2747e8a`: Dynamic tool registry, OpenAPI importer, dual REST/MCP adapters (Task 1.1).
   - `4e84cc8`: Structured policy engine, thread-safe atomic cache, hot reload, and playground (Tasks 1.2, 1.3).
@@ -34,7 +35,7 @@ Updated: 2026-11-19 (Day 1 Implementation Complete, Awaiting Reviewer Gate)
 5. **General Pipeline Execution (Per-Call Authorization):** Enforce tool authorization on every invocation, not merely at MCP session initialization (verified in Day 1).
 
 ## Next Delivery Step
-- **Reviewer Inspection Gate for Day 1** — Halt and await external reviewer approval of Day 1 deliverables before proceeding to Day 2 (Guards, Approvals & Safety Controls).
+- **Reviewer Inspection Gate for M02 (Day 1)** — Halt and await external reviewer approval of [docs/milestones/M02/COMPLETION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M02/COMPLETION.md) before proceeding to M03 (Day 2: Guards, Approvals & Safety Controls).
 
 ## Handoff contract
 After an *approved* milestone update this page with: last approved milestone, commit ID, test results summary, architecture decisions, open blockers and next milestone. Link to `docs/milestones/Mxx/COMPLETION.md` and evidence rather than pasting long reports. Never overwrite a failed test record.
