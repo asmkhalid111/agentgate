@@ -7,6 +7,8 @@ import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
 import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.guard.ValidationResult;
+import com.agentgate.gateway.killswitch.dto.KillSwitchCheckResult;
+import com.agentgate.gateway.killswitch.service.KillSwitchService;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
 import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
@@ -46,6 +48,7 @@ public class ApprovedToolExecutionService {
     private final ResponseTruncationGuard responseTruncationGuard;
     private final ObjectMapper objectMapper;
     private final WriteCapLimiter writeCapLimiter;
+    private final KillSwitchService killSwitchService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public ApprovedToolExecutionService(
@@ -57,7 +60,8 @@ public class ApprovedToolExecutionService {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper,
-            WriteCapLimiter writeCapLimiter) {
+            WriteCapLimiter writeCapLimiter,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) KillSwitchService killSwitchService) {
         this.approvalRepository = approvalRepository;
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -67,6 +71,20 @@ public class ApprovedToolExecutionService {
         this.responseTruncationGuard = responseTruncationGuard;
         this.objectMapper = objectMapper;
         this.writeCapLimiter = writeCapLimiter;
+        this.killSwitchService = killSwitchService;
+    }
+
+    public ApprovedToolExecutionService(
+            ApprovalRequestRepository approvalRepository,
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ObjectMapper objectMapper,
+            WriteCapLimiter writeCapLimiter) {
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, writeCapLimiter, null);
     }
 
     public ApprovedToolExecutionService(
@@ -78,7 +96,7 @@ public class ApprovedToolExecutionService {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper) {
-        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, null);
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, null, null);
     }
 
     /**
@@ -208,7 +226,23 @@ public class ApprovedToolExecutionService {
             }
         }
 
-        // 5. Downstream Adapter Dispatch
+        // 5. Emergency Kill Switch Check immediately pre-dispatch (FR8)
+        // Catches switches activated while the approval request was pending
+        if (killSwitchService != null) {
+            KillSwitchCheckResult killDecision = killSwitchService.checkBlocked(
+                    request.agentId(),
+                    tool.name(),
+                    tool.isWriteOperation()
+            );
+            if (killDecision.blocked()) {
+                log.warn("Approved tool execution blocked by emergency kill switch for request '{}' [agent='{}', tool='{}']: {}",
+                        approvalId, request.agentId(), tool.name(), killDecision.message());
+                approvalRepository.recordExecutionFailure(approvalId, killDecision.message(), Instant.now());
+                return;
+            }
+        }
+
+        // 6. Downstream Adapter Dispatch
         ToolAdapter adapter = adapters.stream()
                 .filter(a -> a.supports(tool.protocolType()))
                 .findFirst()

@@ -116,7 +116,7 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "${KEYCLOAK_WEB_CLIENT_SECRET}",
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "publicClient": false,
       "protocol": "openid-connect",
@@ -195,6 +195,21 @@
         {
           "type": "password",
           "value": "approver_dev_password_123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-admin",
+      "enabled": true,
+      "email": "admin@agentgate.dev",
+      "firstName": "Security",
+      "lastName": "Administrator",
+      "realmRoles": ["ADMIN"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin_dev_password_123",
           "temporary": false
         }
       ]
