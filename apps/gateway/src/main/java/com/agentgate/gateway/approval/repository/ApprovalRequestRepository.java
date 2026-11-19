@@ -2,6 +2,7 @@ package com.agentgate.gateway.approval.repository;
 
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.domain.ApprovalStatus;
+import com.agentgate.gateway.approval.domain.ExecutionState;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -26,6 +27,9 @@ public class ApprovalRequestRepository {
     }
 
     private ApprovalRequest mapRow(ResultSet rs, int rowNum) throws SQLException {
+        String execStateStr = rs.getString("execution_state");
+        ExecutionState execState = execStateStr != null ? ExecutionState.valueOf(execStateStr) : ExecutionState.NOT_DISPATCHED;
+
         return new ApprovalRequest(
                 rs.getString("id"),
                 rs.getString("agent_id"),
@@ -39,7 +43,11 @@ public class ApprovalRequestRepository {
                 rs.getTimestamp("expires_at") != null ? rs.getTimestamp("expires_at").toInstant() : null,
                 rs.getTimestamp("decided_at") != null ? rs.getTimestamp("decided_at").toInstant() : null,
                 rs.getString("decided_by"),
-                rs.getString("decision_reason")
+                rs.getString("decision_reason"),
+                execState,
+                rs.getTimestamp("executed_at") != null ? rs.getTimestamp("executed_at").toInstant() : null,
+                rs.getString("execution_result_json"),
+                rs.getString("execution_error")
         );
     }
 
@@ -48,11 +56,13 @@ public class ApprovalRequestRepository {
                 INSERT INTO approval_requests (
                     id, agent_id, user_id, tool_name, policy_rule_id,
                     original_arguments_json, approved_arguments_json, status,
-                    created_at, expires_at, decided_at, decided_by, decision_reason
+                    created_at, expires_at, decided_at, decided_by, decision_reason,
+                    execution_state, executed_at, execution_result_json, execution_error
                 ) VALUES (
                     :id, :agentId, :userId, :toolName, :policyRuleId,
                     :originalArgs, :approvedArgs, :status,
-                    :createdAt, :expiresAt, :decidedAt, :decidedBy, :reason
+                    :createdAt, :expiresAt, :decidedAt, :decidedBy, :reason,
+                    :executionState, :executedAt, :executionResultJson, :executionError
                 )
                 """)
                 .param("id", request.id())
@@ -68,6 +78,10 @@ public class ApprovalRequestRepository {
                 .param("decidedAt", request.decidedAt() != null ? Timestamp.from(request.decidedAt()) : null)
                 .param("decidedBy", request.decidedBy())
                 .param("reason", request.decisionReason())
+                .param("executionState", request.executionState() != null ? request.executionState().name() : ExecutionState.NOT_DISPATCHED.name())
+                .param("executedAt", request.executedAt() != null ? Timestamp.from(request.executedAt()) : null)
+                .param("executionResultJson", request.executionResultJson())
+                .param("executionError", request.executionError())
                 .update();
     }
 
@@ -222,5 +236,98 @@ public class ApprovalRequestRepository {
                 """)
                 .param("now", Timestamp.from(now))
                 .update();
+    }
+
+    /**
+     * Atomically claims an approved request for tool execution.
+     * CAS update: requires status = 'APPROVED' AND execution_state = 'NOT_DISPATCHED'.
+     *
+     * @param id approval request identifier
+     * @param now timestamp of claim
+     * @return number of rows updated (1 if successfully claimed, 0 if already claimed or ineligible)
+     */
+    public int claimExecution(String id, Instant now) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET execution_state = 'DISPATCHED',
+                    executed_at = :now
+                WHERE id = :id AND status = 'APPROVED' AND execution_state = 'NOT_DISPATCHED'
+                """)
+                .param("id", id)
+                .param("now", Timestamp.from(now))
+                .update();
+    }
+
+    /**
+     * Records successful tool execution outcome.
+     */
+    public int recordExecutionSuccess(String id, String resultJson, Instant executedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET execution_state = 'COMPLETED',
+                    executed_at = :executedAt,
+                    execution_result_json = :resultJson,
+                    execution_error = NULL
+                WHERE id = :id AND execution_state = 'DISPATCHED'
+                """)
+                .param("id", id)
+                .param("executedAt", Timestamp.from(executedAt))
+                .param("resultJson", resultJson)
+                .update();
+    }
+
+    /**
+     * Records failed tool execution outcome (pre-dispatch check or downstream tool error).
+     */
+    public int recordExecutionFailure(String id, String error, Instant executedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET execution_state = 'FAILED',
+                    executed_at = :executedAt,
+                    execution_error = :error
+                WHERE id = :id AND execution_state = 'DISPATCHED'
+                """)
+                .param("id", id)
+                .param("executedAt", Timestamp.from(executedAt))
+                .param("error", error)
+                .update();
+    }
+
+    /**
+     * Records indeterminate tool execution outcome (e.g. timeout, network disconnect).
+     * Never automatically retried.
+     */
+    public int recordExecutionIndeterminate(String id, String error, Instant executedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET execution_state = 'INDETERMINATE',
+                    executed_at = :executedAt,
+                    execution_error = :error
+                WHERE id = :id AND execution_state = 'DISPATCHED'
+                """)
+                .param("id", id)
+                .param("executedAt", Timestamp.from(executedAt))
+                .param("error", error)
+                .update();
+    }
+
+    /**
+     * Finds approved requests that have not yet been dispatched for execution.
+     * Only returns requests in APPROVED status with execution_state = 'NOT_DISPATCHED'.
+     * Requests in DISPATCHED, COMPLETED, FAILED, or INDETERMINATE are never returned.
+     *
+     * @param limit maximum records to return
+     * @return list of undispatched approved requests
+     */
+    public List<ApprovalRequest> findUndispatchedApproved(int limit) {
+        return jdbcClient.sql("""
+                SELECT * FROM approval_requests
+                WHERE status = 'APPROVED' AND execution_state = 'NOT_DISPATCHED'
+                ORDER BY decided_at ASC
+                LIMIT :limit
+                """)
+                .param("limit", limit)
+                .query(this::mapRow)
+                .list();
     }
 }
