@@ -3,28 +3,59 @@ package com.agentgate.gateway.pipeline;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
+import com.agentgate.gateway.resilience.config.ResilienceProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RestToolAdapter implements ToolAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(RestToolAdapter.class);
-    private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final ResilienceProperties resilienceProperties;
+    private final ConcurrentHashMap<String, RestClient> restClients = new ConcurrentHashMap<>();
+
+    @Autowired
+    public RestToolAdapter(ObjectMapper objectMapper, @Autowired(required = false) ResilienceProperties resilienceProperties) {
+        this.objectMapper = objectMapper;
+        this.resilienceProperties = resilienceProperties != null ? resilienceProperties : new ResilienceProperties();
+    }
 
     public RestToolAdapter(ObjectMapper objectMapper) {
-        this.restClient = RestClient.builder().build();
-        this.objectMapper = objectMapper;
+        this(objectMapper, null);
+    }
+
+    private RestClient getRestClient(String toolName) {
+        return restClients.computeIfAbsent(toolName, name -> {
+            Duration connectTimeout = resilienceProperties.getConnectTimeout(name);
+            Duration readTimeout = resilienceProperties.getReadTimeout(name);
+
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .connectTimeout(connectTimeout)
+                    .build();
+
+            JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+            requestFactory.setReadTimeout(readTimeout);
+
+            return RestClient.builder()
+                    .requestFactory(requestFactory)
+                    .build();
+        });
     }
 
     @Override
@@ -49,6 +80,7 @@ public class RestToolAdapter implements ToolAdapter {
             }
 
             HttpMethod method = HttpMethod.valueOf(tool.httpMethod().toUpperCase());
+            RestClient restClient = getRestClient(tool.name());
             RestClient.RequestBodySpec spec = restClient.method(method).uri(URI.create(resolvedUrl));
 
             if (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.PATCH) {
@@ -69,10 +101,14 @@ public class RestToolAdapter implements ToolAdapter {
             log.info("Successfully executed REST tool '{}' [latency={}ms]", tool.name(), latency);
             return ToolExecutionResult.success(parsedData, latency);
 
+        } catch (HttpStatusCodeException e) {
+            long latency = System.currentTimeMillis() - startTime;
+            log.error("Failed executing REST tool '{}' [status={}]: {}", tool.name(), e.getStatusCode(), e.getMessage());
+            return ToolExecutionResult.failure("Downstream tool error: " + e.getMessage(), latency, e, e.getStatusCode().value());
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startTime;
             log.error("Failed executing REST tool '{}': {}", tool.name(), e.getMessage());
-            return ToolExecutionResult.failure("Downstream tool error: " + e.getMessage(), latency);
+            return ToolExecutionResult.failure("Downstream tool error: " + e.getMessage(), latency, e, null);
         }
     }
 }

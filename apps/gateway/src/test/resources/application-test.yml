@@ -29,3 +29,9 @@ agentgate:
     default-tool-daily-quota: 50000
     default-hourly-write-cap: 20
     warning-threshold-percent: 80
+  resilience:
+    default-connect-timeout: 3s
+    default-read-timeout: 5s
+    default-execution-deadline: 10s
+    default-failure-threshold: 3
+    default-open-wait-duration: 1s
