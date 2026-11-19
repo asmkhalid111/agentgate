@@ -1,6 +1,8 @@
 package com.agentgate.gateway.killswitch.service;
 
+import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
+import com.agentgate.gateway.audit.service.AuditRecorder;
 import com.agentgate.gateway.killswitch.domain.KillSwitch;
 import com.agentgate.gateway.killswitch.domain.KillSwitchType;
 import com.agentgate.gateway.killswitch.dto.KillSwitchCheckResult;
@@ -28,13 +30,22 @@ public class KillSwitchService {
 
     private final KillSwitchRepository killSwitchRepository;
     private final ApprovalRequestRepository approvalRepository;
+    private final AuditRecorder auditRecorder;
 
     @org.springframework.beans.factory.annotation.Autowired
     public KillSwitchService(
             KillSwitchRepository killSwitchRepository,
-            ApprovalRequestRepository approvalRepository) {
+            ApprovalRequestRepository approvalRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditRecorder auditRecorder) {
         this.killSwitchRepository = java.util.Objects.requireNonNull(killSwitchRepository, "killSwitchRepository is required");
         this.approvalRepository = java.util.Objects.requireNonNull(approvalRepository, "approvalRepository is required");
+        this.auditRecorder = auditRecorder;
+    }
+
+    public KillSwitchService(
+            KillSwitchRepository killSwitchRepository,
+            ApprovalRequestRepository approvalRepository) {
+        this(killSwitchRepository, approvalRepository, null);
     }
 
     /**
@@ -101,6 +112,12 @@ public class KillSwitchService {
         // 3. Mandatory: Atomically cancel affected pending approval requests within the same transaction
         String cancellationReason = "Emergency kill switch activated: " + type + " [" + normalizedTarget
                 + "]. Reason: " + reason.trim();
+        List<ApprovalRequest> affectedRequests = switch (type) {
+            case AGENT -> approvalRepository.findPendingByAgent(normalizedTarget);
+            case TOOL -> approvalRepository.findPendingByTool(normalizedTarget);
+            case GLOBAL_WRITE -> approvalRepository.findPendingWriteOperations();
+        };
+
         int cancelled = switch (type) {
             case AGENT -> approvalRepository.cancelPendingByAgent(normalizedTarget, admin, cancellationReason, now);
             case TOOL -> approvalRepository.cancelPendingByTool(normalizedTarget, admin, cancellationReason, now);
@@ -109,6 +126,21 @@ public class KillSwitchService {
         if (cancelled > 0) {
             log.info("Cancelled {} pending approval request(s) matching {} [{}]", cancelled, type,
                     normalizedTarget);
+            if (auditRecorder != null && affectedRequests != null) {
+                for (ApprovalRequest req : affectedRequests) {
+                    auditRecorder.recordApprovalDecision(
+                            req.id(),
+                            req.agentId(),
+                            req.userId(),
+                            req.toolName(),
+                            req.policyRuleId(),
+                            "CANCELLED",
+                            admin,
+                            cancellationReason,
+                            req.originalArgumentsJson()
+                    );
+                }
+            }
         }
 
         return killSwitchRepository.findByTypeAndTarget(type, normalizedTarget).orElse(ks);
