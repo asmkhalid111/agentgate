@@ -206,6 +206,67 @@ public class ApprovalRequestRepository {
     }
 
     /**
+     * Atomically cancels all PENDING approval requests originating from a specific agent.
+     */
+    public int cancelPendingByAgent(String agentId, String cancelledBy, String reason, Instant decidedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET status = 'CANCELLED',
+                    decided_at = :decidedAt,
+                    decided_by = :cancelledBy,
+                    decision_reason = :reason
+                WHERE status = 'PENDING' AND agent_id = :agentId
+                """)
+                .param("agentId", agentId)
+                .param("decidedAt", Timestamp.from(decidedAt))
+                .param("cancelledBy", cancelledBy)
+                .param("reason", reason)
+                .update();
+    }
+
+    /**
+     * Atomically cancels all PENDING approval requests targeting a specific tool.
+     */
+    public int cancelPendingByTool(String toolName, String cancelledBy, String reason, Instant decidedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET status = 'CANCELLED',
+                    decided_at = :decidedAt,
+                    decided_by = :cancelledBy,
+                    decision_reason = :reason
+                WHERE status = 'PENDING' AND tool_name = :toolName
+                """)
+                .param("toolName", toolName)
+                .param("decidedAt", Timestamp.from(decidedAt))
+                .param("cancelledBy", cancelledBy)
+                .param("reason", reason)
+                .update();
+    }
+
+    /**
+     * Atomically cancels all PENDING approval requests for mutating write tools.
+     * Tools with GET and HEAD methods are preserved; all other tools (and unclassified tools) are cancelled.
+     */
+    public int cancelPendingWriteOperations(String cancelledBy, String reason, Instant decidedAt) {
+        return jdbcClient.sql("""
+                UPDATE approval_requests
+                SET status = 'CANCELLED',
+                    decided_at = :decidedAt,
+                    decided_by = :cancelledBy,
+                    decision_reason = :reason
+                WHERE status = 'PENDING'
+                  AND tool_name NOT IN (
+                      SELECT name FROM registered_tools
+                      WHERE UPPER(TRIM(http_method)) IN ('GET', 'HEAD')
+                  )
+                """)
+                .param("decidedAt", Timestamp.from(decidedAt))
+                .param("cancelledBy", cancelledBy)
+                .param("reason", reason)
+                .update();
+    }
+
+    /**
      * Atomically transitions a single overdue request from PENDING to EXPIRED.
      */
     public int transitionToExpired(String id, Instant now) {
@@ -329,5 +390,12 @@ public class ApprovalRequestRepository {
                 .param("limit", limit)
                 .query(this::mapRow)
                 .list();
+    }
+
+    /**
+     * Deletes all approval requests. Intended for test isolation.
+     */
+    public void deleteAll() {
+        jdbcClient.sql("DELETE FROM approval_requests").update();
     }
 }

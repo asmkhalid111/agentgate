@@ -1,5 +1,6 @@
 package com.agentgate.gateway.killswitch.service;
 
+import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
 import com.agentgate.gateway.killswitch.domain.KillSwitch;
 import com.agentgate.gateway.killswitch.domain.KillSwitchType;
 import com.agentgate.gateway.killswitch.dto.KillSwitchCheckResult;
@@ -7,6 +8,7 @@ import com.agentgate.gateway.killswitch.repository.KillSwitchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,9 +26,18 @@ public class KillSwitchService {
     private static final String DEFAULT_GLOBAL_TARGET = "GLOBAL";
 
     private final KillSwitchRepository killSwitchRepository;
+    private final ApprovalRequestRepository approvalRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public KillSwitchService(
+            KillSwitchRepository killSwitchRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ApprovalRequestRepository approvalRepository) {
+        this.killSwitchRepository = killSwitchRepository;
+        this.approvalRepository = approvalRepository;
+    }
 
     public KillSwitchService(KillSwitchRepository killSwitchRepository) {
-        this.killSwitchRepository = killSwitchRepository;
+        this(killSwitchRepository, null);
     }
 
     /**
@@ -62,8 +73,10 @@ public class KillSwitchService {
     }
 
     /**
-     * Activates an emergency kill switch idempotently.
+     * Activates an emergency kill switch idempotently and atomically cancels all affected
+     * PENDING approval requests within a single database transaction (FR8).
      */
+    @Transactional
     public KillSwitch activate(KillSwitchType type, String target, String reason, String adminUsername) {
         if (type == null) {
             throw new IllegalArgumentException("Kill switch type is required");
@@ -81,6 +94,19 @@ public class KillSwitchService {
         killSwitchRepository.upsert(ks);
         log.warn("EMERGENCY KILL SWITCH ACTIVATED: type={}, target={}, by='{}', reason='{}'",
                 type, normalizedTarget, admin, reason);
+
+        // Atomically cancel affected pending approval requests within the same transaction
+        if (approvalRepository != null) {
+            String cancellationReason = "Emergency kill switch activated: " + type + " [" + normalizedTarget + "]. Reason: " + reason.trim();
+            int cancelled = switch (type) {
+                case AGENT -> approvalRepository.cancelPendingByAgent(normalizedTarget, admin, cancellationReason, now);
+                case TOOL -> approvalRepository.cancelPendingByTool(normalizedTarget, admin, cancellationReason, now);
+                case GLOBAL_WRITE -> approvalRepository.cancelPendingWriteOperations(admin, cancellationReason, now);
+            };
+            if (cancelled > 0) {
+                log.info("Cancelled {} pending approval request(s) matching {} [{}]", cancelled, type, normalizedTarget);
+            }
+        }
 
         return killSwitchRepository.findByTypeAndTarget(type, normalizedTarget).orElse(ks);
     }
