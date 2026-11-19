@@ -239,6 +239,10 @@ public class ToolExecutionPipeline {
                         "REQUIRE_APPROVAL: Call held for human approval [ApprovalId: " + pendingReq.id() + ", Rule: " + ruleName + "]",
                         decision.evaluationTimeMs()
                 );
+            } catch (IllegalStateException e) {
+                log.warn("Approval creation blocked by emergency kill switch for tool '{}' by agent '{}': {}",
+                        context.toolName(), context.agentId(), e.getMessage());
+                return ToolExecutionResult.failure(e.getMessage(), decision.evaluationTimeMs());
             } catch (Exception e) {
                 log.error("Failed to persist approval request for tool '{}' by agent '{}' [rule='{}']: {}",
                         context.toolName(), context.agentId(), ruleId, e.getClass().getSimpleName());

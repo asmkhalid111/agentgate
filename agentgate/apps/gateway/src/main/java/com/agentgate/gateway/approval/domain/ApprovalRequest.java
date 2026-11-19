@@ -7,11 +7,15 @@ import java.time.Instant;
  * <p>
  * Security & Governance Notes:
  * <ul>
- *   <li><b>Original Arguments:</b> Preserved immutably as originally passed by the calling agent.</li>
- *   <li><b>Approved Arguments:</b> Stored separately when an approver reviews or edits arguments.</li>
- *   <li><b>Future Execution Safety:</b> When future approved execution is implemented, edited arguments
- *       must be revalidated through the JSON Schema guard and applicable authorization/safety checks
- *       before downstream tool dispatch.</li>
+ * <li><b>Original Arguments:</b> Preserved immutably as originally passed by
+ * the calling agent.</li>
+ * <li><b>Approved Arguments:</b> Stored separately when an approver reviews or
+ * edits arguments.</li>
+ * <li><b>Future Execution Safety:</b> When future approved execution is
+ * implemented, edited arguments
+ * must be revalidated through the JSON Schema guard and applicable
+ * authorization/safety checks
+ * before downstream tool dispatch.</li>
  * </ul>
  */
 public record ApprovalRequest(
@@ -31,8 +35,7 @@ public record ApprovalRequest(
         ExecutionState executionState,
         Instant executedAt,
         String executionResultJson,
-        String executionError
-) {
+        String executionError) {
     public ApprovalRequest(
             String id,
             String agentId,
@@ -46,14 +49,12 @@ public record ApprovalRequest(
             Instant expiresAt,
             Instant decidedAt,
             String decidedBy,
-            String decisionReason
-    ) {
+            String decisionReason) {
         this(
                 id, agentId, userId, toolName, policyRuleId,
                 originalArgumentsJson, approvedArgumentsJson, status,
                 createdAt, expiresAt, decidedAt, decidedBy, decisionReason,
-                ExecutionState.NOT_DISPATCHED, null, null, null
-        );
+                ExecutionState.NOT_DISPATCHED, null, null, null);
     }
 
     public boolean isPending() {

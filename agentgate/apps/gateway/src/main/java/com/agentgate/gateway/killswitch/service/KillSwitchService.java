@@ -17,7 +17,8 @@ import java.util.UUID;
 
 /**
  * Service managing emergency kill switches (FR8).
- * Provides atomic activation/deactivation and authoritative fail-closed status verification.
+ * Provides atomic activation/deactivation and authoritative fail-closed status
+ * verification.
  */
 @Service
 public class KillSwitchService {
@@ -31,21 +32,19 @@ public class KillSwitchService {
     @org.springframework.beans.factory.annotation.Autowired
     public KillSwitchService(
             KillSwitchRepository killSwitchRepository,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) ApprovalRequestRepository approvalRepository) {
-        this.killSwitchRepository = killSwitchRepository;
-        this.approvalRepository = approvalRepository;
-    }
-
-    public KillSwitchService(KillSwitchRepository killSwitchRepository) {
-        this(killSwitchRepository, null);
+            ApprovalRequestRepository approvalRepository) {
+        this.killSwitchRepository = java.util.Objects.requireNonNull(killSwitchRepository, "killSwitchRepository is required");
+        this.approvalRepository = java.util.Objects.requireNonNull(approvalRepository, "approvalRepository is required");
     }
 
     /**
-     * Authoritatively checks if tool execution is blocked by any active kill switch.
+     * Authoritatively checks if tool execution is blocked by any active kill
+     * switch.
      * <p>
      * <b>FAIL-CLOSED SAFETY INVARIANT:</b>
      * If the underlying database is unreachable or throws any exception,
-     * this method fails closed and returns an unavailable result, safely halting execution
+     * this method fails closed and returns an unavailable result, safely halting
+     * execution
      * without leaking internal connection or database details.
      * </p>
      *
@@ -67,13 +66,13 @@ public class KillSwitchService {
         } catch (Exception e) {
             log.error("Emergency kill switch database lookup failed; failing closed: {}", e.getMessage());
             return KillSwitchCheckResult.unavailable(
-                    "KILL_SWITCH_UNAVAILABLE: Emergency controls temporarily unavailable."
-            );
+                    "KILL_SWITCH_UNAVAILABLE: Emergency controls temporarily unavailable.");
         }
     }
 
     /**
-     * Activates an emergency kill switch idempotently and atomically cancels all affected
+     * Activates an emergency kill switch idempotently and atomically cancels all
+     * affected
      * PENDING approval requests within a single database transaction (FR8).
      */
     @Transactional
@@ -91,21 +90,25 @@ public class KillSwitchService {
         String id = "ks-" + UUID.randomUUID().toString();
         KillSwitch ks = new KillSwitch(id, type, normalizedTarget, true, reason.trim(), admin, now, now);
 
+        // 1. Acquire transaction lock on approval_requests table to serialize against concurrent createRequest()
+        approvalRepository.lockForSwitchActivation();
+
+        // 2. Persist active kill switch
         killSwitchRepository.upsert(ks);
         log.warn("EMERGENCY KILL SWITCH ACTIVATED: type={}, target={}, by='{}', reason='{}'",
                 type, normalizedTarget, admin, reason);
 
-        // Atomically cancel affected pending approval requests within the same transaction
-        if (approvalRepository != null) {
-            String cancellationReason = "Emergency kill switch activated: " + type + " [" + normalizedTarget + "]. Reason: " + reason.trim();
-            int cancelled = switch (type) {
-                case AGENT -> approvalRepository.cancelPendingByAgent(normalizedTarget, admin, cancellationReason, now);
-                case TOOL -> approvalRepository.cancelPendingByTool(normalizedTarget, admin, cancellationReason, now);
-                case GLOBAL_WRITE -> approvalRepository.cancelPendingWriteOperations(admin, cancellationReason, now);
-            };
-            if (cancelled > 0) {
-                log.info("Cancelled {} pending approval request(s) matching {} [{}]", cancelled, type, normalizedTarget);
-            }
+        // 3. Mandatory: Atomically cancel affected pending approval requests within the same transaction
+        String cancellationReason = "Emergency kill switch activated: " + type + " [" + normalizedTarget
+                + "]. Reason: " + reason.trim();
+        int cancelled = switch (type) {
+            case AGENT -> approvalRepository.cancelPendingByAgent(normalizedTarget, admin, cancellationReason, now);
+            case TOOL -> approvalRepository.cancelPendingByTool(normalizedTarget, admin, cancellationReason, now);
+            case GLOBAL_WRITE -> approvalRepository.cancelPendingWriteOperations(admin, cancellationReason, now);
+        };
+        if (cancelled > 0) {
+            log.info("Cancelled {} pending approval request(s) matching {} [{}]", cancelled, type,
+                    normalizedTarget);
         }
 
         return killSwitchRepository.findByTypeAndTarget(type, normalizedTarget).orElse(ks);
@@ -133,7 +136,8 @@ public class KillSwitchService {
      * Retrieves a specific switch.
      */
     public Optional<KillSwitch> findSwitch(KillSwitchType type, String target) {
-        if (type == null) return Optional.empty();
+        if (type == null)
+            return Optional.empty();
         return killSwitchRepository.findByTypeAndTarget(type, normalizeTarget(type, target));
     }
 
