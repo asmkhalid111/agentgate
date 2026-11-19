@@ -26,6 +26,7 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -303,5 +304,63 @@ class ApprovalWebInterfaceTest {
                         .content("{}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode", is("INVALID_APPROVAL_STATE")));
+    }
+
+    @Test
+    @DisplayName("15. OAuth2 login initiation redirects to Keycloak authorization endpoint with OIDC parameters")
+    void oauth2LoginInitiation_redirectsToKeycloakAuthEndpoint() throws Exception {
+        mockMvc.perform(get("/oauth2/authorization/keycloak"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", allOf(
+                        containsString("http://localhost:8180/realms/agentgate/protocol/openid-connect/auth"),
+                        containsString("response_type=code"),
+                        containsString("client_id=agentgate-web"),
+                        containsString("scope=openid"),
+                        containsString("redirect_uri=")
+                )));
+    }
+
+    @Test
+    @DisplayName("16. OAuth2 callback is covered by OAuth2 authentication filter and fails safely without state")
+    void oauth2Callback_coveredByFilter_failsSafelyWithoutState() throws Exception {
+        // Invoking the callback route without prior session state must be intercepted by OAuth2LoginAuthenticationFilter
+        // and fail safely (e.g. redirect to login or error, not 404 or unhandled bypass)
+        mockMvc.perform(get("/login/oauth2/code/keycloak"))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    @DisplayName("17. Login route /login is accessible without authentication")
+    void loginRoute_accessibleWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("18. Unrelated routes remain protected by the catch-all chain (denyAll)")
+    void unrelatedRoutes_protectedByCatchAllChain() throws Exception {
+        // Unauthenticated access to arbitrary unmapped path redirects to login
+        mockMvc.perform(get("/unrelated/system-admin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("/oauth2/authorization/keycloak")));
+
+        // Authenticated non-approver accessing unmapped path receives 403 Forbidden
+        mockMvc.perform(get("/unrelated/system-admin").with(nonApproverHumanOidc()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("19. Machine JWT Bearer authentication on @Order(1) chain continues working")
+    void machineJwtAuthentication_continuesWorking() throws Exception {
+        mockMvc.perform(get("/api/v1/approvals")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_APPROVER"))
+                                .jwt(j -> j
+                                        .subject("usr-machine-jwt")
+                                        .claim("preferred_username", "officer.machine")
+                                        .claim("realm_access", Map.of("roles", List.of("APPROVER")))
+                                ))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", notNullValue()));
     }
 }
