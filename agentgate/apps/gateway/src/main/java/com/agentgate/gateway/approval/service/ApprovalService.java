@@ -12,6 +12,7 @@ import com.agentgate.gateway.approval.event.ApprovalCreatedEvent;
 import com.agentgate.gateway.approval.exception.ApprovalNotFoundException;
 import com.agentgate.gateway.approval.exception.InvalidApprovalStateException;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
+import com.agentgate.gateway.audit.service.AuditRecorder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -53,14 +54,25 @@ public class ApprovalService {
     private final ApprovalRequestRepository repository;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditRecorder auditRecorder;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ApprovalService(
+            ApprovalRequestRepository repository,
+            ObjectMapper objectMapper,
+            ApplicationEventPublisher eventPublisher,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditRecorder auditRecorder) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
+        this.auditRecorder = auditRecorder;
+    }
 
     public ApprovalService(
             ApprovalRequestRepository repository,
             ObjectMapper objectMapper,
             ApplicationEventPublisher eventPublisher) {
-        this.repository = repository;
-        this.objectMapper = objectMapper;
-        this.eventPublisher = eventPublisher;
+        this(repository, objectMapper, eventPublisher, null);
     }
 
     /**
@@ -116,6 +128,18 @@ public class ApprovalService {
                 null);
 
         repository.save(request);
+
+        if (auditRecorder != null) {
+            auditRecorder.recordApprovalRequested(
+                    request.id(),
+                    request.agentId(),
+                    request.userId(),
+                    request.toolName(),
+                    request.originalArgumentsJson(),
+                    request.policyRuleId(),
+                    null
+            );
+        }
 
         if (eventPublisher != null) {
             eventPublisher.publishEvent(new ApprovalCreatedEvent(request));
@@ -180,6 +204,20 @@ public class ApprovalService {
         ApprovalRequest approved = repository.findById(id).orElseThrow();
         log.info("Approved request '{}' by '{}' [edited={}]", id, decidedBy, (approvedArgsJson != null));
 
+        if (auditRecorder != null) {
+            auditRecorder.recordApprovalDecision(
+                    id,
+                    approved.agentId(),
+                    approved.userId(),
+                    approved.toolName(),
+                    approved.policyRuleId(),
+                    "APPROVED",
+                    decidedBy,
+                    null,
+                    approved.approvedArgumentsJson() != null ? approved.approvedArgumentsJson() : approved.originalArgumentsJson()
+            );
+        }
+
         if (eventPublisher != null) {
             eventPublisher.publishEvent(new ApprovalApprovedEvent(approved));
         }
@@ -215,7 +253,21 @@ public class ApprovalService {
         }
 
         log.info("Rejected approval request '{}' by '{}' [reason='{}']", id, decidedBy, reason);
-        return repository.findById(id).orElseThrow();
+        ApprovalRequest rejected = repository.findById(id).orElseThrow();
+        if (auditRecorder != null) {
+            auditRecorder.recordApprovalDecision(
+                    id,
+                    rejected.agentId(),
+                    rejected.userId(),
+                    rejected.toolName(),
+                    rejected.policyRuleId(),
+                    "REJECTED",
+                    decidedBy,
+                    reason,
+                    rejected.originalArgumentsJson()
+            );
+        }
+        return rejected;
     }
 
     /**
@@ -239,7 +291,21 @@ public class ApprovalService {
         }
 
         log.info("Cancelled approval request '{}' by '{}' [reason='{}']", id, cancelledBy, reason);
-        return repository.findById(id).orElseThrow();
+        ApprovalRequest cancelled = repository.findById(id).orElseThrow();
+        if (auditRecorder != null) {
+            auditRecorder.recordApprovalDecision(
+                    id,
+                    cancelled.agentId(),
+                    cancelled.userId(),
+                    cancelled.toolName(),
+                    cancelled.policyRuleId(),
+                    "CANCELLED",
+                    cancelledBy,
+                    reason,
+                    cancelled.originalArgumentsJson()
+            );
+        }
+        return cancelled;
     }
 
     /**
@@ -251,9 +317,25 @@ public class ApprovalService {
     @Scheduled(fixedDelayString = "${agentgate.approval.expiration-interval-ms:60000}", initialDelayString = "${agentgate.approval.expiration-initial-delay-ms:5000}")
     public int expirePendingRequests() {
         Instant now = Instant.now();
+        List<ApprovalRequest> expiredRequests = repository.findPendingExpired(now);
         int count = repository.expirePendingRequests(now);
         if (count > 0) {
             log.info("Expired {} overdue approval requests at {}", count, now);
+            if (auditRecorder != null && expiredRequests != null) {
+                for (ApprovalRequest req : expiredRequests) {
+                    auditRecorder.recordApprovalDecision(
+                            req.id(),
+                            req.agentId(),
+                            req.userId(),
+                            req.toolName(),
+                            req.policyRuleId(),
+                            "EXPIRED",
+                            "SYSTEM",
+                            "Approval request expired after timeout",
+                            req.originalArgumentsJson()
+                    );
+                }
+            }
         }
         return count;
     }

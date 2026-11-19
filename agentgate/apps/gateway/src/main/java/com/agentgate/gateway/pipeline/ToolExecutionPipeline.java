@@ -2,6 +2,7 @@ package com.agentgate.gateway.pipeline;
 
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.service.ApprovalService;
+import com.agentgate.gateway.audit.service.AuditRecorder;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
@@ -41,6 +42,7 @@ public class ToolExecutionPipeline {
     private final RateLimiter rateLimiter;
     private final WriteCapLimiter writeCapLimiter;
     private final KillSwitchService killSwitchService;
+    private final AuditRecorder auditRecorder;
     private final Duration approvalTimeout;
 
     @Autowired
@@ -55,6 +57,7 @@ public class ToolExecutionPipeline {
             RateLimiter rateLimiter,
             WriteCapLimiter writeCapLimiter,
             @Autowired(required = false) KillSwitchService killSwitchService,
+            @Autowired(required = false) AuditRecorder auditRecorder,
             @Value("${agentgate.approval.default-timeout-seconds:900}") long approvalTimeoutSeconds) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -66,6 +69,7 @@ public class ToolExecutionPipeline {
         this.rateLimiter = rateLimiter;
         this.writeCapLimiter = writeCapLimiter;
         this.killSwitchService = killSwitchService;
+        this.auditRecorder = auditRecorder;
         this.approvalTimeout = Duration.ofSeconds(approvalTimeoutSeconds > 0 ? approvalTimeoutSeconds : 900);
     }
 
@@ -79,8 +83,38 @@ public class ToolExecutionPipeline {
             ApprovalService approvalService,
             RateLimiter rateLimiter,
             WriteCapLimiter writeCapLimiter,
+            KillSwitchService killSwitchService,
+            AuditRecorder auditRecorder) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, killSwitchService, auditRecorder, 900L);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            RateLimiter rateLimiter,
+            WriteCapLimiter writeCapLimiter,
+            KillSwitchService killSwitchService,
+            long approvalTimeoutSeconds) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, killSwitchService, null, approvalTimeoutSeconds);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            RateLimiter rateLimiter,
+            WriteCapLimiter writeCapLimiter,
             KillSwitchService killSwitchService) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, killSwitchService, 900L);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, killSwitchService, null, 900L);
     }
 
     public ToolExecutionPipeline(
@@ -94,7 +128,7 @@ public class ToolExecutionPipeline {
             RateLimiter rateLimiter,
             WriteCapLimiter writeCapLimiter,
             long approvalTimeoutSeconds) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, null, approvalTimeoutSeconds);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, null, null, approvalTimeoutSeconds);
     }
 
     public ToolExecutionPipeline(
@@ -107,7 +141,7 @@ public class ToolExecutionPipeline {
             ApprovalService approvalService,
             RateLimiter rateLimiter,
             long approvalTimeoutSeconds) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, null, approvalTimeoutSeconds);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, null, null, null, approvalTimeoutSeconds);
     }
 
     public ToolExecutionPipeline(
@@ -119,7 +153,7 @@ public class ToolExecutionPipeline {
             ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService,
             long approvalTimeoutSeconds) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, null, approvalTimeoutSeconds);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, null, null, null, approvalTimeoutSeconds);
     }
 
     public ToolExecutionPipeline(
@@ -130,7 +164,7 @@ public class ToolExecutionPipeline {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, 900L);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, null, null, null, 900L);
     }
 
     public ToolExecutionPipeline(
@@ -140,7 +174,7 @@ public class ToolExecutionPipeline {
             JsonSchemaValidationGuard validationGuard,
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, null, null, 900L);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, null, null, null, null, null, 900L);
     }
 
     /**
@@ -154,12 +188,18 @@ public class ToolExecutionPipeline {
 
         if (!tool.enabled()) {
             log.warn("Blocked call to disabled tool '{}' from agent '{}'", context.toolName(), context.agentId());
+            if (auditRecorder != null) {
+                auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "TOOL_DISABLED", null, null, "Tool '" + context.toolName() + "' is currently disabled", 0L);
+            }
             throw new IllegalStateException("Tool '" + context.toolName() + "' is currently disabled");
         }
 
         // Direct invocation authorization check (Reviewer Amendment 4)
         if (!toolRepository.isAgentPermitted(context.toolName(), context.agentId())) {
             log.warn("Security violation: Agent '{}' unauthorized for tool '{}'", context.agentId(), context.toolName());
+            if (auditRecorder != null) {
+                auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "AGENT_UNAUTHORIZED", null, null, "Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'", 0L);
+            }
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
         }
 
@@ -174,6 +214,9 @@ public class ToolExecutionPipeline {
             if (killDecision.blocked()) {
                 log.warn("Execution blocked by emergency kill switch at ingress for agent '{}' on tool '{}': {}",
                         context.agentId(), context.toolName(), killDecision.message());
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "KILL_SWITCH_BLOCKED", null, null, killDecision.message(), 0L);
+                }
                 return ToolExecutionResult.failure(killDecision.message(), 0L);
             }
         }
@@ -185,6 +228,9 @@ public class ToolExecutionPipeline {
             if (!rateDecision.allowed()) {
                 log.warn("Rate limit check failed for agent '{}' on tool '{}': {}",
                         context.agentId(), context.toolName(), rateDecision.message());
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "RATE_LIMIT_EXCEEDED", null, null, rateDecision.message(), 0L);
+                }
                 return ToolExecutionResult.failure(rateDecision.message(), 0L);
             }
         }
@@ -193,6 +239,9 @@ public class ToolExecutionPipeline {
         ValidationResult validation = validationGuard.validate(tool, context.arguments());
         if (!validation.valid()) {
             log.warn("Input validation failed for tool '{}' from agent '{}': {}", context.toolName(), context.agentId(), validation.error());
+            if (auditRecorder != null) {
+                auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "SCHEMA_VALIDATION_FAILED", null, null, validation.error(), 0L);
+            }
             return ToolExecutionResult.failure(validation.error(), 0L);
         }
 
@@ -202,6 +251,9 @@ public class ToolExecutionPipeline {
         PolicyDecision decision = policyEvaluator.evaluate(enrichedContext);
         if (decision.action() == PolicyAction.DENY) {
             log.warn("Call blocked by policy: rule='{}', reason='{}'", decision.matchedRuleName(), decision.reason());
+            if (auditRecorder != null) {
+                auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "POLICY_DENIED", decision.matchedRuleId(), decision.matchedRuleName(), decision.reason(), decision.evaluationTimeMs());
+            }
             return ToolExecutionResult.failure("POLICY_DENIED: " + decision.reason(), decision.evaluationTimeMs());
         }
 
@@ -209,18 +261,20 @@ public class ToolExecutionPipeline {
             String ruleId = decision.matchedRuleId();
             if (ruleId == null || ruleId.isBlank()) {
                 log.error("Policy action REQUIRE_APPROVAL for tool '{}' missing rule identifier", context.toolName());
-                return ToolExecutionResult.failure(
-                        "REQUIRE_APPROVAL_INVALID_POLICY: Missing policy rule identifier; tool was not executed.",
-                        decision.evaluationTimeMs()
-                );
+                String msg = "REQUIRE_APPROVAL_INVALID_POLICY: Missing policy rule identifier; tool was not executed.";
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "REQUIRE_APPROVAL_INVALID_POLICY", null, null, msg, decision.evaluationTimeMs());
+                }
+                return ToolExecutionResult.failure(msg, decision.evaluationTimeMs());
             }
 
             if (approvalService == null) {
                 log.error("ApprovalService unavailable for tool '{}' requiring approval", context.toolName());
-                return ToolExecutionResult.failure(
-                        "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.",
-                        decision.evaluationTimeMs()
-                );
+                String msg = "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.";
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "REQUIRE_APPROVAL_PERSISTENCE_FAILED", ruleId, decision.matchedRuleName(), msg, decision.evaluationTimeMs());
+                }
+                return ToolExecutionResult.failure(msg, decision.evaluationTimeMs());
             }
 
             try {
@@ -242,14 +296,18 @@ public class ToolExecutionPipeline {
             } catch (IllegalStateException e) {
                 log.warn("Approval creation blocked by emergency kill switch for tool '{}' by agent '{}': {}",
                         context.toolName(), context.agentId(), e.getMessage());
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "KILL_SWITCH_BLOCKED", ruleId, decision.matchedRuleName(), e.getMessage(), decision.evaluationTimeMs());
+                }
                 return ToolExecutionResult.failure(e.getMessage(), decision.evaluationTimeMs());
             } catch (Exception e) {
                 log.error("Failed to persist approval request for tool '{}' by agent '{}' [rule='{}']: {}",
                         context.toolName(), context.agentId(), ruleId, e.getClass().getSimpleName());
-                return ToolExecutionResult.failure(
-                        "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.",
-                        decision.evaluationTimeMs()
-                );
+                String msg = "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.";
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "REQUIRE_APPROVAL_PERSISTENCE_FAILED", ruleId, decision.matchedRuleName(), msg, decision.evaluationTimeMs());
+                }
+                return ToolExecutionResult.failure(msg, decision.evaluationTimeMs());
             }
         }
 
@@ -259,6 +317,9 @@ public class ToolExecutionPipeline {
             if (!writeDecision.allowed()) {
                 log.warn("Write cap check failed for agent '{}' on tool '{}': {}",
                         context.agentId(), context.toolName(), writeDecision.message());
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "WRITE_CAP_EXCEEDED", decision.matchedRuleId(), decision.matchedRuleName(), writeDecision.message(), decision.evaluationTimeMs());
+                }
                 return ToolExecutionResult.failure(writeDecision.message(), decision.evaluationTimeMs());
             }
         }
@@ -279,22 +340,66 @@ public class ToolExecutionPipeline {
             if (preDispatchDecision.blocked()) {
                 log.warn("Direct execution blocked by emergency kill switch immediately pre-dispatch for agent '{}' on tool '{}': {}",
                         context.agentId(), context.toolName(), preDispatchDecision.message());
+                if (auditRecorder != null) {
+                    auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "KILL_SWITCH_BLOCKED", decision.matchedRuleId(), decision.matchedRuleName(), preDispatchDecision.message(), decision.evaluationTimeMs());
+                }
                 return ToolExecutionResult.failure(preDispatchDecision.message(), decision.evaluationTimeMs());
             }
         }
 
-        ToolExecutionResult rawResult = adapter.execute(tool, enrichedContext);
+        // Mandatory Pre-Dispatch Write Intent for write operations (FR7)
+        if (tool.isWriteOperation() && auditRecorder != null) {
+            try {
+                auditRecorder.recordWriteDispatchIntent(
+                        context.agentId(),
+                        context.userId(),
+                        context.toolName(),
+                        context.arguments(),
+                        decision.matchedRuleId(),
+                        decision.matchedRuleName(),
+                        null
+                );
+            } catch (Exception e) {
+                log.error("Failed to commit pre-dispatch write intent audit event for tool '{}' by agent '{}': {}",
+                        context.toolName(), context.agentId(), e.getMessage());
+                return ToolExecutionResult.failure(
+                        "AUDIT_WRITE_INTENT_PERSISTENCE_FAILED: Pre-dispatch audit logging failed; tool was not executed.",
+                        decision.evaluationTimeMs()
+                );
+            }
+        }
+
+        ToolExecutionResult rawResult;
+        try {
+            rawResult = adapter.execute(tool, enrichedContext);
+        } catch (Throwable t) {
+            log.error("Downstream tool adapter exception for tool '{}': {}", tool.name(), t.getMessage());
+            boolean indeterminate = isIndeterminate(t, t.getMessage());
+            String outcome = indeterminate ? "INDETERMINATE" : "FAILED";
+            if (auditRecorder != null) {
+                auditRecorder.recordDirectToolExecution(context.agentId(), context.userId(), tool.name(), context.arguments(), decision.matchedRuleId(), decision.matchedRuleName(), decision.action().name(), 0L, outcome, t.getMessage());
+            }
+            return ToolExecutionResult.failure("DOWNSTREAM_EXECUTION_ERROR: " + t.getMessage(), 0L);
+        }
 
         // Error safety: sanitize agent-visible error messages if execution failed
         if (!rawResult.success()) {
-            if (rawResult.error() != null) {
-                String sanitizedError = enrichedContext.hasHighClearance()
-                        ? rawResult.error()
-                        : piiRedactionGuard.redactString(rawResult.error());
-                Object truncatedError = responseTruncationGuard.truncate(sanitizedError);
-                return ToolExecutionResult.failure(String.valueOf(truncatedError), rawResult.latencyMs());
+            String error = rawResult.error() != null ? rawResult.error() : "Unknown downstream tool error";
+            boolean indeterminate = isIndeterminate(null, error);
+            String outcome = indeterminate ? "INDETERMINATE" : "FAILED";
+            if (auditRecorder != null) {
+                auditRecorder.recordDirectToolExecution(context.agentId(), context.userId(), tool.name(), context.arguments(), decision.matchedRuleId(), decision.matchedRuleName(), decision.action().name(), rawResult.latencyMs(), outcome, error);
             }
-            return rawResult;
+            String sanitizedError = enrichedContext.hasHighClearance()
+                    ? error
+                    : piiRedactionGuard.redactString(error);
+            Object truncatedError = responseTruncationGuard.truncate(sanitizedError);
+            return ToolExecutionResult.failure(String.valueOf(truncatedError), rawResult.latencyMs());
+        }
+
+        // Direct execution success
+        if (auditRecorder != null) {
+            auditRecorder.recordDirectToolExecution(context.agentId(), context.userId(), tool.name(), context.arguments(), decision.matchedRuleId(), decision.matchedRuleName(), decision.action().name(), rawResult.latencyMs(), "SUCCESS", null);
         }
 
         // Clearance-aware output PII redaction (FR5)
@@ -303,5 +408,32 @@ public class ToolExecutionPipeline {
         // Oversized tool response truncation (FR5)
         Object truncatedData = responseTruncationGuard.truncate(redactedData);
         return ToolExecutionResult.success(truncatedData, rawResult.latencyMs());
+    }
+
+    private boolean isIndeterminate(Throwable t, String message) {
+        if (t != null) {
+            if (t instanceof java.net.SocketTimeoutException
+                    || t instanceof java.util.concurrent.TimeoutException
+                    || t instanceof org.springframework.web.client.ResourceAccessException
+                    || t instanceof java.net.ConnectException) {
+                return true;
+            }
+            Throwable cause = t.getCause();
+            if (cause != null && isIndeterminate(cause, cause.getMessage())) {
+                return true;
+            }
+        }
+        if (message != null) {
+            String lower = message.toLowerCase();
+            return lower.contains("timed out")
+                    || lower.contains("timeout")
+                    || lower.contains("resourceaccessexception")
+                    || lower.contains("connection refused")
+                    || lower.contains("connectexception")
+                    || lower.contains("sockettimeoutexception")
+                    || lower.contains("connection reset")
+                    || lower.contains("indeterminate");
+        }
+        return false;
     }
 }

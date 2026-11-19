@@ -2,6 +2,7 @@ package com.agentgate.gateway.pipeline;
 
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
+import com.agentgate.gateway.audit.service.AuditRecorder;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
@@ -49,6 +50,7 @@ public class ApprovedToolExecutionService {
     private final ObjectMapper objectMapper;
     private final WriteCapLimiter writeCapLimiter;
     private final KillSwitchService killSwitchService;
+    private final AuditRecorder auditRecorder;
 
     @org.springframework.beans.factory.annotation.Autowired
     public ApprovedToolExecutionService(
@@ -61,7 +63,8 @@ public class ApprovedToolExecutionService {
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper,
             WriteCapLimiter writeCapLimiter,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) KillSwitchService killSwitchService) {
+            @org.springframework.beans.factory.annotation.Autowired(required = false) KillSwitchService killSwitchService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditRecorder auditRecorder) {
         this.approvalRepository = approvalRepository;
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -72,6 +75,21 @@ public class ApprovedToolExecutionService {
         this.objectMapper = objectMapper;
         this.writeCapLimiter = writeCapLimiter;
         this.killSwitchService = killSwitchService;
+        this.auditRecorder = auditRecorder;
+    }
+
+    public ApprovedToolExecutionService(
+            ApprovalRequestRepository approvalRepository,
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ObjectMapper objectMapper,
+            WriteCapLimiter writeCapLimiter,
+            KillSwitchService killSwitchService) {
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, writeCapLimiter, killSwitchService, null);
     }
 
     public ApprovedToolExecutionService(
@@ -84,7 +102,7 @@ public class ApprovedToolExecutionService {
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper,
             WriteCapLimiter writeCapLimiter) {
-        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, writeCapLimiter, null);
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, writeCapLimiter, null, null);
     }
 
     public ApprovedToolExecutionService(
@@ -96,7 +114,7 @@ public class ApprovedToolExecutionService {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper) {
-        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, null, null);
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, null, null, null);
     }
 
     /**
@@ -137,19 +155,31 @@ public class ApprovedToolExecutionService {
             return;
         }
 
+        String effectiveArgsJson = (request.approvedArgumentsJson() != null && !request.approvedArgumentsJson().isBlank())
+                ? request.approvedArgumentsJson()
+                : (request.originalArgumentsJson() != null ? request.originalArgumentsJson() : "{}");
+
         // 3. Pre-dispatch Governance Revalidation
         // 3a. Tool Existence & Enabled Check
         Optional<RegisteredTool> toolOpt = toolRepository.findByName(request.toolName());
         if (toolOpt.isEmpty()) {
             log.warn("Approved tool execution failed: Unknown tool '{}' for approval '{}'", request.toolName(), approvalId);
-            approvalRepository.recordExecutionFailure(approvalId, "Unknown tool: " + request.toolName(), Instant.now());
+            String err = "Unknown tool: " + request.toolName();
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), request.toolName(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, err);
+            }
             return;
         }
         RegisteredTool tool = toolOpt.get();
 
         if (!tool.enabled()) {
             log.warn("Approved tool execution failed: Tool '{}' is currently disabled for approval '{}'", tool.name(), approvalId);
-            approvalRepository.recordExecutionFailure(approvalId, "Tool '" + tool.name() + "' is currently disabled", Instant.now());
+            String err = "Tool '" + tool.name() + "' is currently disabled";
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, err);
+            }
             return;
         }
 
@@ -157,23 +187,25 @@ public class ApprovedToolExecutionService {
         if (!toolRepository.isAgentPermitted(tool.name(), request.agentId())) {
             log.warn("Approved tool execution failed: Agent '{}' is unauthorized for tool '{}' in approval '{}'",
                     request.agentId(), tool.name(), approvalId);
-            approvalRepository.recordExecutionFailure(approvalId,
-                    "Agent '" + request.agentId() + "' is not authorized to invoke tool '" + tool.name() + "'",
-                    Instant.now());
+            String err = "Agent '" + request.agentId() + "' is not authorized to invoke tool '" + tool.name() + "'";
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, err);
+            }
             return;
         }
 
         // 3c. Parse Arguments and Revalidate JSON Schema
-        String effectiveArgsJson = (request.approvedArgumentsJson() != null && !request.approvedArgumentsJson().isBlank())
-                ? request.approvedArgumentsJson()
-                : request.originalArgumentsJson();
-
         Map<String, Object> arguments;
         try {
             arguments = parseArgumentsJson(effectiveArgsJson);
         } catch (Exception e) {
             log.warn("Approved tool execution failed: Argument deserialization error for approval '{}': {}", approvalId, e.getMessage());
-            approvalRepository.recordExecutionFailure(approvalId, "SCHEMA_VALIDATION_FAILED: Invalid arguments JSON: " + e.getMessage(), Instant.now());
+            String err = "SCHEMA_VALIDATION_FAILED: Invalid arguments JSON: " + e.getMessage();
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, err);
+            }
             return;
         }
 
@@ -182,6 +214,9 @@ public class ApprovedToolExecutionService {
             log.warn("Approved tool execution failed: Schema validation rejected arguments for tool '{}' in approval '{}': {}",
                     tool.name(), approvalId, validation.error());
             approvalRepository.recordExecutionFailure(approvalId, validation.error(), Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, validation.error());
+            }
             return;
         }
 
@@ -198,7 +233,11 @@ public class ApprovedToolExecutionService {
         PolicyDecision decision = policyEvaluator.evaluate(context);
         if (decision.action() == PolicyAction.DENY) {
             log.warn("Approved tool execution blocked by current DENY policy rule '{}': {}", decision.matchedRuleName(), decision.reason());
-            approvalRepository.recordExecutionFailure(approvalId, "POLICY_DENIED: " + decision.reason(), Instant.now());
+            String err = "POLICY_DENIED: " + decision.reason();
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", decision.evaluationTimeMs(), err);
+            }
             return;
         }
 
@@ -208,9 +247,11 @@ public class ApprovedToolExecutionService {
             } else {
                 log.warn("Approved tool execution blocked: Re-evaluation matched different approval rule '{}' (expected '{}')",
                         decision.matchedRuleId(), request.policyRuleId());
-                approvalRepository.recordExecutionFailure(approvalId,
-                        "REQUIRE_APPROVAL_NEW_RULE: Re-evaluation matched different approval rule " + decision.matchedRuleId(),
-                        Instant.now());
+                String err = "REQUIRE_APPROVAL_NEW_RULE: Re-evaluation matched different approval rule " + decision.matchedRuleId();
+                approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+                if (auditRecorder != null) {
+                    auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", decision.evaluationTimeMs(), err);
+                }
                 return;
             }
         }
@@ -222,6 +263,9 @@ public class ApprovedToolExecutionService {
                 log.warn("Write cap rejected approved execution for request '{}' [agent='{}', tool='{}']: {}",
                         approvalId, request.agentId(), tool.name(), writeDecision.message());
                 approvalRepository.recordExecutionFailure(approvalId, writeDecision.message(), Instant.now());
+                if (auditRecorder != null) {
+                    auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, writeDecision.message());
+                }
                 return;
             }
         }
@@ -238,11 +282,35 @@ public class ApprovedToolExecutionService {
                 log.warn("Approved tool execution blocked by emergency kill switch for request '{}' [agent='{}', tool='{}']: {}",
                         approvalId, request.agentId(), tool.name(), killDecision.message());
                 approvalRepository.recordExecutionFailure(approvalId, killDecision.message(), Instant.now());
+                if (auditRecorder != null) {
+                    auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, killDecision.message());
+                }
                 return;
             }
         }
 
-        // 6. Downstream Adapter Dispatch
+        // 6. Pre-Dispatch Write Intent for write operations (Mandatory Reviewer Requirement 4)
+        if (tool.isWriteOperation() && auditRecorder != null) {
+            try {
+                auditRecorder.recordWriteDispatchIntent(
+                        request.agentId(),
+                        request.userId(),
+                        tool.name(),
+                        arguments,
+                        request.policyRuleId(),
+                        null,
+                        approvalId
+                );
+            } catch (Exception e) {
+                log.error("Failed to commit pre-dispatch write intent audit event for approval '{}': {}", approvalId, e.getMessage());
+                approvalRepository.recordExecutionFailure(approvalId,
+                        "AUDIT_WRITE_INTENT_PERSISTENCE_FAILED: Pre-dispatch audit logging failed; tool was not executed.",
+                        Instant.now());
+                return;
+            }
+        }
+
+        // 7. Downstream Adapter Dispatch
         ToolAdapter adapter = adapters.stream()
                 .filter(a -> a.supports(tool.protocolType()))
                 .findFirst()
@@ -250,7 +318,11 @@ public class ApprovedToolExecutionService {
 
         if (adapter == null) {
             log.error("No adapter supports protocol '{}' for tool '{}'", tool.protocolType(), tool.name());
-            approvalRepository.recordExecutionFailure(approvalId, "Unsupported protocol: " + tool.protocolType(), Instant.now());
+            String err = "Unsupported protocol: " + tool.protocolType();
+            approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "FAILED", 0L, err);
+            }
             return;
         }
 
@@ -259,15 +331,20 @@ public class ApprovedToolExecutionService {
             rawResult = adapter.execute(tool, context);
         } catch (Throwable t) {
             log.error("Exception during tool adapter execution for approval '{}': {}", approvalId, t.getMessage());
-            if (isIndeterminate(t, t.getMessage())) {
-                approvalRepository.recordExecutionIndeterminate(approvalId, "INDETERMINATE: " + t.getMessage(), Instant.now());
+            boolean indeterminate = isIndeterminate(t, t.getMessage());
+            String err = (indeterminate ? "INDETERMINATE: " : "EXECUTION_EXCEPTION: ") + t.getMessage();
+            if (indeterminate) {
+                approvalRepository.recordExecutionIndeterminate(approvalId, err, Instant.now());
             } else {
-                approvalRepository.recordExecutionFailure(approvalId, "EXECUTION_EXCEPTION: " + t.getMessage(), Instant.now());
+                approvalRepository.recordExecutionFailure(approvalId, err, Instant.now());
+            }
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), indeterminate ? "INDETERMINATE" : "FAILED", 0L, err);
             }
             return;
         }
 
-        // 5. Outcome Persistence & Privacy Sanitization
+        // 8. Outcome Persistence & Privacy Sanitization
         if (rawResult.success()) {
             // Clearance-aware output PII redaction (strictly low clearance)
             Object redactedData = piiRedactionGuard.redact(rawResult.data(), context);
@@ -276,19 +353,26 @@ public class ApprovedToolExecutionService {
             String resultJson = serializeResult(truncatedData);
 
             approvalRepository.recordExecutionSuccess(approvalId, resultJson, Instant.now());
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), "SUCCESS", rawResult.latencyMs(), null);
+            }
             log.info("Approved tool execution COMPLETED for request '{}' [latency={}ms]", approvalId, rawResult.latencyMs());
         } else {
             String error = rawResult.error() != null ? rawResult.error() : "Unknown downstream tool error";
             String sanitizedError = piiRedactionGuard.redactString(error);
             Object truncatedError = responseTruncationGuard.truncate(sanitizedError);
             String finalError = String.valueOf(truncatedError);
+            boolean indeterminate = isIndeterminate(null, error);
 
-            if (isIndeterminate(null, error)) {
+            if (indeterminate) {
                 approvalRepository.recordExecutionIndeterminate(approvalId, finalError, Instant.now());
                 log.warn("Approved tool execution INDETERMINATE for request '{}': {}", approvalId, finalError);
             } else {
                 approvalRepository.recordExecutionFailure(approvalId, finalError, Instant.now());
                 log.warn("Approved tool execution FAILED for request '{}': {}", approvalId, finalError);
+            }
+            if (auditRecorder != null) {
+                auditRecorder.recordApprovedExecution(approvalId, request.agentId(), request.userId(), tool.name(), effectiveArgsJson, request.policyRuleId(), request.decidedBy(), indeterminate ? "INDETERMINATE" : "FAILED", rawResult.latencyMs(), finalError);
             }
         }
     }

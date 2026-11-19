@@ -163,6 +163,41 @@ public class ApprovalRequestRepository {
                 .list();
     }
 
+    public List<ApprovalRequest> findPendingByAgent(String agentId) {
+        return jdbcClient.sql("SELECT * FROM approval_requests WHERE status = 'PENDING' AND agent_id = :agentId ORDER BY created_at ASC")
+                .param("agentId", agentId)
+                .query(this::mapRow)
+                .list();
+    }
+
+    public List<ApprovalRequest> findPendingByTool(String toolName) {
+        return jdbcClient.sql("SELECT * FROM approval_requests WHERE status = 'PENDING' AND tool_name = :toolName ORDER BY created_at ASC")
+                .param("toolName", toolName)
+                .query(this::mapRow)
+                .list();
+    }
+
+    public List<ApprovalRequest> findPendingWriteOperations() {
+        return jdbcClient.sql("""
+                SELECT * FROM approval_requests
+                WHERE status = 'PENDING'
+                  AND tool_name NOT IN (
+                      SELECT name FROM registered_tools
+                      WHERE UPPER(TRIM(http_method)) IN ('GET', 'HEAD')
+                  )
+                ORDER BY created_at ASC
+                """)
+                .query(this::mapRow)
+                .list();
+    }
+
+    public List<ApprovalRequest> findPendingExpired(Instant now) {
+        return jdbcClient.sql("SELECT * FROM approval_requests WHERE status = 'PENDING' AND expires_at <= :now ORDER BY created_at ASC")
+                .param("now", Timestamp.from(now))
+                .query(this::mapRow)
+                .list();
+    }
+
     public List<ApprovalRequest> findAll() {
         return jdbcClient.sql("SELECT * FROM approval_requests ORDER BY created_at ASC, id ASC")
                 .query(this::mapRow)

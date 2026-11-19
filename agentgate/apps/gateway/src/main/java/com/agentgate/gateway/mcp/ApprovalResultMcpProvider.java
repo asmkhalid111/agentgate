@@ -2,6 +2,7 @@ package com.agentgate.gateway.mcp;
 
 import com.agentgate.gateway.approval.dto.ApprovalResultResponse;
 import com.agentgate.gateway.approval.service.ApprovalService;
+import com.agentgate.gateway.audit.service.AuditRecorder;
 import com.agentgate.gateway.identity.AgentContextHolder;
 import com.agentgate.gateway.identity.AgentIdentity;
 import org.slf4j.Logger;
@@ -25,9 +26,18 @@ public class ApprovalResultMcpProvider {
     private static final Logger log = LoggerFactory.getLogger(ApprovalResultMcpProvider.class);
 
     private final ApprovalService approvalService;
+    private final AuditRecorder auditRecorder;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ApprovalResultMcpProvider(
+            ApprovalService approvalService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditRecorder auditRecorder) {
+        this.approvalService = approvalService;
+        this.auditRecorder = auditRecorder;
+    }
 
     public ApprovalResultMcpProvider(ApprovalService approvalService) {
-        this.approvalService = approvalService;
+        this(approvalService, null);
     }
 
     /**
@@ -59,6 +69,17 @@ public class ApprovalResultMcpProvider {
         log.info("Agent '{}' requested approval result for '{}'", currentAgent.clientId(), sanitizedId);
 
         Optional<ApprovalResultResponse> resultOpt = approvalService.getApprovalResult(sanitizedId, currentAgent.clientId());
+        if (auditRecorder != null) {
+            auditRecorder.recordBuiltinToolExecution(
+                    currentAgent.clientId(),
+                    null,
+                    "get_approval_result",
+                    sanitizedId,
+                    0L,
+                    resultOpt.isPresent() ? "SUCCESS" : "NOT_FOUND",
+                    null
+            );
+        }
         if (resultOpt.isEmpty()) {
             // Uniform non-disclosing response for both non-existent and unauthorized approval IDs
             return Map.of(
