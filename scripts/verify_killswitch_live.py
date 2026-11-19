@@ -33,10 +33,15 @@ def load_env_file():
 
 load_env_file()
 
-WEB_CLIENT_SECRET = os.environ.get("KEYCLOAK_WEB_CLIENT_SECRET", "web_dev_secret_123")
-ADMIN_PASSWORD = os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD", "admin_dev_password_123"))
+WEB_CLIENT_SECRET = os.environ.get("KEYCLOAK_WEB_CLIENT_SECRET")
+ADMIN_PASSWORD = os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD"))
 APPROVER_PASSWORD = os.environ.get("KEYCLOAK_APPROVER_PASSWORD", "approver_dev_password_123")
 AGENT_CLIENT_SECRET = os.environ.get("AGENT_CLIENT_SECRET", "finance_dev_secret_123")
+
+if not WEB_CLIENT_SECRET:
+    raise RuntimeError("KEYCLOAK_WEB_CLIENT_SECRET must be configured in environment or .env file")
+if not ADMIN_PASSWORD:
+    raise RuntimeError("KEYCLOAK_HUMAN_ADMIN_PASSWORD must be configured in environment or .env file")
 
 def get_client_token(client_id, client_secret):
     """M2M Client Credentials Grant for machine agent service accounts."""
@@ -213,10 +218,26 @@ def main():
         assert resp.status == 200
         print("  ✓ human-admin successfully accessed kill switch administration (HTTP 200)")
 
-    # 4. Clean up ONLY test-created kill switches for orders_refund
-    print("\n[Step 3] Resetting test-specific kill switch in PostgreSQL...")
-    query_pg("DELETE FROM kill_switches WHERE type = 'TOOL' AND target = 'orders_refund';")
-    print("  ✓ Cleared test kill switch (orders_refund) without touching unrelated controls")
+    # 4. Safely inspect pre-existing switch state for orders_refund without blanket deletion
+    print("\n[Step 3] Checking pre-existing switch state for orders_refund...")
+    pre_existing_raw = query_pg("SELECT id, active, reason, created_by FROM kill_switches WHERE type = 'TOOL' AND target = 'orders_refund';")
+    pre_existing_switch = None
+    if pre_existing_raw:
+        parts = pre_existing_raw.split("|")
+        pre_existing_switch = {
+            "id": parts[0],
+            "active": parts[1].lower() in ("t", "true", "1"),
+            "reason": parts[2] if len(parts) > 2 else "",
+            "created_by": parts[3] if len(parts) > 3 else ""
+        }
+        if pre_existing_switch["active"]:
+            print(f"  ✗ ABORTING TEST: Operational emergency kill switch is currently ACTIVE for orders_refund (id={pre_existing_switch['id']}).")
+            print("  Tests must never disable or delete an active operational emergency control.")
+            sys.exit(1)
+        else:
+            print(f"  ✓ Pre-existing inactive kill switch detected (id={pre_existing_switch['id']}); state will be preserved.")
+    else:
+        print("  ✓ No pre-existing kill switch for orders_refund found. Clean operational state verified.")
 
     # 5. Initialize MCP session as agent-finance-bot
     print("\n[Step 4] Establishing MCP session for agent-finance-bot...")
@@ -260,7 +281,8 @@ def main():
     req_act.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req_act) as resp:
         act_body = json.loads(resp.read().decode("utf-8"))
-        print(f"  ✓ Kill switch activated: id={act_body.get('id')}, type={act_body.get('type')}, target={act_body.get('target')}, active={act_body.get('active')}")
+        test_switch_id = act_body.get('id')
+        print(f"  ✓ Kill switch activated: id={test_switch_id}, type={act_body.get('type')}, target={act_body.get('target')}, active={act_body.get('active')}")
         assert act_body.get("active") is True
 
     # 8. Verify atomic cancellation in PostgreSQL
@@ -354,10 +376,20 @@ def main():
     print(f"  ✓ Post-deactivation call response: {unblocked_text}")
     assert "KILL_SWITCH_ACTIVE" not in unblocked_text, f"Call still blocked: {unblocked_text}"
 
-    # 13. Test isolation cleanup: clean up ONLY the test approval request
-    print("\n[Step 13] Cleaning up test-created approval request...")
+    # 13. Test isolation cleanup: clean up ONLY test-created artifacts
+    print("\n[Step 13] Cleaning up test-created records...")
     query_pg(f"DELETE FROM approval_requests WHERE id = '{approval_id}';")
-    print(f"  ✓ Removed test approval {approval_id}; real records untouched")
+    print(f"  ✓ Removed test approval {approval_id}; real operational records untouched")
+
+    if pre_existing_switch is None:
+        if 'test_switch_id' in locals() and test_switch_id:
+            query_pg(f"DELETE FROM kill_switches WHERE id = '{test_switch_id}';")
+            print(f"  ✓ Cleaned up test-created kill switch {test_switch_id}; zero operational impact")
+    else:
+        restore_reason = pre_existing_switch["reason"].replace("'", "''")
+        restore_creator = pre_existing_switch["created_by"].replace("'", "''")
+        query_pg(f"UPDATE kill_switches SET active = FALSE, reason = '{restore_reason}', created_by = '{restore_creator}' WHERE id = '{pre_existing_switch['id']}';")
+        print(f"  ✓ Restored pre-existing kill switch record {pre_existing_switch['id']} to its original pre-test state")
 
     print("\n" + "=" * 70)
     print("ALL 13 LIVE VERIFICATION STEPS PASSED SUCCESSFULLY!")

@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -88,6 +89,9 @@ class KillSwitchIntegrationTest {
 
     @MockitoSpyBean
     private RestToolAdapter restToolAdapter;
+
+    @Autowired
+    private JdbcClient jdbcClient;
 
     private static final String AGENT_ALPHA = "agent-alpha";
     private static final String AGENT_BETA = "agent-beta";
@@ -798,5 +802,106 @@ class KillSwitchIntegrationTest {
         assertFalse(result.error().contains("admin.sec"));
         assertFalse(result.error().contains("TOOL"));
         assertFalse(result.error().contains(TOOL_WRITE));
+    }
+
+    @Test
+    @DisplayName("GLOBAL_WRITE switch preserves read-only approvals while blocking write approvals and honoring specific switches")
+    void globalWriteSwitch_preservesReadOnlyApprovals_whileBlockingWriteApprovalsAndSpecificSwitches() {
+        // Register approval policy for read tool
+        policyRepository.save(new PolicyRule(
+                "rule-ks-read-hr", "Read HR Rule", "*", TOOL_READ,
+                Collections.emptyList(), PolicyAction.REQUIRE_APPROVAL, false, 5, 1, true
+        ));
+        policyEvaluator.reloadPolicies();
+
+        try {
+            // Activate GLOBAL_WRITE switch
+            killSwitchService.activate(KillSwitchType.GLOBAL_WRITE, "GLOBAL", "Global write freeze", ADMIN_USER);
+
+            // 1. A write tool cannot create a new approval
+            IllegalStateException writeEx = org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class, () ->
+                            approvalService.createRequest(
+                                    AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                                    Map.of("amount", 500), java.time.Duration.ofMinutes(15)
+                            )
+            );
+            assertTrue(writeEx.getMessage().contains("KILL_SWITCH_ACTIVE"));
+
+            // 2. An existing write approval cannot transition to APPROVED
+            ApprovalRequest preExistingWrite = new ApprovalRequest(
+                    "appr-pre-write-1", AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                    "{\"amount\":100}", null, ApprovalStatus.PENDING,
+                    java.time.Instant.now(), java.time.Instant.now().plus(java.time.Duration.ofMinutes(15)), null, null, null
+            );
+            // Insert directly to test repository update query isolation
+            jdbcClient.sql("""
+                    INSERT INTO approval_requests (id, agent_id, user_id, tool_name, policy_rule_id,
+                                                   original_arguments_json, status, created_at, expires_at)
+                    VALUES (:id, :agentId, :userId, :toolName, :policyRuleId, :origArgs, :status, :createdAt, :expiresAt)
+                    """)
+                    .param("id", preExistingWrite.id())
+                    .param("agentId", preExistingWrite.agentId())
+                    .param("userId", preExistingWrite.userId())
+                    .param("toolName", preExistingWrite.toolName())
+                    .param("policyRuleId", preExistingWrite.policyRuleId())
+                    .param("origArgs", preExistingWrite.originalArgumentsJson())
+                    .param("status", ApprovalStatus.PENDING.name())
+                    .param("createdAt", java.sql.Timestamp.from(preExistingWrite.createdAt()))
+                    .param("expiresAt", java.sql.Timestamp.from(preExistingWrite.expiresAt()))
+                    .update();
+
+            int updatedWrite = approvalRepository.transitionToApproved(
+                    preExistingWrite.id(), null, "approver.1", java.time.Instant.now(), java.time.Instant.now()
+            );
+            assertEquals(0, updatedWrite, "Existing write approval must NOT transition to APPROVED when GLOBAL_WRITE is active!");
+
+            // 3. A read-only tool requiring approval can still create a PENDING request
+            ApprovalRequest readReq = approvalService.createRequest(
+                    AGENT_ALPHA, "user-1", TOOL_READ, "rule-ks-read-hr",
+                    Map.of("query", "select * from audit"), java.time.Duration.ofMinutes(15)
+            );
+            assertNotNull(readReq);
+            assertEquals(ApprovalStatus.PENDING, readReq.status());
+            assertEquals(TOOL_READ, readReq.toolName());
+
+            // 4. Its human approval can still proceed
+            ApprovalRequest approvedRead = approvalService.approve(readReq.id(), "approver.1", null);
+            assertNotNull(approvedRead);
+            assertEquals(ApprovalStatus.APPROVED, approvedRead.status());
+            assertEquals("approver.1", approvedRead.decidedBy());
+
+            // 5. A tool-specific or agent-specific kill switch still blocks applicable read-only requests
+            // 5a. Tool-specific kill switch on read tool
+            killSwitchService.activate(KillSwitchType.TOOL, TOOL_READ, "Read tool emergency maintenance", ADMIN_USER);
+
+            IllegalStateException toolBlockedEx = org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class, () ->
+                            approvalService.createRequest(
+                                    AGENT_ALPHA, "user-1", TOOL_READ, "rule-ks-read-hr",
+                                    Map.of("query", "test"), java.time.Duration.ofMinutes(15)
+                            )
+            );
+            assertTrue(toolBlockedEx.getMessage().contains("KILL_SWITCH_ACTIVE"));
+
+            // Deactivate tool switch to isolate agent switch test
+            killSwitchService.deactivate(KillSwitchType.TOOL, TOOL_READ, ADMIN_USER);
+
+            // 5b. Agent-specific kill switch on AGENT_ALPHA
+            killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Compromised agent alpha", ADMIN_USER);
+
+            IllegalStateException agentBlockedEx = org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class, () ->
+                            approvalService.createRequest(
+                                    AGENT_ALPHA, "user-1", TOOL_READ, "rule-ks-read-hr",
+                                    Map.of("query", "test2"), java.time.Duration.ofMinutes(15)
+                            )
+            );
+            assertTrue(agentBlockedEx.getMessage().contains("KILL_SWITCH_ACTIVE"));
+
+        } finally {
+            policyRepository.deleteById("rule-ks-read-hr");
+            policyEvaluator.reloadPolicies();
+        }
     }
 }
