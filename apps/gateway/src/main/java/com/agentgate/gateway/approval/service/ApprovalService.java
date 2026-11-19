@@ -12,6 +12,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -202,9 +203,14 @@ public class ApprovalService {
 
     /**
      * Sweeps and marks all overdue PENDING requests as EXPIRED.
+     * Scheduled to execute periodically with a fixed delay and initial boot delay.
      *
      * @return number of requests transitioned to EXPIRED
      */
+    @Scheduled(
+            fixedDelayString = "${agentgate.approval.expiration-interval-ms:60000}",
+            initialDelayString = "${agentgate.approval.expiration-initial-delay-ms:5000}"
+    )
     public int expirePendingRequests() {
         Instant now = Instant.now();
         int count = repository.expirePendingRequests(now);

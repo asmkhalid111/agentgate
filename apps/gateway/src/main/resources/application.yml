@@ -33,6 +33,8 @@ management:
 agentgate:
   approval:
     default-timeout-seconds: 900
+    expiration-interval-ms: 60000
+    expiration-initial-delay-ms: 5000
 
 logging:
   pattern:
