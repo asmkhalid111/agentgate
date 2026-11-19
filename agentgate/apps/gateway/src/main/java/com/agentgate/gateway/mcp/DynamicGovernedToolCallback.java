@@ -65,7 +65,7 @@ public class DynamicGovernedToolCallback implements ToolCallback {
             }
         } catch (Exception e) {
             log.error("Failed to parse tool arguments for '{}': {}", tool.name(), e.getMessage());
-            throw new IllegalArgumentException("{\"error\":\"Invalid JSON arguments: " + e.getMessage() + "\"}");
+            throw new IllegalArgumentException(safeJsonError("Invalid JSON arguments: " + e.getMessage()));
         }
 
         ToolExecutionContext context = new ToolExecutionContext(
@@ -83,16 +83,25 @@ public class DynamicGovernedToolCallback implements ToolCallback {
                 return objectMapper.writeValueAsString(result.data());
             } else {
                 log.warn("Governed tool execution rejected for '{}': {}", tool.name(), result.error());
-                throw new IllegalArgumentException("{\"error\":\"" + result.error() + "\"}");
+                throw new IllegalArgumentException(safeJsonError(result.error()));
             }
         } catch (SecurityException se) {
             log.warn("Access denied during tools/call: {}", se.getMessage());
-            throw new SecurityException("{\"error\":\"ACCESS_DENIED: " + se.getMessage() + "\"}");
+            throw new SecurityException(safeJsonError("ACCESS_DENIED: " + se.getMessage()));
         } catch (IllegalArgumentException iae) {
             throw iae;
         } catch (Exception e) {
             log.error("Tool execution failed: {}", e.getMessage());
-            throw new RuntimeException("{\"error\":\"" + e.getMessage() + "\"}", e);
+            throw new RuntimeException(safeJsonError(e.getMessage()), e);
+        }
+    }
+
+    private String safeJsonError(String errorMessage) {
+        try {
+            return objectMapper.writeValueAsString(Map.of("error", errorMessage != null ? errorMessage : "Execution failed"));
+        } catch (Exception e) {
+            String escaped = errorMessage != null ? errorMessage.replace("\"", "\\\"").replace("\n", "\\n") : "Execution failed";
+            return "{\"error\":\"" + escaped + "\"}";
         }
     }
 }

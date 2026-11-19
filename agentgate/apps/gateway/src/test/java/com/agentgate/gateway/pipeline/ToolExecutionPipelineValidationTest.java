@@ -1,5 +1,8 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.approval.domain.ApprovalRequest;
+import com.agentgate.gateway.approval.domain.ApprovalStatus;
+import com.agentgate.gateway.approval.service.ApprovalService;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
@@ -23,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +50,9 @@ class ToolExecutionPipelineValidationTest {
     @Mock
     private StructuredPolicyEvaluator policyEvaluator;
 
+    @Mock
+    private ApprovalService approvalService;
+
     private JsonSchemaValidationGuard validationGuard;
     private PiiRedactionGuard piiRedactionGuard;
     private ResponseTruncationGuard responseTruncationGuard;
@@ -60,7 +67,7 @@ class ToolExecutionPipelineValidationTest {
         validationGuard = new JsonSchemaValidationGuard(objectMapper);
         piiRedactionGuard = new PiiRedactionGuard(objectMapper);
         responseTruncationGuard = new ResponseTruncationGuard(objectMapper);
-        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard);
+        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, 900L);
 
         String schema = """
                 {
@@ -384,5 +391,197 @@ class ToolExecutionPipelineValidationTest {
         // But 100th item is still the truncation notice
         Map<String, Object> lastItem = (Map<String, Object>) truncatedList.get(99);
         assertTrue(lastItem.containsKey(ResponseTruncationGuard.TRUNCATION_NOTICE_KEY));
+    }
+
+    @Test
+    @DisplayName("16. REQUIRE_APPROVAL persists exactly one PENDING request and returns ApprovalId without executing adapter")
+    void pipeline_requireApproval_persistsRequestAndReturnsApprovalId() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(
+                PolicyDecision.requireApproval("pol-large-refund", "Large Refund Approval", "Amount exceeds threshold", false, 2L)
+        );
+
+        ApprovalRequest mockRequest = new ApprovalRequest(
+                "appr-test-1234",
+                "agent-finance-bot",
+                "user-456",
+                "orders_refund",
+                "pol-large-refund",
+                "{\"amount\":5000.0,\"orderId\":\"ORD-777\"}",
+                null,
+                ApprovalStatus.PENDING,
+                Instant.now(),
+                Instant.now().plus(Duration.ofMinutes(15)),
+                null, null, null
+        );
+
+        when(approvalService.createRequest(
+                eq("agent-finance-bot"),
+                eq("user-456"),
+                eq("orders_refund"),
+                eq("pol-large-refund"),
+                eq(Map.of("orderId", "ORD-777", "amount", 5000.0)),
+                eq(Duration.ofSeconds(900))
+        )).thenReturn(mockRequest);
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-777", "amount", 5000.0),
+                "user-456",
+                RiskLevel.HIGH
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertFalse(result.success());
+        assertNotNull(result.error());
+        assertTrue(result.error().contains("REQUIRE_APPROVAL: Call held for human approval"), "Must indicate REQUIRE_APPROVAL");
+        assertTrue(result.error().contains("appr-test-1234"), "Must contain generated approval ID");
+        assertTrue(result.error().contains("Large Refund Approval"), "Must contain matched rule name");
+
+        // Verify exactly one persistence call occurred with correct arguments
+        verify(approvalService, times(1)).createRequest(
+                eq("agent-finance-bot"),
+                eq("user-456"),
+                eq("orders_refund"),
+                eq("pol-large-refund"),
+                eq(Map.of("orderId", "ORD-777", "amount", 5000.0)),
+                eq(Duration.ofSeconds(900))
+        );
+
+        // Downstream adapter must NEVER be executed
+        verify(toolAdapter, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("17. Persistence failure on REQUIRE_APPROVAL returns fixed safe error and never executes tool (Correction A)")
+    void pipeline_requireApproval_persistenceFailure_failsClosedWithSafeError() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(
+                PolicyDecision.requireApproval("pol-large-refund", "Large Refund Approval", "Amount exceeds threshold", false, 2L)
+        );
+
+        when(approvalService.createRequest(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Database constraint violation on sensitive_column"));
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-777", "amount", 5000.0),
+                null,
+                RiskLevel.HIGH
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertFalse(result.success());
+        assertNotNull(result.error());
+        assertEquals("REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.", result.error());
+        // Verify database exception message and sensitive details are NOT leaked to the agent
+        assertFalse(result.error().contains("Database constraint"));
+        assertFalse(result.error().contains("sensitive_column"));
+
+        // Downstream adapter must NEVER be executed
+        verify(toolAdapter, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("18. Missing rule identifier on REQUIRE_APPROVAL fails closed safely (Correction D)")
+    void pipeline_requireApproval_missingRuleId_failsClosedSafely() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(
+                PolicyDecision.requireApproval(null, "Unidentified Rule", "Missing rule id", false, 2L)
+        );
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-777", "amount", 5000.0),
+                null,
+                RiskLevel.HIGH
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertFalse(result.success());
+        assertEquals("REQUIRE_APPROVAL_INVALID_POLICY: Missing policy rule identifier; tool was not executed.", result.error());
+
+        // ApprovalService must not be invoked with invalid null rule ID
+        verify(approvalService, never()).createRequest(any(), any(), any(), any(), any(), any());
+        // Downstream adapter must NEVER be executed
+        verify(toolAdapter, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("19. Policy DENY does not touch approvalService and never executes adapter")
+    void pipeline_policyDeny_doesNotTouchApprovalService() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(
+                PolicyDecision.deny("pol-deny-rule", "Deny Rule", "Tool is prohibited", false, 1L)
+        );
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-777", "amount", 5000.0),
+                null,
+                RiskLevel.HIGH
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertFalse(result.success());
+        assertEquals("POLICY_DENIED: Tool is prohibited", result.error());
+
+        verify(approvalService, never()).createRequest(any(), any(), any(), any(), any(), any());
+        verify(toolAdapter, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("20. MCP DynamicGovernedToolCallback safely encodes approval ID and special characters in JSON (Correction C)")
+    void mcpCallback_requireApproval_safelyEncodesApprovalIdAndSpecialCharsInJson() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        // Rule name contains quotes and special characters
+        when(policyEvaluator.evaluate(any())).thenReturn(
+                PolicyDecision.requireApproval("pol-large-refund", "Special \"High-Risk\" Rule", "Needs approval", false, 2L)
+        );
+
+        ApprovalRequest mockRequest = new ApprovalRequest(
+                "appr-safe-json-999",
+                "agent-finance-bot",
+                null,
+                "orders_refund",
+                "pol-large-refund",
+                "{\"amount\":5000.0,\"orderId\":\"ORD-777\"}",
+                null,
+                ApprovalStatus.PENDING,
+                Instant.now(),
+                Instant.now().plus(Duration.ofMinutes(15)),
+                null, null, null
+        );
+
+        when(approvalService.createRequest(any(), any(), any(), any(), any(), any())).thenReturn(mockRequest);
+
+        AgentIdentity identity = new AgentIdentity("agent-finance-bot", Set.of("agent:invoke"), Set.of("ROLE_AGENT"));
+        SecurityContextHolder.getContext().setAuthentication(new AgentAuthenticationToken(identity, "token", List.of()));
+
+        DynamicGovernedToolCallback callback = new DynamicGovernedToolCallback(refundTool, pipeline, objectMapper);
+
+        String input = "{\"orderId\":\"ORD-777\",\"amount\":5000.0}";
+
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> callback.call(input));
+        String errorJson = thrown.getMessage();
+
+        // Must be parseable as valid JSON
+        assertDoesNotThrow(() -> {
+            Map<String, Object> parsed = objectMapper.readValue(errorJson, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            assertTrue(parsed.containsKey("error"));
+            String errorMsg = (String) parsed.get("error");
+            assertTrue(errorMsg.contains("appr-safe-json-999"));
+            assertTrue(errorMsg.contains("Special \"High-Risk\" Rule"));
+        }, "Error response must be valid JSON even with special characters in policy rule name");
+
+        verify(toolAdapter, never()).execute(any(), any());
     }
 }
