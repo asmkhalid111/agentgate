@@ -17,6 +17,10 @@ services:
       REDIS_PORT: 6379
       KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/agentgate
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/certs
+      KEYCLOAK_AUTH_URI: http://localhost:8180/realms/agentgate/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/token
+      KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/userinfo
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy

@@ -6,9 +6,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -48,20 +51,20 @@ public class HumanApproverValidator {
             throw new AccessDeniedException("Caller lacks required ROLE_APPROVER authority");
         }
 
-        // 2. Extract underlying JWT token
-        Jwt jwt = extractJwt(authentication);
-        if (jwt == null) {
+        // 2. Extract underlying claims (JWT or OIDC user attributes)
+        Map<String, Object> claims = extractClaims(authentication);
+        if (claims == null) {
             // Fail closed if claims cannot be inspected
-            log.warn("Access denied to approval API: no verifiable JWT token found in authentication");
-            throw new AccessDeniedException("No verifiable JWT credentials found for human approver");
+            log.warn("Access denied to approval API: no verifiable credentials found in authentication");
+            throw new AccessDeniedException("No verifiable credentials found for human approver");
         }
 
         // 3. Inspect machine / service-account indicators (Reviewer Correction A)
-        String preferredUsername = jwt.getClaimAsString("preferred_username");
-        String subject = jwt.getSubject();
-        String azp = jwt.getClaimAsString("azp");
-        String clientId = jwt.getClaimAsString("client_id");
-        String grantType = jwt.getClaimAsString("gty");
+        String preferredUsername = getClaimString(claims, "preferred_username");
+        String subject = getClaimString(claims, "sub");
+        String azp = getClaimString(claims, "azp");
+        String clientId = getClaimString(claims, "client_id");
+        String grantType = getClaimString(claims, "gty");
 
         // Indicator A: Keycloak service account username convention (e.g. "service-account-agent-finance-bot")
         if (preferredUsername != null && preferredUsername.startsWith("service-account-")) {
@@ -93,10 +96,13 @@ public class HumanApproverValidator {
         // 4. Must have a reliable human identifier (preferred_username or email)
         String humanUsername = preferredUsername;
         if (humanUsername == null || humanUsername.isBlank()) {
-            humanUsername = jwt.getClaimAsString("email");
+            humanUsername = getClaimString(claims, "email");
         }
         if (humanUsername == null || humanUsername.isBlank()) {
             humanUsername = subject;
+        }
+        if (humanUsername == null || humanUsername.isBlank()) {
+            humanUsername = authentication.getName();
         }
 
         if (humanUsername == null || humanUsername.isBlank()) {
@@ -107,17 +113,28 @@ public class HumanApproverValidator {
         return humanUsername;
     }
 
-    private Jwt extractJwt(Authentication authentication) {
+    private String getClaimString(Map<String, Object> claims, String key) {
+        Object val = claims.get(key);
+        return val != null ? String.valueOf(val) : null;
+    }
+
+    private Map<String, Object> extractClaims(Authentication authentication) {
         if (authentication instanceof AgentAuthenticationToken agentToken) {
             if (agentToken.getCredentials() instanceof Jwt jwt) {
-                return jwt;
+                return jwt.getClaims();
             }
         }
         if (authentication.getCredentials() instanceof Jwt jwt) {
-            return jwt;
+            return jwt.getClaims();
         }
         if (authentication.getPrincipal() instanceof Jwt jwt) {
-            return jwt;
+            return jwt.getClaims();
+        }
+        if (authentication.getPrincipal() instanceof OidcUser oidcUser) {
+            return oidcUser.getClaims();
+        }
+        if (authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            return oauth2User.getAttributes();
         }
         return null;
     }
