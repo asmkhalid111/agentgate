@@ -128,6 +128,36 @@
       "enabled": true,
       "serviceAccountClientId": "agent-unauthorized-bot",
       "realmRoles": ["USER"]
+    },
+    {
+      "username": "human-approver",
+      "enabled": true,
+      "email": "approver@agentgate.dev",
+      "firstName": "Security",
+      "lastName": "Approver",
+      "realmRoles": ["APPROVER"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "approver_dev_password_123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-user",
+      "enabled": true,
+      "email": "user@agentgate.dev",
+      "firstName": "Standard",
+      "lastName": "User",
+      "realmRoles": ["USER"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user_dev_password_123",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

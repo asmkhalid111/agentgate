@@ -61,6 +61,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/info", "/error", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // Protected MCP protocol endpoint (strictly requires agent:invoke scope)
                 .requestMatchers("/mcp", "/mcp/**").hasAuthority("SCOPE_agent:invoke")
+                // Protected Human Approval REST API (strictly requires ROLE_APPROVER)
+                .requestMatchers("/api/v1/approvals", "/api/v1/approvals/**").hasAuthority("ROLE_APPROVER")
                 // Policy playground endpoint (accessible to ADMIN and AGENT)
                 .requestMatchers("/api/v1/policies/playground").hasAnyAuthority("ROLE_ADMIN", "ROLE_AGENT", "SCOPE_tool:admin", "SCOPE_agent:invoke")
                 // Protected administrative management endpoints (FR1 tool registry, FR3 policies)
