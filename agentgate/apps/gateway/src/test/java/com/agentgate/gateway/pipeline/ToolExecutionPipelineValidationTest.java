@@ -3,6 +3,7 @@ package com.agentgate.gateway.pipeline;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
+import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.identity.AgentAuthenticationToken;
 import com.agentgate.gateway.identity.AgentIdentity;
 import com.agentgate.gateway.mcp.DynamicGovernedToolCallback;
@@ -47,6 +48,7 @@ class ToolExecutionPipelineValidationTest {
 
     private JsonSchemaValidationGuard validationGuard;
     private PiiRedactionGuard piiRedactionGuard;
+    private ResponseTruncationGuard responseTruncationGuard;
     private ToolExecutionPipeline pipeline;
     private ObjectMapper objectMapper;
 
@@ -57,7 +59,8 @@ class ToolExecutionPipelineValidationTest {
         objectMapper = new ObjectMapper();
         validationGuard = new JsonSchemaValidationGuard(objectMapper);
         piiRedactionGuard = new PiiRedactionGuard(objectMapper);
-        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard, piiRedactionGuard);
+        responseTruncationGuard = new ResponseTruncationGuard(objectMapper);
+        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard);
 
         String schema = """
                 {
@@ -261,5 +264,125 @@ class ToolExecutionPipelineValidationTest {
 
         assertFalse(result.success());
         assertEquals("Downstream failure for customer [REDACTED_EMAIL] ([REDACTED_PHONE], NID: [REDACTED_NID]): system timeout", result.error());
+    }
+
+    @Test
+    @DisplayName("13. Pipeline truncates oversized downstream output with explicit truncation notice (FR5)")
+    @SuppressWarnings("unchecked")
+    void pipeline_oversizedOutput_truncatedWithExplicitNotice() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        List<Map<String, Object>> largeList = new java.util.ArrayList<>();
+        for (int i = 0; i < 150; i++) {
+            largeList.add(Map.of("id", "row-" + i, "status", "SUCCESS"));
+        }
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.success(largeList, 20L));
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_AGENT")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertTrue(result.success());
+        List<Object> truncatedList = (List<Object>) result.data();
+        assertEquals(100, truncatedList.size(), "Oversized array must be truncated to strictly 100 items");
+
+        Map<String, Object> noticeItem = (Map<String, Object>) truncatedList.get(99);
+        assertTrue(noticeItem.containsKey(ResponseTruncationGuard.TRUNCATION_NOTICE_KEY));
+        assertTrue(String.valueOf(noticeItem.get(ResponseTruncationGuard.TRUNCATION_NOTICE_KEY)).contains("100 items"));
+    }
+
+    @Test
+    @DisplayName("14. Pipeline applies PII redaction first, and then truncates oversized response (Guards Order)")
+    @SuppressWarnings("unchecked")
+    void pipeline_oversizedOutputWithPii_redactsPiiFirstThenTruncates() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        List<Map<String, Object>> largeList = new java.util.ArrayList<>();
+        for (int i = 0; i < 130; i++) {
+            largeList.add(Map.of(
+                    "id", "user-" + i,
+                    "email", "user" + i + "@example.com",
+                    "phone", "01712345678"
+            ));
+        }
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.success(largeList, 25L));
+
+        // Standard clearance agent
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_AGENT")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertTrue(result.success());
+        List<Object> truncatedList = (List<Object>) result.data();
+        assertEquals(100, truncatedList.size());
+
+        // First item must have PII redacted
+        Map<String, Object> firstItem = (Map<String, Object>) truncatedList.get(0);
+        assertEquals("[REDACTED_EMAIL]", firstItem.get("email"));
+        assertEquals("[REDACTED_PHONE]", firstItem.get("phone"));
+
+        // 100th item is the truncation notice
+        Map<String, Object> lastItem = (Map<String, Object>) truncatedList.get(99);
+        assertTrue(lastItem.containsKey(ResponseTruncationGuard.TRUNCATION_NOTICE_KEY));
+    }
+
+    @Test
+    @DisplayName("15. HIGH_CLEARANCE agent output bypasses PII redaction but is subject to response truncation (Correction C)")
+    @SuppressWarnings("unchecked")
+    void pipeline_highClearance_doesNotRedactPii_butDoesTruncateOversizedOutput() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        List<Map<String, Object>> largeList = new java.util.ArrayList<>();
+        for (int i = 0; i < 120; i++) {
+            largeList.add(Map.of(
+                    "id", "admin-row-" + i,
+                    "email", "admin" + i + "@agentgate.com"
+            ));
+        }
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.success(largeList, 25L));
+
+        // High clearance agent
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_HIGH_CLEARANCE")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertTrue(result.success());
+        List<Object> truncatedList = (List<Object>) result.data();
+        assertEquals(100, truncatedList.size(), "High-clearance agent must still be truncated to 100 items");
+
+        // High-clearance agent sees raw unredacted email
+        Map<String, Object> firstItem = (Map<String, Object>) truncatedList.get(0);
+        assertEquals("admin0@agentgate.com", firstItem.get("email"), "High-clearance sees raw unredacted email");
+
+        // But 100th item is still the truncation notice
+        Map<String, Object> lastItem = (Map<String, Object>) truncatedList.get(99);
+        assertTrue(lastItem.containsKey(ResponseTruncationGuard.TRUNCATION_NOTICE_KEY));
     }
 }
