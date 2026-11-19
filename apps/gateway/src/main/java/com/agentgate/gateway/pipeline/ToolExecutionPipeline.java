@@ -3,6 +3,7 @@ package com.agentgate.gateway.pipeline;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
+import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.guard.ValidationResult;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
@@ -24,18 +25,21 @@ public class ToolExecutionPipeline {
     private final StructuredPolicyEvaluator policyEvaluator;
     private final JsonSchemaValidationGuard validationGuard;
     private final PiiRedactionGuard piiRedactionGuard;
+    private final ResponseTruncationGuard responseTruncationGuard;
 
     public ToolExecutionPipeline(
             RegisteredToolRepository toolRepository,
             List<ToolAdapter> adapters,
             StructuredPolicyEvaluator policyEvaluator,
             JsonSchemaValidationGuard validationGuard,
-            PiiRedactionGuard piiRedactionGuard) {
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
         this.policyEvaluator = policyEvaluator;
         this.validationGuard = validationGuard;
         this.piiRedactionGuard = piiRedactionGuard;
+        this.responseTruncationGuard = responseTruncationGuard;
     }
 
     /**
@@ -88,15 +92,21 @@ public class ToolExecutionPipeline {
 
         // Error safety: sanitize agent-visible error messages if execution failed
         if (!rawResult.success()) {
-            if (rawResult.error() != null && !enrichedContext.hasHighClearance()) {
-                String sanitizedError = piiRedactionGuard.redactString(rawResult.error());
-                return ToolExecutionResult.failure(sanitizedError, rawResult.latencyMs());
+            if (rawResult.error() != null) {
+                String sanitizedError = enrichedContext.hasHighClearance()
+                        ? rawResult.error()
+                        : piiRedactionGuard.redactString(rawResult.error());
+                Object truncatedError = responseTruncationGuard.truncate(sanitizedError);
+                return ToolExecutionResult.failure(String.valueOf(truncatedError), rawResult.latencyMs());
             }
             return rawResult;
         }
 
         // Clearance-aware output PII redaction (FR5)
         Object redactedData = piiRedactionGuard.redact(rawResult.data(), enrichedContext);
-        return ToolExecutionResult.success(redactedData, rawResult.latencyMs());
+
+        // Oversized tool response truncation (FR5)
+        Object truncatedData = responseTruncationGuard.truncate(redactedData);
+        return ToolExecutionResult.success(truncatedData, rawResult.latencyMs());
     }
 }
