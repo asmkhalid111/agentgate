@@ -7,6 +7,8 @@ import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
 import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.guard.ValidationResult;
+import com.agentgate.gateway.ratelimit.RateLimitDecision;
+import com.agentgate.gateway.ratelimit.RateLimiter;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
 import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
@@ -32,6 +34,7 @@ public class ToolExecutionPipeline {
     private final PiiRedactionGuard piiRedactionGuard;
     private final ResponseTruncationGuard responseTruncationGuard;
     private final ApprovalService approvalService;
+    private final RateLimiter rateLimiter;
     private final Duration approvalTimeout;
 
     @Autowired
@@ -43,6 +46,7 @@ public class ToolExecutionPipeline {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService,
+            RateLimiter rateLimiter,
             @Value("${agentgate.approval.default-timeout-seconds:900}") long approvalTimeoutSeconds) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -51,6 +55,7 @@ public class ToolExecutionPipeline {
         this.piiRedactionGuard = piiRedactionGuard;
         this.responseTruncationGuard = responseTruncationGuard;
         this.approvalService = approvalService;
+        this.rateLimiter = rateLimiter;
         this.approvalTimeout = Duration.ofSeconds(approvalTimeoutSeconds > 0 ? approvalTimeoutSeconds : 900);
     }
 
@@ -61,8 +66,20 @@ public class ToolExecutionPipeline {
             JsonSchemaValidationGuard validationGuard,
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            long approvalTimeoutSeconds) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, approvalTimeoutSeconds);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, 900L);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, 900L);
     }
 
     public ToolExecutionPipeline(
@@ -72,7 +89,7 @@ public class ToolExecutionPipeline {
             JsonSchemaValidationGuard validationGuard,
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, null, 900L);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, null, null, 900L);
     }
 
     /**
@@ -93,6 +110,17 @@ public class ToolExecutionPipeline {
         if (!toolRepository.isAgentPermitted(context.toolName(), context.agentId())) {
             log.warn("Security violation: Agent '{}' unauthorized for tool '{}'", context.agentId(), context.toolName());
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
+        }
+
+        // Atomic Ingress Rate Limiting (FR6)
+        // Evaluated after authentication/permission check, before policy evaluation, schema validation, and approval persistence
+        if (rateLimiter != null) {
+            RateLimitDecision rateDecision = rateLimiter.tryAcquire(context.agentId(), context.toolName());
+            if (!rateDecision.allowed()) {
+                log.warn("Rate limit check failed for agent '{}' on tool '{}': {}",
+                        context.agentId(), context.toolName(), rateDecision.message());
+                return ToolExecutionResult.failure(rateDecision.message(), 0L);
+            }
         }
 
         // JSON Schema Input Validation (FR5)
