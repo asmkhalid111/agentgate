@@ -296,4 +296,18 @@ class ApprovalControllerTest {
                 .andExpect(jsonPath("$.title", is("Approval Request Not Found")))
                 .andExpect(jsonPath("$.detail", containsString("appr-nonexistent-999")));
     }
+
+    @Test
+    @DisplayName("12. Agent service account with APPROVER role receives 403 Forbidden on GET /api/v1/approvals/{id}")
+    void agentServiceAccount_onGetApprovalById_receives403Forbidden() throws Exception {
+        ApprovalRequest request = approvalService.createRequest(
+                "agent-finance-bot", null, "orders_refund", "pol-large-refund",
+                Map.of("orderId", "ORD-AGENT-GET-BLOCKED", "amount", 5000.0), Duration.ofMinutes(15));
+
+        mockMvc.perform(get("/api/v1/approvals/" + request.id())
+                        .with(agentServiceAccountJwt()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)))
+                .andExpect(jsonPath("$.title", is("Access Denied")));
+    }
 }

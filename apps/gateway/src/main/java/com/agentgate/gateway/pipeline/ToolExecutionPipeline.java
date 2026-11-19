@@ -1,5 +1,7 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.approval.domain.ApprovalRequest;
+import com.agentgate.gateway.approval.service.ApprovalService;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
@@ -12,8 +14,11 @@ import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -26,6 +31,39 @@ public class ToolExecutionPipeline {
     private final JsonSchemaValidationGuard validationGuard;
     private final PiiRedactionGuard piiRedactionGuard;
     private final ResponseTruncationGuard responseTruncationGuard;
+    private final ApprovalService approvalService;
+    private final Duration approvalTimeout;
+
+    @Autowired
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            @Value("${agentgate.approval.default-timeout-seconds:900}") long approvalTimeoutSeconds) {
+        this.toolRepository = toolRepository;
+        this.adapters = adapters;
+        this.policyEvaluator = policyEvaluator;
+        this.validationGuard = validationGuard;
+        this.piiRedactionGuard = piiRedactionGuard;
+        this.responseTruncationGuard = responseTruncationGuard;
+        this.approvalService = approvalService;
+        this.approvalTimeout = Duration.ofSeconds(approvalTimeoutSeconds > 0 ? approvalTimeoutSeconds : 900);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, 900L);
+    }
 
     public ToolExecutionPipeline(
             RegisteredToolRepository toolRepository,
@@ -34,12 +72,7 @@ public class ToolExecutionPipeline {
             JsonSchemaValidationGuard validationGuard,
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard) {
-        this.toolRepository = toolRepository;
-        this.adapters = adapters;
-        this.policyEvaluator = policyEvaluator;
-        this.validationGuard = validationGuard;
-        this.piiRedactionGuard = piiRedactionGuard;
-        this.responseTruncationGuard = responseTruncationGuard;
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, null, 900L);
     }
 
     /**
@@ -79,8 +112,47 @@ public class ToolExecutionPipeline {
         }
 
         if (decision.action() == PolicyAction.REQUIRE_APPROVAL) {
-            log.info("Call requires human approval: rule='{}'", decision.matchedRuleName());
-            return ToolExecutionResult.failure("REQUIRE_APPROVAL: Call held for human approval [Rule: " + decision.matchedRuleName() + "]", decision.evaluationTimeMs());
+            String ruleId = decision.matchedRuleId();
+            if (ruleId == null || ruleId.isBlank()) {
+                log.error("Policy action REQUIRE_APPROVAL for tool '{}' missing rule identifier", context.toolName());
+                return ToolExecutionResult.failure(
+                        "REQUIRE_APPROVAL_INVALID_POLICY: Missing policy rule identifier; tool was not executed.",
+                        decision.evaluationTimeMs()
+                );
+            }
+
+            if (approvalService == null) {
+                log.error("ApprovalService unavailable for tool '{}' requiring approval", context.toolName());
+                return ToolExecutionResult.failure(
+                        "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.",
+                        decision.evaluationTimeMs()
+                );
+            }
+
+            try {
+                ApprovalRequest pendingReq = approvalService.createRequest(
+                        context.agentId(),
+                        context.userId(),
+                        context.toolName(),
+                        ruleId,
+                        context.arguments(),
+                        approvalTimeout
+                );
+                String ruleName = decision.matchedRuleName() != null && !decision.matchedRuleName().isBlank()
+                        ? decision.matchedRuleName()
+                        : ruleId;
+                return ToolExecutionResult.failure(
+                        "REQUIRE_APPROVAL: Call held for human approval [ApprovalId: " + pendingReq.id() + ", Rule: " + ruleName + "]",
+                        decision.evaluationTimeMs()
+                );
+            } catch (Exception e) {
+                log.error("Failed to persist approval request for tool '{}' by agent '{}' [rule='{}']: {}",
+                        context.toolName(), context.agentId(), ruleId, e.getClass().getSimpleName());
+                return ToolExecutionResult.failure(
+                        "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.",
+                        decision.evaluationTimeMs()
+                );
+            }
         }
 
         ToolAdapter adapter = adapters.stream()
