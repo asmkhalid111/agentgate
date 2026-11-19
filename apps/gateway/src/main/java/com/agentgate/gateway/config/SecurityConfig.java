@@ -140,6 +140,9 @@ public class SecurityConfig {
                         // Policy playground endpoint (accessible to ADMIN and AGENT)
                         .requestMatchers("/api/v1/policies/playground")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_AGENT", "SCOPE_tool:admin", "SCOPE_agent:invoke")
+                        // Protected Emergency Kill Switches Administration REST API (strictly requires ROLE_ADMIN, human administrators)
+                        .requestMatchers("/api/v1/admin/kill-switches", "/api/v1/admin/kill-switches/**")
+                        .hasAuthority("ROLE_ADMIN")
                         // Protected administrative management endpoints (FR1 tool registry, FR3
                         // policies)
                         .requestMatchers("/api/v1/registry/**", "/api/v1/policies/**", "/admin/**")

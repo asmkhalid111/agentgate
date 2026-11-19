@@ -7,6 +7,8 @@ import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
 import com.agentgate.gateway.guard.PiiRedactionGuard;
 import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.guard.ValidationResult;
+import com.agentgate.gateway.killswitch.dto.KillSwitchCheckResult;
+import com.agentgate.gateway.killswitch.service.KillSwitchService;
 import com.agentgate.gateway.ratelimit.RateLimitDecision;
 import com.agentgate.gateway.ratelimit.RateLimiter;
 import com.agentgate.gateway.ratelimit.WriteCapDecision;
@@ -38,6 +40,7 @@ public class ToolExecutionPipeline {
     private final ApprovalService approvalService;
     private final RateLimiter rateLimiter;
     private final WriteCapLimiter writeCapLimiter;
+    private final KillSwitchService killSwitchService;
     private final Duration approvalTimeout;
 
     @Autowired
@@ -51,6 +54,7 @@ public class ToolExecutionPipeline {
             ApprovalService approvalService,
             RateLimiter rateLimiter,
             WriteCapLimiter writeCapLimiter,
+            @Autowired(required = false) KillSwitchService killSwitchService,
             @Value("${agentgate.approval.default-timeout-seconds:900}") long approvalTimeoutSeconds) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -61,7 +65,36 @@ public class ToolExecutionPipeline {
         this.approvalService = approvalService;
         this.rateLimiter = rateLimiter;
         this.writeCapLimiter = writeCapLimiter;
+        this.killSwitchService = killSwitchService;
         this.approvalTimeout = Duration.ofSeconds(approvalTimeoutSeconds > 0 ? approvalTimeoutSeconds : 900);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            RateLimiter rateLimiter,
+            WriteCapLimiter writeCapLimiter,
+            KillSwitchService killSwitchService) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, killSwitchService, 900L);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            RateLimiter rateLimiter,
+            WriteCapLimiter writeCapLimiter,
+            long approvalTimeoutSeconds) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, writeCapLimiter, null, approvalTimeoutSeconds);
     }
 
     public ToolExecutionPipeline(
@@ -128,6 +161,21 @@ public class ToolExecutionPipeline {
         if (!toolRepository.isAgentPermitted(context.toolName(), context.agentId())) {
             log.warn("Security violation: Agent '{}' unauthorized for tool '{}'", context.agentId(), context.toolName());
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
+        }
+
+        // Emergency Kill Switch Check at Ingress (FR8)
+        // Blocks requests immediately before rate limits, validation, or approval persistence
+        if (killSwitchService != null) {
+            KillSwitchCheckResult killDecision = killSwitchService.checkBlocked(
+                    context.agentId(),
+                    context.toolName(),
+                    tool.isWriteOperation()
+            );
+            if (killDecision.blocked()) {
+                log.warn("Execution blocked by emergency kill switch at ingress for agent '{}' on tool '{}': {}",
+                        context.agentId(), context.toolName(), killDecision.message());
+                return ToolExecutionResult.failure(killDecision.message(), 0L);
+            }
         }
 
         // Atomic Ingress Rate Limiting (FR6)
@@ -215,6 +263,21 @@ public class ToolExecutionPipeline {
                 .filter(a -> a.supports(tool.protocolType()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Unsupported protocol: " + tool.protocolType()));
+
+        // Emergency Kill Switch Check immediately pre-dispatch (FR8)
+        // Defends against race conditions where kill switch was activated after ingress check
+        if (killSwitchService != null) {
+            KillSwitchCheckResult preDispatchDecision = killSwitchService.checkBlocked(
+                    context.agentId(),
+                    context.toolName(),
+                    tool.isWriteOperation()
+            );
+            if (preDispatchDecision.blocked()) {
+                log.warn("Direct execution blocked by emergency kill switch immediately pre-dispatch for agent '{}' on tool '{}': {}",
+                        context.agentId(), context.toolName(), preDispatchDecision.message());
+                return ToolExecutionResult.failure(preDispatchDecision.message(), decision.evaluationTimeMs());
+            }
+        }
 
         ToolExecutionResult rawResult = adapter.execute(tool, enrichedContext);
 
