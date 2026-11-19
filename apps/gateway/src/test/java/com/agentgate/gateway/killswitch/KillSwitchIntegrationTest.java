@@ -3,6 +3,8 @@ package com.agentgate.gateway.killswitch;
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.domain.ApprovalStatus;
 import com.agentgate.gateway.approval.domain.ExecutionState;
+import com.agentgate.gateway.approval.dto.ApprovalResultResponse;
+import com.agentgate.gateway.approval.exception.InvalidApprovalStateException;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
 import com.agentgate.gateway.approval.service.ApprovalService;
 import com.agentgate.gateway.common.ToolExecutionContext;
@@ -40,9 +42,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -72,7 +80,7 @@ class KillSwitchIntegrationTest {
     @Autowired
     private ApprovalService approvalService;
 
-    @Autowired
+    @MockitoSpyBean
     private ApprovalRequestRepository approvalRepository;
 
     @Autowired
@@ -93,6 +101,7 @@ class KillSwitchIntegrationTest {
     @BeforeEach
     void setUp() {
         killSwitchRepository.deleteAll();
+        approvalRepository.deleteAll();
 
         // Configure default tool adapter mock
         doReturn(ToolExecutionResult.success(Map.of("status", "ok"), 10L))
@@ -185,6 +194,8 @@ class KillSwitchIntegrationTest {
     @AfterEach
     void tearDown() {
         killSwitchRepository.deleteAll();
+        approvalRepository.deleteAll();
+        reset(approvalRepository);
         toolRepository.deleteByName(TOOL_WRITE);
         toolRepository.deleteByName(TOOL_READ);
         toolRepository.deleteByName(TOOL_HIGH_RISK);
@@ -388,5 +399,327 @@ class KillSwitchIntegrationTest {
         // Service check immediately reflects deactivation (no cache stale state)
         KillSwitchCheckResult decision = killSwitchService.checkBlocked(AGENT_ALPHA, "any-tool", false);
         assertFalse(decision.blocked(), "Deactivated switch must immediately allow execution");
+    }
+
+    // ==========================================
+    // Task 12B: Pending Approval Cancellation Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("Task 12B: Agent switch cancels only that agent's pending approvals")
+    void cancellation_agentSwitchCancelsOnlyTargetAgentPendingApprovals() {
+        ApprovalRequest reqAlpha = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 100), Duration.ofMinutes(15)
+        );
+        ApprovalRequest reqBeta = approvalService.createRequest(
+                AGENT_BETA, "user-2", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 200), Duration.ofMinutes(15)
+        );
+
+        assertEquals(ApprovalStatus.PENDING, reqAlpha.status());
+        assertEquals(ApprovalStatus.PENDING, reqBeta.status());
+
+        // Activate AGENT switch on AGENT_ALPHA
+        killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Rogue agent activity", ADMIN_USER);
+
+        // Verify AGENT_ALPHA pending request transitioned to CANCELLED
+        ApprovalRequest updatedAlpha = approvalRepository.findById(reqAlpha.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, updatedAlpha.status());
+        assertEquals(ADMIN_USER, updatedAlpha.decidedBy());
+        assertNotNull(updatedAlpha.decidedAt());
+        assertTrue(updatedAlpha.decisionReason().contains("Rogue agent activity"));
+
+        // Verify AGENT_BETA pending request remains PENDING
+        ApprovalRequest updatedBeta = approvalRepository.findById(reqBeta.id()).orElseThrow();
+        assertEquals(ApprovalStatus.PENDING, updatedBeta.status());
+        assertNull(updatedBeta.decidedBy());
+    }
+
+    @Test
+    @DisplayName("Task 12B: Tool switch cancels only matching tool approvals")
+    void cancellation_toolSwitchCancelsOnlyMatchingToolPendingApprovals() {
+        // Register second high risk tool
+        String secondTool = "ks_high_risk_tool_2";
+        RegisteredTool hr2 = new RegisteredTool(
+                "tool-hr2-" + System.nanoTime(),
+                secondTool,
+                "Second High Risk Tool",
+                "{\"type\":\"object\"}",
+                RiskLevel.HIGH,
+                "Finance",
+                "http://localhost:8082/api/test/finance2",
+                ProtocolType.REST,
+                "POST",
+                true,
+                Instant.now(),
+                Instant.now()
+        );
+        toolRepository.save(hr2);
+        toolRepository.addPermission(secondTool, AGENT_ALPHA);
+        policyRepository.save(new PolicyRule(
+                "rule-ks-hr-2", "HR2 Rule", "*", secondTool,
+                Collections.emptyList(), PolicyAction.REQUIRE_APPROVAL, false, 10, 1, true
+        ));
+        policyEvaluator.reloadPolicies();
+
+        try {
+            ApprovalRequest reqTool1 = approvalService.createRequest(
+                    AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                    Map.of("amount", 500), Duration.ofMinutes(15)
+            );
+            ApprovalRequest reqTool2 = approvalService.createRequest(
+                    AGENT_ALPHA, "user-1", secondTool, "rule-ks-hr-2",
+                    Map.of("amount", 600), Duration.ofMinutes(15)
+            );
+
+            // Activate TOOL switch on TOOL_HIGH_RISK
+            killSwitchService.activate(KillSwitchType.TOOL, TOOL_HIGH_RISK, "Tool disabled for audit", ADMIN_USER);
+
+            // TOOL_HIGH_RISK request is CANCELLED
+            ApprovalRequest updated1 = approvalRepository.findById(reqTool1.id()).orElseThrow();
+            assertEquals(ApprovalStatus.CANCELLED, updated1.status());
+            assertEquals(ADMIN_USER, updated1.decidedBy());
+
+            // secondTool request remains PENDING
+            ApprovalRequest updated2 = approvalRepository.findById(reqTool2.id()).orElseThrow();
+            assertEquals(ApprovalStatus.PENDING, updated2.status());
+        } finally {
+            toolRepository.deleteByName(secondTool);
+            policyRepository.deleteById("rule-ks-hr-2");
+            policyEvaluator.reloadPolicies();
+        }
+    }
+
+    @Test
+    @DisplayName("Task 12B: Global write switch cancels write approvals while preserving read-only approvals")
+    void cancellation_globalWriteSwitchCancelsWriteApprovalsAndPreservesRead() {
+        // Add approval policy for read tool to allow creating pending approval for read tool
+        policyRepository.save(new PolicyRule(
+                "rule-ks-read-hr", "Read HR Rule", "*", TOOL_READ,
+                Collections.emptyList(), PolicyAction.REQUIRE_APPROVAL, false, 5, 1, true
+        ));
+        policyEvaluator.reloadPolicies();
+
+        try {
+            // Write request (POST)
+            ApprovalRequest writeReq = approvalService.createRequest(
+                    AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                    Map.of("amount", 300), Duration.ofMinutes(15)
+            );
+            // Read request (GET)
+            ApprovalRequest readReq = approvalService.createRequest(
+                    AGENT_ALPHA, "user-1", TOOL_READ, "rule-ks-read-hr",
+                    Map.of("query", "data"), Duration.ofMinutes(15)
+            );
+
+            // Activate GLOBAL_WRITE switch
+            killSwitchService.activate(KillSwitchType.GLOBAL_WRITE, "GLOBAL", "Global write freeze", ADMIN_USER);
+
+            // Write approval is CANCELLED
+            ApprovalRequest updatedWrite = approvalRepository.findById(writeReq.id()).orElseThrow();
+            assertEquals(ApprovalStatus.CANCELLED, updatedWrite.status());
+            assertEquals(ADMIN_USER, updatedWrite.decidedBy());
+
+            // Read approval remains PENDING
+            ApprovalRequest updatedRead = approvalRepository.findById(readReq.id()).orElseThrow();
+            assertEquals(ApprovalStatus.PENDING, updatedRead.status());
+        } finally {
+            policyRepository.deleteById("rule-ks-read-hr");
+            policyEvaluator.reloadPolicies();
+        }
+    }
+
+    @Test
+    @DisplayName("Task 12B: Rejected, expired and already cancelled requests are not incorrectly transitioned")
+    void cancellation_doesNotTransitionRejectedExpiredOrCancelled() {
+        // 1. REJECTED request
+        ApprovalRequest req1 = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 10), Duration.ofMinutes(15)
+        );
+        approvalService.reject(req1.id(), "officer.reject", "Denied");
+        ApprovalRequest rejected = approvalRepository.findById(req1.id()).orElseThrow();
+        assertEquals(ApprovalStatus.REJECTED, rejected.status());
+        Instant decidedAtOrig = rejected.decidedAt();
+
+        // 2. EXPIRED request
+        ApprovalRequest req2 = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 20), Duration.ofMinutes(15)
+        );
+        approvalRepository.transitionToExpired(req2.id(), Instant.now().plus(Duration.ofMinutes(20)));
+        ApprovalRequest expired = approvalRepository.findById(req2.id()).orElseThrow();
+        assertEquals(ApprovalStatus.EXPIRED, expired.status());
+
+        // 3. Already CANCELLED request
+        ApprovalRequest req3 = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 30), Duration.ofMinutes(15)
+        );
+        approvalRepository.transitionToCancelled(req3.id(), "user.self", "User abort", Instant.now());
+        ApprovalRequest cancelled = approvalRepository.findById(req3.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, cancelled.status());
+        assertEquals("user.self", cancelled.decidedBy());
+
+        // Activate switch
+        killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Kill all", ADMIN_USER);
+
+        // Verify states, timestamps and attribution remain untouched
+        ApprovalRequest afterRejected = approvalRepository.findById(req1.id()).orElseThrow();
+        assertEquals(ApprovalStatus.REJECTED, afterRejected.status());
+        assertEquals("officer.reject", afterRejected.decidedBy());
+        assertEquals(decidedAtOrig.getEpochSecond(), afterRejected.decidedAt().getEpochSecond());
+
+        ApprovalRequest afterExpired = approvalRepository.findById(req2.id()).orElseThrow();
+        assertEquals(ApprovalStatus.EXPIRED, afterExpired.status());
+
+        ApprovalRequest afterCancelled = approvalRepository.findById(req3.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, afterCancelled.status());
+        assertEquals("user.self", afterCancelled.decidedBy());
+    }
+
+    @Test
+    @DisplayName("Task 12B: CANCELLED requests cannot be approved afterward")
+    void cancellation_cancelledRequestsCannotBeApprovedAfterward() {
+        ApprovalRequest req = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 999), Duration.ofMinutes(15)
+        );
+
+        killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Emergency stop", ADMIN_USER);
+
+        ApprovalRequest cancelled = approvalRepository.findById(req.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, cancelled.status());
+
+        // Attempting to approve must fail with InvalidApprovalStateException
+        InvalidApprovalStateException ex = assertThrows(InvalidApprovalStateException.class, () ->
+                approvalService.approve(req.id(), "officer.smith", null)
+        );
+        assertTrue(ex.getMessage().contains("CANCELLED"));
+
+        // Status remains CANCELLED
+        ApprovalRequest stillCancelled = approvalRepository.findById(req.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, stillCancelled.status());
+    }
+
+    @Test
+    @DisplayName("Task 12B: Deactivation never revives cancelled requests")
+    void cancellation_deactivationNeverRevivesCancelledRequests() {
+        ApprovalRequest req = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 444), Duration.ofMinutes(15)
+        );
+
+        // Activate switch -> cancels pending
+        killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Emergency stop", ADMIN_USER);
+        assertEquals(ApprovalStatus.CANCELLED, approvalRepository.findById(req.id()).orElseThrow().status());
+
+        // Deactivate switch
+        killSwitchService.deactivate(KillSwitchType.AGENT, AGENT_ALPHA, ADMIN_USER);
+
+        // Request MUST still be CANCELLED
+        ApprovalRequest afterDeact = approvalRepository.findById(req.id()).orElseThrow();
+        assertEquals(ApprovalStatus.CANCELLED, afterDeact.status());
+
+        // Attempting to approve still fails
+        assertThrows(InvalidApprovalStateException.class, () ->
+                approvalService.approve(req.id(), "officer.smith", null)
+        );
+    }
+
+    @Test
+    @DisplayName("Task 12B: get_approval_result returns CANCELLED and safe generic message without leaking internals")
+    void getApprovalResult_forCancelledRequest_returnsCancelledStatusAndGenericMessage() {
+        ApprovalRequest req = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 777), Duration.ofMinutes(15)
+        );
+
+        killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "TOP SECRET INTERNAL REASON 123", ADMIN_USER);
+
+        Optional<ApprovalResultResponse> resultOpt = approvalService.getApprovalResult(req.id(), AGENT_ALPHA);
+        assertTrue(resultOpt.isPresent());
+
+        ApprovalResultResponse res = resultOpt.get();
+        assertEquals("CANCELLED", res.status());
+        assertEquals("Approval request was cancelled", res.message());
+        assertNull(res.error());
+        assertNull(res.result());
+        assertFalse(res.message().contains("TOP SECRET"), "Must NOT disclose administrative reason");
+    }
+
+    @Test
+    @DisplayName("Task 12B: Cancellation failure rolls back the activation transaction")
+    void cancellation_rollbackOnFailure() {
+        doThrow(new RuntimeException("Simulated database failure during cancellation"))
+                .when(approvalRepository).cancelPendingByAgent(eq("agent-test-rollback"), any(), any(), any());
+
+        // When activation is attempted, the runtime exception must propagate
+        assertThrows(RuntimeException.class, () ->
+                killSwitchService.activate(KillSwitchType.AGENT, "agent-test-rollback", "Fail reason", ADMIN_USER)
+        );
+
+        // Switch must NOT be active or persisted in database due to transaction rollback
+        Optional<KillSwitch> found = killSwitchRepository.findByTypeAndTarget(KillSwitchType.AGENT, "agent-test-rollback");
+        assertTrue(found.isEmpty(), "Kill switch activation must be rolled back on cancellation failure");
+    }
+
+    @Test
+    @DisplayName("Task 12B: Concurrent approval and activation behave safely")
+    void concurrency_concurrentApprovalAndActivationBehaveSafely() throws Exception {
+        ApprovalRequest req = approvalService.createRequest(
+                AGENT_ALPHA, "user-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                Map.of("amount", 888), Duration.ofMinutes(15)
+        );
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CyclicBarrier barrier = new CyclicBarrier(2);
+
+        Future<?> f1 = executor.submit(() -> {
+            try {
+                barrier.await();
+                approvalService.approve(req.id(), "officer.smith", null);
+            } catch (InvalidApprovalStateException e) {
+                // Expected if switch activation won the race
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        Future<?> f2 = executor.submit(() -> {
+            try {
+                barrier.await();
+                killSwitchService.activate(KillSwitchType.AGENT, AGENT_ALPHA, "Concurrent stop", ADMIN_USER);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        f1.get(5, TimeUnit.SECONDS);
+        f2.get(5, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // Downstream adapter must NEVER be executed
+        verify(restToolAdapter, never()).execute(any(), any());
+
+        // If status became APPROVED, then any dispatch attempt must fail at pre-dispatch
+        ApprovalRequest finalReq = approvalRepository.findById(req.id()).orElseThrow();
+        if (finalReq.status() == ApprovalStatus.APPROVED) {
+            // Wait for background execution to complete governance recheck
+            for (int i = 0; i < 30; i++) {
+                ApprovalRequest current = approvalRepository.findById(req.id()).orElseThrow();
+                if (current.executionState() != ExecutionState.NOT_DISPATCHED
+                        && current.executionState() != ExecutionState.DISPATCHED) {
+                    break;
+                }
+                Thread.sleep(100);
+            }
+            ApprovalRequest afterExec = approvalRepository.findById(req.id()).orElseThrow();
+            assertEquals(ExecutionState.FAILED, afterExec.executionState());
+            assertTrue(afterExec.executionError().startsWith("KILL_SWITCH_ACTIVE"));
+        } else {
+            assertEquals(ApprovalStatus.CANCELLED, finalReq.status());
+        }
     }
 }

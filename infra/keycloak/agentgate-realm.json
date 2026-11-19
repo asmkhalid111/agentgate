@@ -114,7 +114,7 @@
       "name": "AgentGate Approval Web Portal",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "${KEYCLOAK_WEB_CLIENT_SECRET}",
+      "secret": "web_dev_secret_123",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
