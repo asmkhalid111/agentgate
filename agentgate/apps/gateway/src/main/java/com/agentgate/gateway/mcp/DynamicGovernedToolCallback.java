@@ -61,7 +61,7 @@ public class DynamicGovernedToolCallback implements ToolCallback {
             }
         } catch (Exception e) {
             log.error("Failed to parse tool arguments for '{}': {}", tool.name(), e.getMessage());
-            return "{\"error\":\"Invalid JSON arguments: " + e.getMessage() + "\"}";
+            throw new IllegalArgumentException("{\"error\":\"Invalid JSON arguments: " + e.getMessage() + "\"}");
         }
 
         ToolExecutionContext context = new ToolExecutionContext(
@@ -77,14 +77,17 @@ public class DynamicGovernedToolCallback implements ToolCallback {
             if (result.success()) {
                 return objectMapper.writeValueAsString(result.data());
             } else {
-                return "{\"error\":\"" + result.error() + "\"}";
+                log.warn("Governed tool execution rejected for '{}': {}", tool.name(), result.error());
+                throw new IllegalArgumentException("{\"error\":\"" + result.error() + "\"}");
             }
         } catch (SecurityException se) {
             log.warn("Access denied during tools/call: {}", se.getMessage());
-            return "{\"error\":\"ACCESS_DENIED: " + se.getMessage() + "\"}";
+            throw new SecurityException("{\"error\":\"ACCESS_DENIED: " + se.getMessage() + "\"}");
+        } catch (IllegalArgumentException iae) {
+            throw iae;
         } catch (Exception e) {
             log.error("Tool execution failed: {}", e.getMessage());
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            throw new RuntimeException("{\"error\":\"" + e.getMessage() + "\"}", e);
         }
     }
 }

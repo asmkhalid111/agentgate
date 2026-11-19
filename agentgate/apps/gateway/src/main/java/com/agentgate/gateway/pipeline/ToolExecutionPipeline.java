@@ -1,6 +1,8 @@
 package com.agentgate.gateway.pipeline;
 
 import com.agentgate.gateway.common.ToolExecutionContext;
+import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
+import com.agentgate.gateway.guard.ValidationResult;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
 import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
@@ -19,19 +21,22 @@ public class ToolExecutionPipeline {
     private final RegisteredToolRepository toolRepository;
     private final List<ToolAdapter> adapters;
     private final StructuredPolicyEvaluator policyEvaluator;
+    private final JsonSchemaValidationGuard validationGuard;
 
     public ToolExecutionPipeline(
             RegisteredToolRepository toolRepository,
             List<ToolAdapter> adapters,
-            StructuredPolicyEvaluator policyEvaluator) {
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
         this.policyEvaluator = policyEvaluator;
+        this.validationGuard = validationGuard;
     }
 
     /**
      * Executes a tool through the shared governance pipeline.
-     * Enforces tool status, direct agent authorization, and policy rules.
+     * Enforces tool status, direct agent authorization, JSON schema validation, and policy rules.
      */
     public ToolExecutionResult execute(ToolExecutionContext context) {
         RegisteredTool tool = toolRepository.findByName(context.toolName())
@@ -46,6 +51,13 @@ public class ToolExecutionPipeline {
         if (!toolRepository.isAgentPermitted(context.toolName(), context.agentId())) {
             log.warn("Security violation: Agent '{}' unauthorized for tool '{}'", context.agentId(), context.toolName());
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
+        }
+
+        // JSON Schema Input Validation (FR5)
+        ValidationResult validation = validationGuard.validate(tool, context.arguments());
+        if (!validation.valid()) {
+            log.warn("Input validation failed for tool '{}' from agent '{}': {}", context.toolName(), context.agentId(), validation.error());
+            return ToolExecutionResult.failure(validation.error(), 0L);
         }
 
         ToolExecutionContext enrichedContext = context.withRiskLevel(tool.riskLevel());
