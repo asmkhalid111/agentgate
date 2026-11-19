@@ -21,6 +21,17 @@ import java.util.UUID;
 @RequestMapping("/api/v1/registry/tools")
 public class ToolRegistryController {
 
+    public static final java.util.Set<String> RESERVED_TOOL_NAMES = java.util.Set.of(
+            "get_approval_result",
+            "m01_status",
+            "m01_restricted_admin_tool"
+    );
+
+    public static boolean isReservedToolName(String name) {
+        if (name == null) return false;
+        return RESERVED_TOOL_NAMES.contains(name.trim().toLowerCase());
+    }
+
     private final RegisteredToolRepository repository;
     private final OpenApiImporterService importerService;
     private final ApplicationEventPublisher eventPublisher;
@@ -49,6 +60,12 @@ public class ToolRegistryController {
     @PostMapping
     public ResponseEntity<RegisteredTool> registerTool(@RequestBody Map<String, Object> request) {
         String name = (String) request.get("name");
+        if (name == null || name.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (isReservedToolName(name)) {
+            throw new IllegalArgumentException("Tool name '" + name + "' is reserved for built-in gateway operations");
+        }
         String description = (String) request.getOrDefault("description", "");
         String inputSchema = (String) request.getOrDefault("inputSchema", "{\"type\":\"object\"}");
         String riskStr = (String) request.getOrDefault("riskLevel", "LOW");

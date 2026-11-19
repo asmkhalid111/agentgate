@@ -94,6 +94,11 @@ public class McpConfig {
 
                 String toolName = tool.name();
 
+                // Built-in approval result retrieval tool (FR4)
+                if ("get_approval_result".equals(toolName)) {
+                    return true;
+                }
+
                 // Baseline M01 fixture tools
                 if ("m01_status".equals(toolName)) {
                     return true;

@@ -2,7 +2,9 @@ package com.agentgate.gateway.approval.service;
 
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.domain.ApprovalStatus;
+import com.agentgate.gateway.approval.domain.ExecutionState;
 import com.agentgate.gateway.approval.dto.ApprovalDetailResponse;
+import com.agentgate.gateway.approval.dto.ApprovalResultResponse;
 import com.agentgate.gateway.approval.dto.ApprovalSummaryResponse;
 import com.agentgate.gateway.approval.dto.PagedApprovalResponse;
 import com.agentgate.gateway.approval.event.ApprovalApprovedEvent;
@@ -24,16 +26,22 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * Service managing the human approval request lifecycle and atomic state transitions (FR4).
+ * Service managing the human approval request lifecycle and atomic state
+ * transitions (FR4).
  * <p>
  * Security & Governance Principles:
  * <ul>
- *   <li><b>Atomic Expiration Enforcement:</b> Expiration is enforced directly in the database update condition
- *       (expires_at &gt; now). Concurrent or overdue attempts fail deterministically.</li>
- *   <li><b>Privacy:</b> Argument payloads are never logged in application logs.</li>
- *   <li><b>Future Execution Safety:</b> When future approved execution is implemented, any edited arguments
- *       must be revalidated through the JsonSchemaValidationGuard and applicable authorization checks
- *       before downstream tool execution.</li>
+ * <li><b>Atomic Expiration Enforcement:</b> Expiration is enforced directly in
+ * the database update condition
+ * (expires_at &gt; now). Concurrent or overdue attempts fail
+ * deterministically.</li>
+ * <li><b>Privacy:</b> Argument payloads are never logged in application
+ * logs.</li>
+ * <li><b>Future Execution Safety:</b> When future approved execution is
+ * implemented, any edited arguments
+ * must be revalidated through the JsonSchemaValidationGuard and applicable
+ * authorization checks
+ * before downstream tool execution.</li>
  * </ul>
  */
 @Service
@@ -60,12 +68,13 @@ public class ApprovalService {
      * Enclosed in an atomic transaction to ensure event publication aligns
      * with database commit (Reviewer Correction A).
      *
-     * @param agentId requesting agent client identifier
-     * @param userId optional end-user identity on whose behalf the agent acts
-     * @param toolName high-risk tool name requiring approval
+     * @param agentId      requesting agent client identifier
+     * @param userId       optional end-user identity on whose behalf the agent acts
+     * @param toolName     high-risk tool name requiring approval
      * @param policyRuleId policy rule that mandated approval
-     * @param arguments input arguments to be held
-     * @param timeout duration until the request expires (defaults to 15m if null)
+     * @param arguments    input arguments to be held
+     * @param timeout      duration until the request expires (defaults to 15m if
+     *                     null)
      * @return persisted ApprovalRequest
      */
     @Transactional
@@ -104,8 +113,7 @@ public class ApprovalService {
                 expiresAt,
                 null,
                 null,
-                null
-        );
+                null);
 
         repository.save(request);
 
@@ -133,11 +141,13 @@ public class ApprovalService {
      * Enclosed in an atomic transaction to ensure event publication aligns
      * with database commit (Reviewer Condition 2).
      *
-     * @param id approval request identifier
-     * @param decidedBy username of the approver
-     * @param editedArguments optional edited arguments (null retains original arguments)
+     * @param id              approval request identifier
+     * @param decidedBy       username of the approver
+     * @param editedArguments optional edited arguments (null retains original
+     *                        arguments)
      * @return updated ApprovalRequest in APPROVED status
-     * @throws IllegalStateException if request is expired, already decided, or in terminal state
+     * @throws IllegalStateException if request is expired, already decided, or in
+     *                               terminal state
      */
     @Transactional(noRollbackFor = InvalidApprovalStateException.class)
     public ApprovalRequest approve(String id, String decidedBy, Map<String, Object> editedArguments) {
@@ -159,10 +169,12 @@ public class ApprovalService {
 
             if (current.isExpired(now) || (current.expiresAt() != null && !now.isBefore(current.expiresAt()))) {
                 repository.transitionToExpired(id, now);
-                throw new InvalidApprovalStateException("Cannot approve request '" + id + "': request has expired at " + current.expiresAt());
+                throw new InvalidApprovalStateException(
+                        "Cannot approve request '" + id + "': request has expired at " + current.expiresAt());
             }
 
-            throw new InvalidApprovalStateException("Cannot approve request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException(
+                    "Cannot approve request '" + id + "': request is in state " + current.status());
         }
 
         ApprovalRequest approved = repository.findById(id).orElseThrow();
@@ -178,11 +190,12 @@ public class ApprovalService {
     /**
      * Atomically rejects a pending approval request.
      *
-     * @param id approval request identifier
+     * @param id        approval request identifier
      * @param decidedBy username of the rejecter
-     * @param reason explanation for the rejection
+     * @param reason    explanation for the rejection
      * @return updated ApprovalRequest in REJECTED status
-     * @throws IllegalStateException if request is expired, already decided, or in terminal state
+     * @throws IllegalStateException if request is expired, already decided, or in
+     *                               terminal state
      */
     public ApprovalRequest reject(String id, String decidedBy, String reason) {
         Instant now = Instant.now();
@@ -193,10 +206,12 @@ public class ApprovalService {
 
             if (current.isExpired(now) || (current.expiresAt() != null && !now.isBefore(current.expiresAt()))) {
                 repository.transitionToExpired(id, now);
-                throw new InvalidApprovalStateException("Cannot reject request '" + id + "': request has expired at " + current.expiresAt());
+                throw new InvalidApprovalStateException(
+                        "Cannot reject request '" + id + "': request has expired at " + current.expiresAt());
             }
 
-            throw new InvalidApprovalStateException("Cannot reject request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException(
+                    "Cannot reject request '" + id + "': request is in state " + current.status());
         }
 
         log.info("Rejected approval request '{}' by '{}' [reason='{}']", id, decidedBy, reason);
@@ -206,9 +221,9 @@ public class ApprovalService {
     /**
      * Atomically cancels a pending approval request.
      *
-     * @param id approval request identifier
+     * @param id          approval request identifier
      * @param cancelledBy username or agent cancelling the request
-     * @param reason explanation for cancellation
+     * @param reason      explanation for cancellation
      * @return updated ApprovalRequest in CANCELLED status
      * @throws IllegalStateException if request is not in PENDING state
      */
@@ -219,7 +234,8 @@ public class ApprovalService {
             ApprovalRequest current = repository.findById(id)
                     .orElseThrow(() -> new ApprovalNotFoundException("Approval request not found: " + id));
 
-            throw new InvalidApprovalStateException("Cannot cancel request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException(
+                    "Cannot cancel request '" + id + "': request is in state " + current.status());
         }
 
         log.info("Cancelled approval request '{}' by '{}' [reason='{}']", id, cancelledBy, reason);
@@ -232,10 +248,7 @@ public class ApprovalService {
      *
      * @return number of requests transitioned to EXPIRED
      */
-    @Scheduled(
-            fixedDelayString = "${agentgate.approval.expiration-interval-ms:60000}",
-            initialDelayString = "${agentgate.approval.expiration-initial-delay-ms:5000}"
-    )
+    @Scheduled(fixedDelayString = "${agentgate.approval.expiration-interval-ms:60000}", initialDelayString = "${agentgate.approval.expiration-initial-delay-ms:5000}")
     public int expirePendingRequests() {
         Instant now = Instant.now();
         int count = repository.expirePendingRequests(now);
@@ -249,8 +262,8 @@ public class ApprovalService {
      * Retrieves a paginated list of approval requests matching the given status.
      *
      * @param status status filter (null for all statuses)
-     * @param page zero-based page index
-     * @param size page size
+     * @param page   zero-based page index
+     * @param size   page size
      * @return PagedApprovalResponse containing lightweight summaries
      */
     public PagedApprovalResponse findPaged(ApprovalStatus status, int page, int size) {
@@ -281,8 +294,7 @@ public class ApprovalService {
                 req.expiresAt(),
                 req.decidedAt(),
                 req.decidedBy(),
-                req.decisionReason()
-        );
+                req.decisionReason());
     }
 
     public ApprovalDetailResponse toDetailResponse(ApprovalRequest req) {
@@ -302,8 +314,7 @@ public class ApprovalService {
                 req.decidedBy(),
                 req.decisionReason(),
                 originalArgs,
-                approvedArgs
-        );
+                approvedArgs);
     }
 
     private Map<String, Object> parseJsonMap(String json) {
@@ -311,9 +322,134 @@ public class ApprovalService {
             return null;
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * Retrieves the status and sanitized outcome of an approval request for the verified calling agent (FR4).
+     * Enforces ownership: returns empty if request does not exist OR does not belong to callingAgentId
+     * (providing a consistent non-disclosing response).
+     *
+     * @param approvalId identifier of the approval request
+     * @param callingAgentId authenticated client identifier of the requesting agent
+     * @return Optional containing ApprovalResultResponse if found and owned, otherwise empty
+     */
+    public Optional<ApprovalResultResponse> getApprovalResult(String approvalId, String callingAgentId) {
+        if (approvalId == null || approvalId.isBlank() || callingAgentId == null || callingAgentId.isBlank()) {
+            return Optional.empty();
+        }
+        Optional<ApprovalRequest> reqOpt = repository.findById(approvalId);
+        if (reqOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        ApprovalRequest req = reqOpt.get();
+        if (!callingAgentId.equals(req.agentId())) {
+            log.warn("Security violation: Agent '{}' attempted to access approval '{}' belonging to agent '{}'",
+                    callingAgentId, approvalId, req.agentId());
+            return Optional.empty();
+        }
+        return Optional.of(toResultResponse(req));
+    }
+
+    private ApprovalResultResponse toResultResponse(ApprovalRequest req) {
+        ApprovalStatus status = req.status();
+        ExecutionState execState = req.executionState();
+
+        return switch (status) {
+            case PENDING -> new ApprovalResultResponse(
+                    req.id(),
+                    req.toolName(),
+                    "PENDING",
+                    execState != null ? execState.name() : ExecutionState.NOT_DISPATCHED.name(),
+                    null,
+                    null,
+                    "Awaiting human approval decision",
+                    req.createdAt(),
+                    req.expiresAt(),
+                    null,
+                    null
+            );
+            case APPROVED -> {
+                Object parsedResult = null;
+                if (execState == ExecutionState.COMPLETED && req.executionResultJson() != null) {
+                    parsedResult = parseResultData(req.executionResultJson());
+                }
+                String message = switch (execState) {
+                    case NOT_DISPATCHED -> "Approved by human; awaiting execution";
+                    case DISPATCHED -> "Execution in progress; outcome not yet recorded";
+                    case COMPLETED -> "Tool executed successfully";
+                    case FAILED -> "Execution failed";
+                    case INDETERMINATE -> "Execution outcome is uncertain (e.g. timeout or disconnect). Do not retry automatically.";
+                    case null -> null;
+                };
+                yield new ApprovalResultResponse(
+                        req.id(),
+                        req.toolName(),
+                        "APPROVED",
+                        execState != null ? execState.name() : ExecutionState.NOT_DISPATCHED.name(),
+                        parsedResult,
+                        (execState == ExecutionState.FAILED || execState == ExecutionState.INDETERMINATE) ? req.executionError() : null,
+                        message,
+                        req.createdAt(),
+                        req.expiresAt(),
+                        req.decidedAt(),
+                        req.executedAt()
+                );
+            }
+            case REJECTED -> new ApprovalResultResponse(
+                    req.id(),
+                    req.toolName(),
+                    "REJECTED",
+                    null,
+                    null,
+                    null,
+                    "Request was rejected by human approver",
+                    req.createdAt(),
+                    req.expiresAt(),
+                    req.decidedAt(),
+                    null
+            );
+            case EXPIRED -> new ApprovalResultResponse(
+                    req.id(),
+                    req.toolName(),
+                    "EXPIRED",
+                    null,
+                    null,
+                    null,
+                    "Approval request expired without a decision",
+                    req.createdAt(),
+                    req.expiresAt(),
+                    req.decidedAt(),
+                    null
+            );
+            case CANCELLED -> new ApprovalResultResponse(
+                    req.id(),
+                    req.toolName(),
+                    "CANCELLED",
+                    null,
+                    null,
+                    null,
+                    "Approval request was cancelled",
+                    req.createdAt(),
+                    req.expiresAt(),
+                    req.decidedAt(),
+                    null
+            );
+        };
+    }
+
+    private Object parseResultData(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, Object.class);
+        } catch (Exception e) {
+            return json;
         }
     }
 }

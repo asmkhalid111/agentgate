@@ -22,16 +22,28 @@ public class DynamicToolCallbackProvider implements ToolCallbackProvider {
     private final ToolExecutionPipeline pipeline;
     private final ObjectMapper objectMapper;
     private final DemoToolsMcpProvider demoToolsMcpProvider;
+    private final ApprovalResultMcpProvider approvalResultMcpProvider;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DynamicToolCallbackProvider(
+            RegisteredToolRepository toolRepository,
+            ToolExecutionPipeline pipeline,
+            ObjectMapper objectMapper,
+            DemoToolsMcpProvider demoToolsMcpProvider,
+            ApprovalResultMcpProvider approvalResultMcpProvider) {
+        this.toolRepository = toolRepository;
+        this.pipeline = pipeline;
+        this.objectMapper = objectMapper;
+        this.demoToolsMcpProvider = demoToolsMcpProvider;
+        this.approvalResultMcpProvider = approvalResultMcpProvider;
+    }
 
     public DynamicToolCallbackProvider(
             RegisteredToolRepository toolRepository,
             ToolExecutionPipeline pipeline,
             ObjectMapper objectMapper,
             DemoToolsMcpProvider demoToolsMcpProvider) {
-        this.toolRepository = toolRepository;
-        this.pipeline = pipeline;
-        this.objectMapper = objectMapper;
-        this.demoToolsMcpProvider = demoToolsMcpProvider;
+        this(toolRepository, pipeline, objectMapper, demoToolsMcpProvider, null);
     }
 
     @Override
@@ -54,6 +66,11 @@ public class DynamicToolCallbackProvider implements ToolCallbackProvider {
         List<ToolCallback> callbacks = new ArrayList<>();
         // Include baseline demo tools for M01 backward compatibility
         callbacks.addAll(Arrays.asList(ToolCallbacks.from(demoToolsMcpProvider)));
+
+        // Include built-in approval result retrieval tool (FR4)
+        if (approvalResultMcpProvider != null) {
+            callbacks.addAll(Arrays.asList(ToolCallbacks.from(approvalResultMcpProvider)));
+        }
 
         for (RegisteredTool tool : tools) {
             callbacks.add(new DynamicGovernedToolCallback(tool, pipeline, objectMapper));
