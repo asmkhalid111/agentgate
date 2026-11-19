@@ -7,6 +7,8 @@ import com.agentgate.gateway.audit.repository.AuditRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -36,9 +38,12 @@ public class AuditVerificationService {
 
     /**
      * Performs a full cryptographic verification of the audit trail.
+     * Enclosed in a REPEATABLE_READ transaction snapshot to guarantee that concurrent appends
+     * do not produce false tip or sequence discrepancies.
      *
      * @return AuditVerificationResult indicating validity, total checked records, and corruption details if tampered.
      */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AuditVerificationResult verifyIntegrity() {
         AuditChainState tip = auditRepository.getChainState();
         List<AuditEvent> events = auditRepository.findAllOrderBySequence();

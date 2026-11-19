@@ -2,6 +2,8 @@ package com.agentgate.gateway.audit.repository;
 
 import com.agentgate.gateway.audit.domain.AuditChainState;
 import com.agentgate.gateway.audit.domain.AuditEvent;
+import com.agentgate.gateway.audit.dto.AuditSearchCriteria;
+import com.agentgate.gateway.audit.dto.AuditSearchResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +52,16 @@ public interface AuditRepository {
      * Counts total recorded audit events.
      */
     long count();
+
+    /**
+     * Executes a bounded, paginated search query over audit records with optional filters (FR7).
+     */
+    AuditSearchResult search(AuditSearchCriteria criteria);
+
+    /**
+     * Executes an audit query returning up to limit records for export in stable chronological order (FR7).
+     */
+    List<AuditEvent> export(AuditSearchCriteria criteria, int limit);
 
     /**
      * Cleans up all audit records and resets chain state to genesis. Intended for test isolation.

@@ -20,11 +20,17 @@ import java.util.*;
 /**
  * Core service for recording immutable, tamper-evident audit events into the SHA-256 hash chain (FR7).
  * <p>
- * Enforces atomic chain append under REQUIRES_NEW transactions, argument privacy scrubbing
- * (redacting credentials and PII), and pre-dispatch write intent tracking.
+ * Supports two explicit recording modes:
+ * <ul>
+ *   <li><b>Mode A (Atomic business-transition audit):</b> Appends audit events in the same PostgreSQL
+ *       transaction as the corresponding state change (REQUIRED). If the business transaction rolls back,
+ *       the audit event also rolls back. If audit persistence fails, the business transaction rolls back.</li>
+ *   <li><b>Mode B (Independently committed dispatch audit):</b> Pre-dispatch write intents and post-dispatch
+ *       outcomes commit independently (REQUIRES_NEW) so evidence is persisted before external adapter calls
+ *       without holding chain locks during network execution.</li>
+ * </ul>
  */
 @Service
-@Transactional(propagation = Propagation.REQUIRES_NEW)
 public class AuditRecorder {
 
     private static final Logger log = LoggerFactory.getLogger(AuditRecorder.class);
@@ -51,11 +57,26 @@ public class AuditRecorder {
     }
 
     /**
-     * Atomically appends an audit event to the hash chain under a fresh independent transaction.
-     * Locks the chain state tip (id = 1) for the duration of the insert and releases it immediately.
+     * Mode A: Appends an audit event participating in the caller's active database transaction (REQUIRED).
+     * If the caller's transaction rolls back, this audit record rolls back with it.
+     * If audit persistence fails, the outer business transaction rolls back.
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
+    public AuditEvent append(AuditRecordDraft draft) {
+        return doAppend(draft);
+    }
+
+    /**
+     * Mode B: Appends an audit event under a fresh independent committed transaction (REQUIRES_NEW).
+     * Locks the chain state tip (id = 1), increments sequence, inserts into audit_log, updates the tip,
+     * and commits immediately, releasing the lock before downstream network operations.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public AuditEvent append(AuditRecordDraft draft) {
+    public AuditEvent appendIndependent(AuditRecordDraft draft) {
+        return doAppend(draft);
+    }
+
+    private AuditEvent doAppend(AuditRecordDraft draft) {
         AuditChainState tip = auditRepository.getChainStateForUpdate();
         long nextSequence = tip.lastSequence() + 1;
         String prevHash = tip.lastHash();
@@ -113,8 +134,9 @@ public class AuditRecorder {
     }
 
     /**
-     * Records a direct tool execution post-dispatch outcome.
+     * Records a direct tool execution post-dispatch outcome (Mode B: REQUIRES_NEW).
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditEvent recordDirectToolExecution(
             String agentId,
             String userId,
@@ -144,13 +166,14 @@ public class AuditRecorder {
                 latencyMs,
                 errorMessage
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Mandatory pre-dispatch intent record for mutating write tools (FR7).
-     * Must be committed before downstream tool invocation.
+     * Mandatory pre-dispatch intent record for mutating write tools (Mode B: REQUIRES_NEW).
+     * Must be committed before downstream tool invocation, releasing the chain lock.
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditEvent recordWriteDispatchIntent(
             String agentId,
             String userId,
@@ -177,12 +200,13 @@ public class AuditRecorder {
                 0L,
                 null
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Records a governance denial (policy block, emergency kill switch, rate limit, or schema failure).
+     * Records a governance denial (policy block, emergency kill switch, rate limit, or schema failure) (Mode B: REQUIRES_NEW).
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditEvent recordGovernanceDenial(
             String agentId,
             String userId,
@@ -211,12 +235,14 @@ public class AuditRecorder {
                 latencyMs,
                 errorMessage
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Records an approval request lifecycle creation event.
+     * Records an approval request lifecycle creation event (Mode A: REQUIRED).
+     * Participates in the caller's database transaction so creation and audit commit or rollback atomically.
      */
+    @Transactional(propagation = Propagation.REQUIRED)
     public AuditEvent recordApprovalRequested(
             String approvalId,
             String agentId,
@@ -243,12 +269,14 @@ public class AuditRecorder {
                 0L,
                 null
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Records a human approval decision or bulk cancellation/expiration event.
+     * Records a human approval decision or bulk cancellation/expiration event (Mode A: REQUIRED).
+     * Participates in the caller's database transaction so decision update and audit commit or rollback atomically.
      */
+    @Transactional(propagation = Propagation.REQUIRED)
     public AuditEvent recordApprovalDecision(
             String approvalId,
             String agentId,
@@ -277,12 +305,13 @@ public class AuditRecorder {
                 0L,
                 reason
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Records the final execution outcome of a human-approved tool invocation.
+     * Records the final execution outcome of a human-approved tool invocation (Mode B: REQUIRES_NEW).
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditEvent recordApprovedExecution(
             String approvalId,
             String agentId,
@@ -312,12 +341,13 @@ public class AuditRecorder {
                 latencyMs,
                 errorMessage
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**
-     * Records invocation of built-in MCP governance tools (e.g. get_approval_result).
+     * Records invocation of built-in MCP governance tools (Mode B: REQUIRES_NEW).
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditEvent recordBuiltinToolExecution(
             String agentId,
             String userId,
@@ -343,7 +373,7 @@ public class AuditRecorder {
                 latencyMs,
                 errorMessage
         );
-        return append(draft);
+        return doAppend(draft);
     }
 
     /**

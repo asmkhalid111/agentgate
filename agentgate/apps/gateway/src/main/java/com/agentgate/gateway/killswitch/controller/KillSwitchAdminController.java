@@ -5,7 +5,7 @@ import com.agentgate.gateway.killswitch.domain.KillSwitchType;
 import com.agentgate.gateway.killswitch.dto.KillSwitchRequest;
 import com.agentgate.gateway.killswitch.dto.KillSwitchResponse;
 import com.agentgate.gateway.killswitch.dto.PagedKillSwitchResponse;
-import com.agentgate.gateway.killswitch.security.HumanAdminValidator;
+import com.agentgate.gateway.identity.HumanAdminValidator;
 import com.agentgate.gateway.killswitch.service.KillSwitchService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

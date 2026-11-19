@@ -143,6 +143,9 @@ public class SecurityConfig {
                         // Protected Emergency Kill Switches Administration REST API (strictly requires ROLE_ADMIN, human administrators)
                         .requestMatchers("/api/v1/admin/kill-switches", "/api/v1/admin/kill-switches/**")
                         .hasAuthority("ROLE_ADMIN")
+                        // Protected Audit Administration REST API (strictly requires ROLE_ADMIN, human administrators)
+                        .requestMatchers("/api/v1/admin/audit", "/api/v1/admin/audit/**")
+                        .hasAuthority("ROLE_ADMIN")
                         // Protected administrative management endpoints (FR1 tool registry, FR3
                         // policies)
                         .requestMatchers("/api/v1/registry/**", "/api/v1/policies/**", "/admin/**")
