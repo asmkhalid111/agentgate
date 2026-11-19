@@ -66,6 +66,9 @@ public class OpenApiImporterService {
                 JsonNode operationNode = methodEntry.getValue();
                 String operationId = operationNode.path("operationId").asText();
                 String toolName = sanitizeToolName(operationId, method, path);
+                if (com.agentgate.gateway.registry.controller.ToolRegistryController.isReservedToolName(toolName)) {
+                    throw new IllegalArgumentException("Cannot import tool with reserved name: " + toolName);
+                }
 
                 String description = operationNode.path("description").asText(
                         operationNode.path("summary").asText("Tool for " + method + " " + path)
