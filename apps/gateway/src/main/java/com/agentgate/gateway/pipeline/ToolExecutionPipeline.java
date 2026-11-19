@@ -2,6 +2,7 @@ package com.agentgate.gateway.pipeline;
 
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
+import com.agentgate.gateway.guard.PiiRedactionGuard;
 import com.agentgate.gateway.guard.ValidationResult;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
@@ -22,21 +23,25 @@ public class ToolExecutionPipeline {
     private final List<ToolAdapter> adapters;
     private final StructuredPolicyEvaluator policyEvaluator;
     private final JsonSchemaValidationGuard validationGuard;
+    private final PiiRedactionGuard piiRedactionGuard;
 
     public ToolExecutionPipeline(
             RegisteredToolRepository toolRepository,
             List<ToolAdapter> adapters,
             StructuredPolicyEvaluator policyEvaluator,
-            JsonSchemaValidationGuard validationGuard) {
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
         this.policyEvaluator = policyEvaluator;
         this.validationGuard = validationGuard;
+        this.piiRedactionGuard = piiRedactionGuard;
     }
 
     /**
      * Executes a tool through the shared governance pipeline.
-     * Enforces tool status, direct agent authorization, JSON schema validation, and policy rules.
+     * Enforces tool status, direct agent authorization, JSON schema validation, policy rules,
+     * and clearance-aware output PII redaction.
      */
     public ToolExecutionResult execute(ToolExecutionContext context) {
         RegisteredTool tool = toolRepository.findByName(context.toolName())
@@ -79,6 +84,19 @@ public class ToolExecutionPipeline {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Unsupported protocol: " + tool.protocolType()));
 
-        return adapter.execute(tool, enrichedContext);
+        ToolExecutionResult rawResult = adapter.execute(tool, enrichedContext);
+
+        // Error safety: sanitize agent-visible error messages if execution failed
+        if (!rawResult.success()) {
+            if (rawResult.error() != null && !enrichedContext.hasHighClearance()) {
+                String sanitizedError = piiRedactionGuard.redactString(rawResult.error());
+                return ToolExecutionResult.failure(sanitizedError, rawResult.latencyMs());
+            }
+            return rawResult;
+        }
+
+        // Clearance-aware output PII redaction (FR5)
+        Object redactedData = piiRedactionGuard.redact(rawResult.data(), enrichedContext);
+        return ToolExecutionResult.success(redactedData, rawResult.latencyMs());
     }
 }

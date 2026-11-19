@@ -46,9 +46,13 @@ public class DynamicGovernedToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
-        String callingAgent = AgentContextHolder.getCurrentAgent()
+        java.util.Optional<AgentIdentity> currentAgent = AgentContextHolder.getCurrentAgent();
+        String callingAgent = currentAgent
                 .map(AgentIdentity::clientId)
                 .orElse("anonymous");
+        java.util.Set<String> agentRoles = currentAgent
+                .map(AgentIdentity::roles)
+                .orElse(Collections.emptySet());
 
         log.info("MCP tools/call received for '{}' from agent '{}'", tool.name(), callingAgent);
 
@@ -69,7 +73,8 @@ public class DynamicGovernedToolCallback implements ToolCallback {
                 tool.name(),
                 arguments,
                 null,
-                tool.riskLevel()
+                tool.riskLevel(),
+                agentRoles
         );
 
         try {

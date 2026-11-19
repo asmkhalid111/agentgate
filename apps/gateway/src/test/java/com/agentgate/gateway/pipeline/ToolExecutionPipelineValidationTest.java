@@ -2,6 +2,7 @@ package com.agentgate.gateway.pipeline;
 
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.guard.JsonSchemaValidationGuard;
+import com.agentgate.gateway.guard.PiiRedactionGuard;
 import com.agentgate.gateway.identity.AgentAuthenticationToken;
 import com.agentgate.gateway.identity.AgentIdentity;
 import com.agentgate.gateway.mcp.DynamicGovernedToolCallback;
@@ -45,6 +46,7 @@ class ToolExecutionPipelineValidationTest {
     private StructuredPolicyEvaluator policyEvaluator;
 
     private JsonSchemaValidationGuard validationGuard;
+    private PiiRedactionGuard piiRedactionGuard;
     private ToolExecutionPipeline pipeline;
     private ObjectMapper objectMapper;
 
@@ -54,7 +56,8 @@ class ToolExecutionPipelineValidationTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         validationGuard = new JsonSchemaValidationGuard(objectMapper);
-        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard);
+        piiRedactionGuard = new PiiRedactionGuard(objectMapper);
+        pipeline = new ToolExecutionPipeline(toolRepository, List.of(toolAdapter), policyEvaluator, validationGuard, piiRedactionGuard);
 
         String schema = """
                 {
@@ -161,5 +164,102 @@ class ToolExecutionPipelineValidationTest {
 
         // Verify downstream adapter was not executed
         verify(toolAdapter, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("10. Pipeline redacts sensitive PII in downstream tool response for standard-clearance agent")
+    void pipeline_standardClearance_redactsSensitivePiiInOutput() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        Map<String, Object> downstreamData = Map.of(
+                "orderId", "ORD-999",
+                "customerEmail", "customer@agentgate.com",
+                "customerPhone", "01712345678",
+                "nid", "1234567890",
+                "amount", 1500.0
+        );
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.success(downstreamData, 10L));
+
+        // Standard clearance agent (ROLE_AGENT, no HIGH_CLEARANCE)
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_AGENT")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertTrue(result.success());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> output = (Map<String, Object>) result.data();
+        assertEquals("ORD-999", output.get("orderId"));
+        assertEquals(1500.0, output.get("amount"));
+        assertEquals("[REDACTED_EMAIL]", output.get("customerEmail"));
+        assertEquals("[REDACTED_PHONE]", output.get("customerPhone"));
+        assertEquals("[REDACTED_NID]", output.get("nid"));
+    }
+
+    @Test
+    @DisplayName("11. Pipeline preserves raw unredacted data for explicit HIGH_CLEARANCE agent")
+    void pipeline_highClearance_bypassesPiiRedaction() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        Map<String, Object> downstreamData = Map.of(
+                "customerEmail", "ceo@agentgate.com",
+                "customerPhone", "+8801812345678",
+                "nid", "19901234567890123"
+        );
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.success(downstreamData, 10L));
+
+        // Explicit HIGH_CLEARANCE agent
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_HIGH_CLEARANCE")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertTrue(result.success());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> output = (Map<String, Object>) result.data();
+        assertEquals("ceo@agentgate.com", output.get("customerEmail"));
+        assertEquals("+8801812345678", output.get("customerPhone"));
+        assertEquals("19901234567890123", output.get("nid"));
+    }
+
+    @Test
+    @DisplayName("12. Downstream error messages leaking PII are sanitized for standard-clearance agent (Correction D)")
+    void pipeline_downstreamErrorLeakingPii_sanitizedForStandardAgent() {
+        when(toolRepository.isAgentPermitted("orders_refund", "agent-finance-bot")).thenReturn(true);
+        when(policyEvaluator.evaluate(any())).thenReturn(PolicyDecision.allow("rule-1", "Allow Rule", "Allowed by policy", false, 1L));
+        when(toolAdapter.supports(ProtocolType.REST)).thenReturn(true);
+
+        String rawError = "Downstream failure for customer bob@example.com (01712345678, NID: 1234567890): system timeout";
+        when(toolAdapter.execute(eq(refundTool), any())).thenReturn(ToolExecutionResult.failure(rawError, 15L));
+
+        ToolExecutionContext context = new ToolExecutionContext(
+                "agent-finance-bot",
+                "orders_refund",
+                Map.of("orderId", "ORD-999", "amount", 1500.0),
+                null,
+                RiskLevel.HIGH,
+                Set.of("ROLE_AGENT")
+        );
+
+        ToolExecutionResult result = pipeline.execute(context);
+
+        assertFalse(result.success());
+        assertEquals("Downstream failure for customer [REDACTED_EMAIL] ([REDACTED_PHONE], NID: [REDACTED_NID]): system timeout", result.error());
     }
 }
