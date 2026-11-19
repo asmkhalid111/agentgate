@@ -27,8 +27,35 @@ public record ApprovalRequest(
         Instant expiresAt,
         Instant decidedAt,
         String decidedBy,
-        String decisionReason
+        String decisionReason,
+        ExecutionState executionState,
+        Instant executedAt,
+        String executionResultJson,
+        String executionError
 ) {
+    public ApprovalRequest(
+            String id,
+            String agentId,
+            String userId,
+            String toolName,
+            String policyRuleId,
+            String originalArgumentsJson,
+            String approvedArgumentsJson,
+            ApprovalStatus status,
+            Instant createdAt,
+            Instant expiresAt,
+            Instant decidedAt,
+            String decidedBy,
+            String decisionReason
+    ) {
+        this(
+                id, agentId, userId, toolName, policyRuleId,
+                originalArgumentsJson, approvedArgumentsJson, status,
+                createdAt, expiresAt, decidedAt, decidedBy, decisionReason,
+                ExecutionState.NOT_DISPATCHED, null, null, null
+        );
+    }
+
     public boolean isPending() {
         return status == ApprovalStatus.PENDING;
     }

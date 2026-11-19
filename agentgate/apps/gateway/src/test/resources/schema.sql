@@ -54,6 +54,10 @@ CREATE TABLE IF NOT EXISTS approval_requests (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     decided_at TIMESTAMP WITH TIME ZONE,
     decided_by VARCHAR(128),
-    decision_reason TEXT
+    decision_reason TEXT,
+    execution_state VARCHAR(20) NOT NULL DEFAULT 'NOT_DISPATCHED',
+    executed_at TIMESTAMP WITH TIME ZONE,
+    execution_result_json TEXT,
+    execution_error TEXT
 );
 

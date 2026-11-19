@@ -5,6 +5,7 @@ import com.agentgate.gateway.approval.domain.ApprovalStatus;
 import com.agentgate.gateway.approval.dto.ApprovalDetailResponse;
 import com.agentgate.gateway.approval.dto.ApprovalSummaryResponse;
 import com.agentgate.gateway.approval.dto.PagedApprovalResponse;
+import com.agentgate.gateway.approval.event.ApprovalApprovedEvent;
 import com.agentgate.gateway.approval.event.ApprovalCreatedEvent;
 import com.agentgate.gateway.approval.exception.ApprovalNotFoundException;
 import com.agentgate.gateway.approval.exception.InvalidApprovalStateException;
@@ -129,6 +130,8 @@ public class ApprovalService {
 
     /**
      * Atomically approves a pending approval request.
+     * Enclosed in an atomic transaction to ensure event publication aligns
+     * with database commit (Reviewer Condition 2).
      *
      * @param id approval request identifier
      * @param decidedBy username of the approver
@@ -136,6 +139,7 @@ public class ApprovalService {
      * @return updated ApprovalRequest in APPROVED status
      * @throws IllegalStateException if request is expired, already decided, or in terminal state
      */
+    @Transactional(noRollbackFor = InvalidApprovalStateException.class)
     public ApprovalRequest approve(String id, String decidedBy, Map<String, Object> editedArguments) {
         Instant now = Instant.now();
         String approvedArgsJson = null;
@@ -161,8 +165,14 @@ public class ApprovalService {
             throw new InvalidApprovalStateException("Cannot approve request '" + id + "': request is in state " + current.status());
         }
 
+        ApprovalRequest approved = repository.findById(id).orElseThrow();
         log.info("Approved request '{}' by '{}' [edited={}]", id, decidedBy, (approvedArgsJson != null));
-        return repository.findById(id).orElseThrow();
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new ApprovalApprovedEvent(approved));
+        }
+
+        return approved;
     }
 
     /**

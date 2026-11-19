@@ -51,6 +51,10 @@ agentgate:
     default-timeout-seconds: 900
     expiration-interval-ms: 60000
     expiration-initial-delay-ms: 5000
+    recovery:
+      enabled: true
+    recovery-interval-ms: 60000
+    recovery-initial-delay-ms: 10000
     webhook:
       enabled: ${AGENTGATE_APPROVAL_WEBHOOK_ENABLED:false}
       url: ${AGENTGATE_APPROVAL_WEBHOOK_URL:}
