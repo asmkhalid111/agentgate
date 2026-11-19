@@ -35,3 +35,14 @@ management:
   health:
     redis:
       enabled: false
+
+agentgate:
+  approval:
+    default-timeout-seconds: 900
+    expiration-interval-ms: 60000
+    expiration-initial-delay-ms: 5000
+    webhook:
+      enabled: false
+      url: http://localhost:8082/api/webhook/approvals
+      connect-timeout-ms: 3000
+      read-timeout-ms: 5000

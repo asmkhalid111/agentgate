@@ -51,6 +51,11 @@ agentgate:
     default-timeout-seconds: 900
     expiration-interval-ms: 60000
     expiration-initial-delay-ms: 5000
+    webhook:
+      enabled: ${AGENTGATE_APPROVAL_WEBHOOK_ENABLED:false}
+      url: ${AGENTGATE_APPROVAL_WEBHOOK_URL:}
+      connect-timeout-ms: ${AGENTGATE_APPROVAL_WEBHOOK_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${AGENTGATE_APPROVAL_WEBHOOK_READ_TIMEOUT_MS:5000}
 
 logging:
   pattern:
