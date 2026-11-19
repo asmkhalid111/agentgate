@@ -68,6 +68,9 @@ class RateLimiterPipelineIntegrationTest {
     private RateLimiter rateLimiter;
 
     @Autowired
+    private WriteCapLimiter writeCapLimiter;
+
+    @Autowired
     private RateLimitProperties rateLimitProperties;
 
     @Autowired
@@ -104,6 +107,7 @@ class RateLimiterPipelineIntegrationTest {
     private static final String SUPPORT_AGENT = "agent-support-bot";
     private static final String RL_TOOL = "rl_governed_tool";
     private static final String HIGH_RISK_TOOL = "rl_high_risk_tool";
+    private static final String READ_TOOL = "rl_read_tool";
 
     @BeforeEach
     void setUp() {
@@ -112,8 +116,14 @@ class RateLimiterPipelineIntegrationTest {
         rateLimitProperties.setEnabled(true);
         rateLimitProperties.setDefaultAgentRpm(60);
         rateLimitProperties.setDefaultToolRpm(120);
+        rateLimitProperties.setDefaultAgentDailyQuota(10000);
+        rateLimitProperties.setDefaultToolDailyQuota(50000);
+        rateLimitProperties.setDefaultHourlyWriteCap(20);
         rateLimitProperties.getAgentLimits().clear();
         rateLimitProperties.getToolLimits().clear();
+        rateLimitProperties.getAgentDailyQuotas().clear();
+        rateLimitProperties.getToolDailyQuotas().clear();
+        rateLimitProperties.getAgentHourlyWriteCaps().clear();
 
         // Register low-risk test tool
         RegisteredTool tool = new RegisteredTool(
@@ -181,6 +191,39 @@ class RateLimiterPipelineIntegrationTest {
                 true
         );
         policyRepository.save(allowRule);
+        // Register read-only test tool (GET)
+        RegisteredTool readTool = new RegisteredTool(
+                "tool-rl-read-" + System.nanoTime(),
+                READ_TOOL,
+                "Read only rate limit test tool",
+                "{\"type\":\"object\"}",
+                RiskLevel.LOW,
+                "Core Engineering",
+                "http://localhost:8082/api/test/rl-read",
+                ProtocolType.REST,
+                "GET",
+                true,
+                Instant.now(),
+                Instant.now()
+        );
+        toolRepository.save(readTool);
+        toolRepository.addPermission(READ_TOOL, FINANCE_AGENT);
+
+        // Add allow policy for read tool
+        PolicyRule allowReadRule = new PolicyRule(
+                "pol-rl-allow-read-1",
+                "Allow Read Tool",
+                "*",
+                READ_TOOL,
+                List.of(),
+                PolicyAction.ALLOW,
+                false,
+                100,
+                1,
+                true
+        );
+        policyRepository.save(allowReadRule);
+
         policyEvaluator.reloadPolicies();
         registrationListener.onApplicationReady();
 
@@ -195,7 +238,7 @@ class RateLimiterPipelineIntegrationTest {
 
     private void cleanupRedis() {
         try {
-            Set<String> keys = redisTemplate.keys("agentgate:ratelimit:*");
+            Set<String> keys = redisTemplate.keys("agentgate:*");
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }
@@ -458,5 +501,162 @@ class RateLimiterPipelineIntegrationTest {
         // Should return NOT_FOUND (normal response), NOT RATE_LIMIT_EXCEEDED
         assertTrue(sseOutput.contains("NOT_FOUND"), "Built-in metadata tool should not be blocked by rate limit: " + sseOutput);
         assertFalse(sseOutput.contains("RATE_LIMIT_EXCEEDED"), "Built-in metadata tool must not be rate limited");
+    }
+
+    @Test
+    @DisplayName("15. Direct write dispatch consumes write cap, while read tool does not")
+    void directWriteDispatch_consumesWriteCap_whileReadToolDoesNot() {
+        String writeZsetKey = "agentgate:writecap:agent:" + FINANCE_AGENT;
+
+        // 1. Execute read-only tool (GET)
+        ToolExecutionContext readCtx = new ToolExecutionContext(
+                FINANCE_AGENT, READ_TOOL, Map.of(), null, RiskLevel.LOW, Collections.emptySet()
+        );
+        ToolExecutionResult readResult = pipeline.execute(readCtx);
+        assertTrue(readResult.success(), "Read tool should succeed");
+
+        Long countAfterRead = redisTemplate.opsForZSet().zCard(writeZsetKey);
+        assertEquals(0L, countAfterRead != null ? countAfterRead : 0L, "Read tool must NOT consume write cap");
+
+        // 2. Execute write tool (POST)
+        ToolExecutionContext writeCtx = new ToolExecutionContext(
+                FINANCE_AGENT, RL_TOOL, Map.of("input", "test-write"), null, RiskLevel.LOW, Collections.emptySet()
+        );
+        ToolExecutionResult writeResult = pipeline.execute(writeCtx);
+        assertTrue(writeResult.success(), "Write tool should succeed");
+
+        Long countAfterWrite = redisTemplate.opsForZSet().zCard(writeZsetKey);
+        assertEquals(1L, countAfterWrite, "Write tool MUST consume exactly 1 write cap unit");
+    }
+
+    @Test
+    @DisplayName("16. Direct write execution is blocked when write cap is reached")
+    void directWriteExecution_blockedWhenWriteCapReached() {
+        rateLimitProperties.getAgentHourlyWriteCaps().put(FINANCE_AGENT, 2);
+
+        ToolExecutionContext writeCtx = new ToolExecutionContext(
+                FINANCE_AGENT, RL_TOOL, Map.of("input", "data"), null, RiskLevel.LOW, Collections.emptySet()
+        );
+
+        assertTrue(pipeline.execute(writeCtx).success(), "Write 1 should succeed");
+        assertTrue(pipeline.execute(writeCtx).success(), "Write 2 should succeed");
+
+        // 3rd write should be blocked by write cap
+        ToolExecutionResult res3 = pipeline.execute(writeCtx);
+        assertFalse(res3.success(), "Write 3 must be blocked by write cap");
+        assertTrue(res3.error().contains("WRITE_CAP_EXCEEDED"), "Error must contain WRITE_CAP_EXCEEDED: " + res3.error());
+    }
+
+    @Test
+    @DisplayName("17. Approved execution consumes same write cap and fails if cap is reached")
+    void approvedExecution_consumesSameWriteCap_andFailsIfExceeded() throws Exception {
+        // Cap agent at 1 hourly write
+        rateLimitProperties.getAgentHourlyWriteCaps().put(FINANCE_AGENT, 1);
+
+        ToolExecutionContext ctx = new ToolExecutionContext(
+                FINANCE_AGENT, HIGH_RISK_TOOL, Map.of("amount", 500), null, RiskLevel.HIGH, Collections.emptySet()
+        );
+
+        // Call creates approval request (does NOT consume write cap yet!)
+        ToolExecutionResult res = pipeline.execute(ctx);
+        assertFalse(res.success(), "Call requiring approval should return failure");
+        assertTrue(res.error().contains("appr-"), "Expected approval ID in error: " + res.error());
+        int start = res.error().indexOf("appr-");
+        int end = res.error().indexOf(",", start);
+        String approvalId = end > start ? res.error().substring(start, end) : res.error().substring(start, res.error().indexOf("]", start));
+
+        String writeZsetKey = "agentgate:writecap:agent:" + FINANCE_AGENT;
+        assertEquals(0L, redisTemplate.opsForZSet().zCard(writeZsetKey), "Pending approval must not consume write cap");
+
+        // Pre-consume the 1 allowed write token directly
+        ToolExecutionContext directWriteCtx = new ToolExecutionContext(
+                FINANCE_AGENT, RL_TOOL, Map.of("input", "consume-token"), null, RiskLevel.LOW, Collections.emptySet()
+        );
+        assertTrue(pipeline.execute(directWriteCtx).success());
+        assertEquals(1L, redisTemplate.opsForZSet().zCard(writeZsetKey));
+
+        // Now human approves the pending request
+        approvalService.approve(approvalId, "admin", null);
+
+        // Approved execution attempts to dispatch, but write cap is exhausted!
+        ApprovalRequest failed = null;
+        for (int i = 0; i < 30; i++) {
+            failed = approvalRepository.findById(approvalId).orElseThrow();
+            if (failed.executionState() == ExecutionState.FAILED) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+
+        assertNotNull(failed);
+        assertEquals(ExecutionState.FAILED, failed.executionState(), "Approved execution must transition to FAILED when write cap is exceeded");
+        assertTrue(failed.executionError().contains("WRITE_CAP_EXCEEDED"),
+                "Execution error must indicate WRITE_CAP_EXCEEDED: " + failed.executionError());
+    }
+
+    @Test
+    @DisplayName("18. Policy-denied requests do not consume write cap")
+    void policyDenied_doesNotConsumeWriteCap() {
+        // Register denied tool
+        String DENIED_TOOL = "rl_denied_tool";
+        RegisteredTool deniedTool = new RegisteredTool(
+                "tool-denied-" + System.nanoTime(),
+                DENIED_TOOL,
+                "Denied tool",
+                "{\"type\":\"object\"}",
+                RiskLevel.MEDIUM,
+                "Core",
+                "http://localhost:8082/api/denied",
+                ProtocolType.REST,
+                "POST",
+                true,
+                Instant.now(),
+                Instant.now()
+        );
+        toolRepository.save(deniedTool);
+        toolRepository.addPermission(DENIED_TOOL, FINANCE_AGENT);
+
+        PolicyRule denyRule = new PolicyRule(
+                "pol-deny-test-1",
+                "Deny Rule",
+                "*",
+                DENIED_TOOL,
+                List.of(),
+                PolicyAction.DENY,
+                false,
+                10,
+                1,
+                true
+        );
+        policyRepository.save(denyRule);
+        policyEvaluator.reloadPolicies();
+
+        ToolExecutionContext ctx = new ToolExecutionContext(
+                FINANCE_AGENT, DENIED_TOOL, Map.of(), null, RiskLevel.MEDIUM, Collections.emptySet()
+        );
+        ToolExecutionResult res = pipeline.execute(ctx);
+        assertFalse(res.success());
+        assertTrue(res.error().contains("POLICY_DENIED"));
+
+        String writeZsetKey = "agentgate:writecap:agent:" + FINANCE_AGENT;
+        assertEquals(0L, redisTemplate.opsForZSet().zCard(writeZsetKey), "Policy denied call must not consume write cap");
+    }
+
+    @Test
+    @DisplayName("19. Daily quota exceeded blocks direct dispatch at ingress")
+    void dailyQuotaExceeded_blocksDirectDispatchAtIngress() {
+        rateLimitProperties.getAgentDailyQuotas().put(FINANCE_AGENT, 1);
+
+        ToolExecutionContext writeCtx = new ToolExecutionContext(
+                FINANCE_AGENT, RL_TOOL, Map.of("input", "test1"), null, RiskLevel.LOW, Collections.emptySet()
+        );
+
+        assertTrue(pipeline.execute(writeCtx).success(), "Call 1 should succeed");
+
+        // Call 2 exceeds daily quota
+        ToolExecutionResult res2 = pipeline.execute(writeCtx);
+        assertFalse(res2.success(), "Call 2 must fail due to daily quota");
+        assertTrue(res2.error().contains("Daily request quota exceeded"),
+                "Expected daily quota error, got: " + res2.error());
     }
 }

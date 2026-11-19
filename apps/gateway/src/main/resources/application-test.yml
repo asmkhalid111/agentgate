@@ -50,3 +50,7 @@ agentgate:
     enabled: true
     default-agent-rpm: 60
     default-tool-rpm: 120
+    default-agent-daily-quota: 10000
+    default-tool-daily-quota: 50000
+    default-hourly-write-cap: 20
+    warning-threshold-percent: 80

@@ -64,12 +64,25 @@ agentgate:
     enabled: ${AGENTGATE_RATELIMIT_ENABLED:true}
     default-agent-rpm: ${AGENTGATE_RATELIMIT_DEFAULT_AGENT_RPM:60}
     default-tool-rpm: ${AGENTGATE_RATELIMIT_DEFAULT_TOOL_RPM:120}
+    default-agent-daily-quota: ${AGENTGATE_RATELIMIT_DEFAULT_AGENT_DAILY_QUOTA:10000}
+    default-tool-daily-quota: ${AGENTGATE_RATELIMIT_DEFAULT_TOOL_DAILY_QUOTA:50000}
+    default-hourly-write-cap: ${AGENTGATE_RATELIMIT_DEFAULT_HOURLY_WRITE_CAP:20}
+    warning-threshold-percent: ${AGENTGATE_RATELIMIT_WARNING_THRESHOLD_PERCENT:80}
     agent-limits:
       agent-finance-bot: 60
       agent-support-bot: 60
     tool-limits:
       orders_refund: 30
       orders_get: 120
+    agent-daily-quotas:
+      agent-finance-bot: 10000
+      agent-support-bot: 5000
+    tool-daily-quotas:
+      orders_refund: 1000
+      orders_get: 50000
+    agent-hourly-write-caps:
+      agent-finance-bot: 20
+      agent-support-bot: 10
 
 logging:
   pattern:

@@ -9,6 +9,8 @@ import com.agentgate.gateway.guard.ResponseTruncationGuard;
 import com.agentgate.gateway.guard.ValidationResult;
 import com.agentgate.gateway.ratelimit.RateLimitDecision;
 import com.agentgate.gateway.ratelimit.RateLimiter;
+import com.agentgate.gateway.ratelimit.WriteCapDecision;
+import com.agentgate.gateway.ratelimit.WriteCapLimiter;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
 import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
@@ -35,6 +37,7 @@ public class ToolExecutionPipeline {
     private final ResponseTruncationGuard responseTruncationGuard;
     private final ApprovalService approvalService;
     private final RateLimiter rateLimiter;
+    private final WriteCapLimiter writeCapLimiter;
     private final Duration approvalTimeout;
 
     @Autowired
@@ -47,6 +50,7 @@ public class ToolExecutionPipeline {
             ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService,
             RateLimiter rateLimiter,
+            WriteCapLimiter writeCapLimiter,
             @Value("${agentgate.approval.default-timeout-seconds:900}") long approvalTimeoutSeconds) {
         this.toolRepository = toolRepository;
         this.adapters = adapters;
@@ -56,6 +60,7 @@ public class ToolExecutionPipeline {
         this.responseTruncationGuard = responseTruncationGuard;
         this.approvalService = approvalService;
         this.rateLimiter = rateLimiter;
+        this.writeCapLimiter = writeCapLimiter;
         this.approvalTimeout = Duration.ofSeconds(approvalTimeoutSeconds > 0 ? approvalTimeoutSeconds : 900);
     }
 
@@ -67,8 +72,21 @@ public class ToolExecutionPipeline {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ApprovalService approvalService,
+            RateLimiter rateLimiter,
             long approvalTimeoutSeconds) {
-        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, approvalTimeoutSeconds);
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, rateLimiter, null, approvalTimeoutSeconds);
+    }
+
+    public ToolExecutionPipeline(
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ApprovalService approvalService,
+            long approvalTimeoutSeconds) {
+        this(toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, approvalService, null, null, approvalTimeoutSeconds);
     }
 
     public ToolExecutionPipeline(
@@ -180,6 +198,16 @@ public class ToolExecutionPipeline {
                         "REQUIRE_APPROVAL_PERSISTENCE_FAILED: Approval request could not be recorded; tool was not executed.",
                         decision.evaluationTimeMs()
                 );
+            }
+        }
+
+        // Hourly Write Cap check for mutating tools (FR6)
+        if (tool.isWriteOperation() && writeCapLimiter != null) {
+            WriteCapDecision writeDecision = writeCapLimiter.tryAcquireWrite(context.agentId());
+            if (!writeDecision.allowed()) {
+                log.warn("Write cap check failed for agent '{}' on tool '{}': {}",
+                        context.agentId(), context.toolName(), writeDecision.message());
+                return ToolExecutionResult.failure(writeDecision.message(), decision.evaluationTimeMs());
             }
         }
 
