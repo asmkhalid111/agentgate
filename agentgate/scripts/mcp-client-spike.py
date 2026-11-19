@@ -127,7 +127,7 @@ def run_spike():
         print(f"  Negotiated Session ID: {session_id}")
 
     # 5. Tool Discovery (tools/list)
-    print("\n[Test 4] Tool Discovery (agent-support-bot)")
+    print("\n[Test 4] Tool Discovery (agent-support-bot) - Filtered per FR1")
     tools_list_payload = {
         "jsonrpc": "2.0",
         "id": 11,
@@ -141,10 +141,18 @@ def run_spike():
     tools = []
     if isinstance(body, dict) and "result" in body and "tools" in body["result"]:
         tools = [t.get("name") for t in body["result"]["tools"]]
-    print(f"  Discovered tool names: {tools}")
+    print(f"  Discovered tool names for support bot: {tools}")
     assert "m01_status" in tools, f"m01_status not discovered! Found: {tools}"
-    assert "m01_restricted_admin_tool" in tools, f"m01_restricted_admin_tool not discovered! Found: {tools}"
-    print("  PASS: Both test fixture tools successfully discovered.")
+    assert "m01_restricted_admin_tool" not in tools, f"m01_restricted_admin_tool should NOT be visible to support bot! Found: {tools}"
+    print("  PASS: Permitted tool discovered; restricted admin tool correctly hidden from support agent.")
+
+    # Check that finance agent DOES discover m01_restricted_admin_tool
+    status, headers, body = send_mcp_request(token=token_finance, rpc_request=tools_list_payload, session_id=session_id)
+    finance_tools = []
+    if isinstance(body, dict) and "result" in body and "tools" in body["result"]:
+        finance_tools = [t.get("name") for t in body["result"]["tools"]]
+    assert "m01_restricted_admin_tool" in finance_tools, f"m01_restricted_admin_tool should be visible to finance bot! Found: {finance_tools}"
+    print("  PASS: Restricted admin tool correctly discovered by authorized finance agent.")
 
     # 6. Permitted Tool Call: m01_status (agent-support-bot)
     print("\n[Test 5] Permitted Tool Call: m01_status (agent-support-bot)")

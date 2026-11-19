@@ -205,11 +205,70 @@ def run_verification():
     assert status == 200, f"MCP initialize failed: {status} {body}"
     session_id = headers.get("mcp-session-id") or headers.get("Mcp-Session-Id")
 
-    # 6b: Call orders_refund with amount 1500 (within 2000 ceiling -> ALLOW)
-    print("\n  [Test 6a] Invoking orders_refund with amount=1500 (Expected: ALLOW & Execute)...")
-    call_allow_payload = {
+    # 6b: MCP Agent-Specific Tool Discovery Filtering (FR1)
+    print("\n  [Test 6a] Verifying Agent-Specific MCP Tool Discovery Filtering (FR1)...")
+    list_tools_payload = {
         "jsonrpc": "2.0",
         "id": 101,
+        "method": "tools/list",
+        "params": {}
+    }
+    status, headers, body = send_mcp_request(token_finance, list_tools_payload, session_id=session_id)
+    assert status == 200, f"tools/list failed for finance agent: {status} {body}"
+    finance_tools = [t["name"] for t in body.get("result", {}).get("tools", [])]
+    print(f"    Finance agent discovered tools: {finance_tools}")
+    assert "orders_refund" in finance_tools, f"orders_refund should be visible to finance agent: {finance_tools}"
+    assert "orders_get" in finance_tools, f"orders_get should be visible to finance agent: {finance_tools}"
+    assert "m01_status" in finance_tools, f"m01_status should be visible to finance agent: {finance_tools}"
+    assert "m01_restricted_admin_tool" in finance_tools, f"m01_restricted_admin_tool should be visible to finance agent: {finance_tools}"
+
+    # Discovery for agent-support-bot
+    status, headers, body = send_mcp_request(token_support, init_payload)
+    assert status == 200, f"MCP initialize failed for support agent: {status} {body}"
+    support_session_id = headers.get("mcp-session-id") or headers.get("Mcp-Session-Id")
+
+    status, headers, body = send_mcp_request(token_support, list_tools_payload, session_id=support_session_id)
+    assert status == 200, f"tools/list failed for support agent: {status} {body}"
+    support_tools = [t["name"] for t in body.get("result", {}).get("tools", [])]
+    print(f"    Support agent discovered tools: {support_tools}")
+    assert "m01_status" in support_tools, f"m01_status should be visible to support agent: {support_tools}"
+    assert "orders_get" in support_tools, f"orders_get should be visible to support agent: {support_tools}"
+    assert "orders_refund" not in support_tools, f"orders_refund must NOT be visible to support agent: {support_tools}"
+    assert "m01_restricted_admin_tool" not in support_tools, f"m01_restricted_admin_tool must NOT be visible to support agent: {support_tools}"
+    print("    [PASS] Agent-specific discovery verified: support bot sees only permitted tools, restricted tools hidden!")
+
+    # Direct invocation barrier for support agent
+    print("\n  [Test 6b] Attempting direct invocation of 'orders_refund' as support agent (Expected: REJECT)...")
+    unauth_call_payload = {
+        "jsonrpc": "2.0",
+        "id": 102,
+        "method": "tools/call",
+        "params": {
+            "name": "orders_refund",
+            "arguments": {
+                "orderId": "ORD-101",
+                "amount": 500
+            }
+        }
+    }
+    status, headers, body = send_mcp_request(token_support, unauth_call_payload, session_id=support_session_id)
+    unauth_text = ""
+    if isinstance(body, dict) and "result" in body and "content" in body["result"]:
+        unauth_text = body["result"]["content"][0].get("text", "")
+    assert "not authorized" in unauth_text or "error" in unauth_text.lower() or "isError" in str(body), f"Support agent should be rejected from calling orders_refund, got: {body}"
+    print("    [PASS] Direct invocation barrier verified: support agent denied invocation of orders_refund!")
+
+    # Unauthorized agent rejected from MCP endpoint
+    print("\n  [Test 6c] Testing unauthorized agent access to MCP endpoint (Expected: 403 Forbidden)...")
+    status, headers, body = send_mcp_request(token_unauth, init_payload)
+    assert status == 403, f"Expected HTTP 403 for unauthorized agent, got: {status}"
+    print("    [PASS] Unauthorized agent blocked with HTTP 403 Forbidden!")
+
+    # 6c: Call orders_refund with amount 1500 (within 2000 ceiling -> ALLOW)
+    print("\n  [Test 6d] Invoking orders_refund with amount=1500 (Expected: ALLOW & Execute)...")
+    call_allow_payload = {
+        "jsonrpc": "2.0",
+        "id": 103,
         "method": "tools/call",
         "params": {
             "name": "orders_refund",
@@ -230,11 +289,11 @@ def run_verification():
     assert "REFUND_PROCESSED" in content_text, f"Expected REFUND_PROCESSED in result, got: {content_text}"
     print("    [PASS] Low-risk refund (1,500 BDT <= 2,000 ceiling) approved and executed successfully!")
 
-    # 6c: Call orders_refund with amount 3500 (exceeds 2000 ceiling -> DENY)
-    print("\n  [Test 6b] Invoking orders_refund with amount=3500 (Expected: DENY by Policy)...")
+    # 6d: Call orders_refund with amount 3500 (exceeds 2000 ceiling -> DENY)
+    print("\n  [Test 6e] Invoking orders_refund with amount=3500 (Expected: DENY by Policy)...")
     call_deny_payload = {
         "jsonrpc": "2.0",
-        "id": 102,
+        "id": 104,
         "method": "tools/call",
         "params": {
             "name": "orders_refund",

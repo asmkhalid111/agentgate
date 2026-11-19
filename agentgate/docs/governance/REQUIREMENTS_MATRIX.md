@@ -7,7 +7,7 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 ## Functional requirements
 | ID | Requirement paraphrase | Primary milestone / Delivery Day | Acceptance proof | Status |
 |---|---|---|---|---|
-| FR1 | Register MCP/REST tools with metadata/risk/schema/owner; OpenAPI import; one authorized MCP listing | Day 1 (Tool Registry) | Create/import tool, authenticated filtered `tools/list` and `tools/call` | PLANNED (Day 1) |
+| FR1 | Register MCP/REST tools with metadata/risk/schema/owner; OpenAPI import; one authorized MCP listing | Day 1 (Tool Registry) | Create/import tool, authenticated filtered `tools/list` and `tools/call` | VERIFIED |
 | FR2 | Registered OAuth2 client-credentials identity; optional end-user context | Day 1 (JWT Hardening) | Valid/invalid client tokens, cross-user spoof attempt, Keycloak validation | PARTIALLY IMPLEMENTED (Baseline in M01; Hardening in Day 1) |
 | FR3 | Default-deny rules on agent/tool/arguments, versioned, <=10s rollout, dry run | Day 1 (Policy Engine) | Decision matrix, restart-free update timer, unchanged enforcement in dry-run | PLANNED (Day 1) |
 | FR4 | Pending approvals for risky calls; page/webhook; approve/reject/edit; timeout; clear agent result | Day 2 (Approvals) | State/timeout/edit/notification/idempotency tests, `/admin/approvals` UI | PLANNED (Day 2) |
