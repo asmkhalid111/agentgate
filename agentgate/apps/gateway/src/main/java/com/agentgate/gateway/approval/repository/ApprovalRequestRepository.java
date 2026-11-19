@@ -118,7 +118,10 @@ public class ApprovalRequestRepository {
                       AND (
                           (type = 'AGENT' AND target = :agentId)
                        OR (type = 'TOOL' AND target = :toolName)
-                       OR (type = 'GLOBAL_WRITE')
+                       OR (type = 'GLOBAL_WRITE' AND :toolName NOT IN (
+                              SELECT name FROM registered_tools
+                              WHERE UPPER(TRIM(http_method)) IN ('GET', 'HEAD')
+                          ))
                       )
                 )
                 """)
@@ -223,7 +226,10 @@ public class ApprovalRequestRepository {
                         AND (
                             (type = 'AGENT' AND target = approval_requests.agent_id)
                          OR (type = 'TOOL' AND target = approval_requests.tool_name)
-                         OR (type = 'GLOBAL_WRITE')
+                         OR (type = 'GLOBAL_WRITE' AND approval_requests.tool_name NOT IN (
+                                SELECT name FROM registered_tools
+                                WHERE UPPER(TRIM(http_method)) IN ('GET', 'HEAD')
+                            ))
                         )
                   )
                 """)

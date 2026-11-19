@@ -96,6 +96,8 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev_password}
       KC_HOSTNAME_URL: http://localhost:8180
       KC_HTTP_RELATIVE_PATH: /
+      KEYCLOAK_HUMAN_ADMIN_PASSWORD: ${KEYCLOAK_HUMAN_ADMIN_PASSWORD}
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
     mem_limit: 768m
