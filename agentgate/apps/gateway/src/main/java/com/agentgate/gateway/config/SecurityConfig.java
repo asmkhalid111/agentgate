@@ -22,7 +22,16 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.web.filter.OncePerRequestFilter;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.*;
 
 @Configuration
@@ -144,22 +153,34 @@ public class SecurityConfig {
     }
 
     /**
-     * Security filter chain 2: Stateful Human Approval Web Portal (/approvals/**,
-     * /approvals.html).
+     * Security filter chain 2: Stateful Human Approval Web Portal and catch-all
+     * fallback.
      * Authenticated via Spring Security standard oauth2Login() with OIDC
      * Authorization Code Flow.
-     * Enforces strict CSRF and requires verified human ROLE_APPROVER authority.
+     * Has no restrictive securityMatcher, acting as the ordered catch-all browser
+     * security chain
+     * covering OAuth2 login initiation (/oauth2/authorization/**), OIDC callback
+     * (/login/oauth2/code/**),
+     * login routes (/login), and the human approvals portal (/approvals/**,
+     * /approvals.html).
+     * Enforces strict CSRF (with SPA plain-token cookie rendering) and requires
+     * verified human ROLE_APPROVER authority.
      */
     @Bean
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http, GrantedAuthoritiesMapper authoritiesMapper)
             throws Exception {
+        CsrfTokenRequestAttributeHandler csrfTokenHandler = new CsrfTokenRequestAttributeHandler();
+        csrfTokenHandler.setCsrfRequestAttributeName(null);
+
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(csrfTokenHandler))
+                .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/login", "/login/**", "/oauth2/**").permitAll()
                         .requestMatchers("/approvals/static/**", "/favicon.ico").permitAll()
                         .requestMatchers("/approvals", "/approvals/**", "/approvals.html").hasAuthority("ROLE_APPROVER")
                         .anyRequest().denyAll())
@@ -173,5 +194,28 @@ public class SecurityConfig {
                         .invalidateHttpSession(true));
 
         return http.build();
+    }
+
+    /**
+     * SPA CSRF cookie filter that forces the deferred CSRF token to be loaded and
+     * set
+     * as an XSRF-TOKEN cookie on initial GET requests, allowing browser JavaScript
+     * to read
+     * document.cookie and include the token in subsequent POST headers.
+     */
+    private static final class CsrfCookieFilter extends OncePerRequestFilter {
+        @Override
+        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                FilterChain filterChain)
+                throws ServletException, IOException {
+            CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (csrfToken == null) {
+                csrfToken = (CsrfToken) request.getAttribute("_csrf");
+            }
+            if (csrfToken != null) {
+                csrfToken.getToken();
+            }
+            filterChain.doFilter(request, response);
+        }
     }
 }
