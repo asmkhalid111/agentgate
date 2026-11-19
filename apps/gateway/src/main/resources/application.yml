@@ -60,6 +60,16 @@ agentgate:
       url: ${AGENTGATE_APPROVAL_WEBHOOK_URL:}
       connect-timeout-ms: ${AGENTGATE_APPROVAL_WEBHOOK_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${AGENTGATE_APPROVAL_WEBHOOK_READ_TIMEOUT_MS:5000}
+  ratelimit:
+    enabled: ${AGENTGATE_RATELIMIT_ENABLED:true}
+    default-agent-rpm: ${AGENTGATE_RATELIMIT_DEFAULT_AGENT_RPM:60}
+    default-tool-rpm: ${AGENTGATE_RATELIMIT_DEFAULT_TOOL_RPM:120}
+    agent-limits:
+      agent-finance-bot: 60
+      agent-support-bot: 60
+    tool-limits:
+      orders_refund: 30
+      orders_get: 120
 
 logging:
   pattern:

@@ -46,3 +46,7 @@ agentgate:
       url: http://localhost:8082/api/webhook/approvals
       connect-timeout-ms: 3000
       read-timeout-ms: 5000
+  ratelimit:
+    enabled: true
+    default-agent-rpm: 60
+    default-tool-rpm: 120

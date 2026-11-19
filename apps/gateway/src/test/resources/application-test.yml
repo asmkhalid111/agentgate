@@ -19,3 +19,9 @@ management:
   health:
     redis:
       enabled: false
+
+agentgate:
+  ratelimit:
+    enabled: true
+    default-agent-rpm: 60
+    default-tool-rpm: 120
