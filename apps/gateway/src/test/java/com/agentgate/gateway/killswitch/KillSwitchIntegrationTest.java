@@ -216,8 +216,9 @@ class KillSwitchIntegrationTest {
         ToolExecutionResult resultAlpha = pipeline.execute(ctxAlpha);
 
         assertFalse(resultAlpha.success());
-        assertTrue(resultAlpha.error().startsWith("KILL_SWITCH_ACTIVE"), "Error should start with KILL_SWITCH_ACTIVE");
-        assertTrue(resultAlpha.error().contains("agent-alpha"));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, resultAlpha.error());
+        assertFalse(resultAlpha.error().contains("agent-alpha"));
+        assertFalse(resultAlpha.error().contains("Suspected"));
 
         // AGENT_BETA must NOT be blocked
         ToolExecutionContext ctxBeta = new ToolExecutionContext(
@@ -240,9 +241,10 @@ class KillSwitchIntegrationTest {
         );
         ToolExecutionResult resultAlphaWrite = pipeline.execute(ctxAlphaWrite);
         assertFalse(resultAlphaWrite.success());
-        assertTrue(resultAlphaWrite.error().startsWith("KILL_SWITCH_ACTIVE"));
-        assertTrue(resultAlphaWrite.error().contains("TOOL"));
-        assertTrue(resultAlphaWrite.error().contains(TOOL_WRITE));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, resultAlphaWrite.error());
+        assertFalse(resultAlphaWrite.error().contains("TOOL"));
+        assertFalse(resultAlphaWrite.error().contains(TOOL_WRITE));
+        assertFalse(resultAlphaWrite.error().contains("CVE"));
 
         // AGENT_BETA also blocked on TOOL_WRITE
         ToolExecutionContext ctxBetaWrite = new ToolExecutionContext(
@@ -250,7 +252,7 @@ class KillSwitchIntegrationTest {
         );
         ToolExecutionResult resultBetaWrite = pipeline.execute(ctxBetaWrite);
         assertFalse(resultBetaWrite.success());
-        assertTrue(resultBetaWrite.error().startsWith("KILL_SWITCH_ACTIVE"));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, resultBetaWrite.error());
 
         // TOOL_READ continues to work for both agents
         ToolExecutionContext ctxAlphaRead = new ToolExecutionContext(
@@ -272,8 +274,9 @@ class KillSwitchIntegrationTest {
         );
         ToolExecutionResult resultWrite = pipeline.execute(ctxWrite);
         assertFalse(resultWrite.success());
-        assertTrue(resultWrite.error().startsWith("KILL_SWITCH_ACTIVE"));
-        assertTrue(resultWrite.error().contains("GLOBAL_WRITE"));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, resultWrite.error());
+        assertFalse(resultWrite.error().contains("GLOBAL_WRITE"));
+        assertFalse(resultWrite.error().contains("Global write freeze"));
 
         // Safe read tool (GET) continues to succeed
         ToolExecutionContext ctxRead = new ToolExecutionContext(
@@ -296,7 +299,7 @@ class KillSwitchIntegrationTest {
         ToolExecutionResult result = pipeline.execute(ctx);
 
         assertFalse(result.success());
-        assertTrue(result.error().startsWith("KILL_SWITCH_ACTIVE"));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, result.error());
         assertFalse(result.error().contains("REQUIRE_APPROVAL"), "Should NOT create approval request");
 
         // Verify zero approval requests created in repository
@@ -336,8 +339,8 @@ class KillSwitchIntegrationTest {
         ApprovalRequest updated = approvalRepository.findById(req.id()).orElseThrow();
         assertEquals(ExecutionState.FAILED, updated.executionState());
         assertNotNull(updated.executionError());
-        assertTrue(updated.executionError().startsWith("KILL_SWITCH_ACTIVE"));
-        assertTrue(updated.executionError().contains("Compromised agent incident"));
+        assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, updated.executionError());
+        assertFalse(updated.executionError().contains("Compromised agent incident"));
     }
 
     @Test
@@ -348,7 +351,7 @@ class KillSwitchIntegrationTest {
         when(mockRepo.findActiveSwitch(any(), any(), anyBoolean()))
                 .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("PostgreSQL connection refused"));
 
-        KillSwitchService failClosedService = new KillSwitchService(mockRepo);
+        KillSwitchService failClosedService = new KillSwitchService(mockRepo, mock(ApprovalRequestRepository.class));
 
         KillSwitchCheckResult result = failClosedService.checkBlocked(AGENT_ALPHA, TOOL_WRITE, true);
 
@@ -717,9 +720,83 @@ class KillSwitchIntegrationTest {
             }
             ApprovalRequest afterExec = approvalRepository.findById(req.id()).orElseThrow();
             assertEquals(ExecutionState.FAILED, afterExec.executionState());
-            assertTrue(afterExec.executionError().startsWith("KILL_SWITCH_ACTIVE"));
+            assertEquals(KillSwitchCheckResult.GENERIC_BLOCKED_MESSAGE, afterExec.executionError());
         } else {
             assertEquals(ApprovalStatus.CANCELLED, finalReq.status());
         }
+    }
+
+    @Test
+    @DisplayName("Task 12B Concurrency: Approval creation overlapping switch activation never leaves actionable PENDING request")
+    void concurrency_approvalCreationOverlappingSwitchActivation() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CyclicBarrier barrier = new CyclicBarrier(2);
+
+        // Thread 1: attempts to create a high-risk approval request
+        Future<?> f1 = executor.submit(() -> {
+            try {
+                barrier.await();
+                approvalService.createRequest(
+                        AGENT_ALPHA, "user-concurrent-1", TOOL_HIGH_RISK, "rule-ks-hr",
+                        Map.of("amount", 9500), Duration.ofMinutes(15)
+                );
+            } catch (IllegalStateException e) {
+                // Expected if switch activation locked table or committed first:
+                // "KILL_SWITCH_ACTIVE: Tool execution is disabled by an emergency control."
+                assertTrue(e.getMessage().contains("KILL_SWITCH_ACTIVE"));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // Thread 2: activates emergency kill switch for TOOL_HIGH_RISK
+        Future<?> f2 = executor.submit(() -> {
+            try {
+                barrier.await();
+                killSwitchService.activate(KillSwitchType.TOOL, TOOL_HIGH_RISK, "Emergency incident #771", ADMIN_USER);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        f1.get(5, TimeUnit.SECONDS);
+        f2.get(5, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // Invariant: ZERO actionable PENDING requests for TOOL_HIGH_RISK may exist
+        List<ApprovalRequest> pendingRequests = approvalRepository.findAll().stream()
+                .filter(r -> TOOL_HIGH_RISK.equals(r.toolName()) && r.status() == ApprovalStatus.PENDING)
+                .toList();
+        assertTrue(pendingRequests.isEmpty(), "No actionable PENDING approval request may exist after switch activation!");
+
+        // Any created request must have been transitioned to CANCELLED
+        List<ApprovalRequest> allRequests = approvalRepository.findAll().stream()
+                .filter(r -> TOOL_HIGH_RISK.equals(r.toolName()))
+                .toList();
+        for (ApprovalRequest r : allRequests) {
+            assertEquals(ApprovalStatus.CANCELLED, r.status());
+            assertEquals(ADMIN_USER, r.decidedBy());
+        }
+    }
+
+    @Test
+    @DisplayName("Task 12B Privacy: Agent response never exposes internal incident reason, admin username or ticket notes")
+    void genericError_neverExposesInternalReasonOrCredentials() {
+        String sensitiveReason = "INVESTIGATION INCIDENT #9981: Confidential breach investigation by admin.sec";
+        killSwitchService.activate(KillSwitchType.TOOL, TOOL_WRITE, sensitiveReason, "admin.sec");
+
+        ToolExecutionContext ctx = new ToolExecutionContext(
+                AGENT_ALPHA, TOOL_WRITE, Map.of("input", "test"), "user-1", RiskLevel.LOW
+        );
+        ToolExecutionResult result = pipeline.execute(ctx);
+
+        assertFalse(result.success());
+        assertEquals("KILL_SWITCH_ACTIVE: Tool execution is disabled by an emergency control.", result.error());
+        assertFalse(result.error().contains("INVESTIGATION"));
+        assertFalse(result.error().contains("9981"));
+        assertFalse(result.error().contains("Confidential"));
+        assertFalse(result.error().contains("admin.sec"));
+        assertFalse(result.error().contains("TOOL"));
+        assertFalse(result.error().contains(TOOL_WRITE));
     }
 }

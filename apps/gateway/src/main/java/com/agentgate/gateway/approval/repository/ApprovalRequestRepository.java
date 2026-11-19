@@ -5,6 +5,8 @@ import com.agentgate.gateway.approval.domain.ApprovalStatus;
 import com.agentgate.gateway.approval.domain.ExecutionState;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +14,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * PostgreSQL JDBC repository for human approval requests (FR4).
@@ -51,18 +54,72 @@ public class ApprovalRequestRepository {
         );
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApprovalRequestRepository.class);
+    private static final ReentrantReadWriteLock ACTIVATION_LOCK = new ReentrantReadWriteLock();
+    private static final String READ_LOCK_KEY = "APPROVAL_READ_LOCK_ACQUIRED";
+    private static final String WRITE_LOCK_KEY = "APPROVAL_WRITE_LOCK_ACQUIRED";
+
+    private void acquireReadLockWithTransaction() {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return;
+        }
+        if (TransactionSynchronizationManager.getResource(READ_LOCK_KEY) == null) {
+            ACTIVATION_LOCK.readLock().lock();
+            TransactionSynchronizationManager.bindResource(READ_LOCK_KEY, Boolean.TRUE);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    try {
+                        TransactionSynchronizationManager.unbindResourceIfPossible(READ_LOCK_KEY);
+                    } finally {
+                        ACTIVATION_LOCK.readLock().unlock();
+                    }
+                }
+            });
+        }
+    }
+
+    private void acquireWriteLockWithTransaction() {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return;
+        }
+        if (TransactionSynchronizationManager.getResource(WRITE_LOCK_KEY) == null) {
+            ACTIVATION_LOCK.writeLock().lock();
+            TransactionSynchronizationManager.bindResource(WRITE_LOCK_KEY, Boolean.TRUE);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    try {
+                        TransactionSynchronizationManager.unbindResourceIfPossible(WRITE_LOCK_KEY);
+                    } finally {
+                        ACTIVATION_LOCK.writeLock().unlock();
+                    }
+                }
+            });
+        }
+    }
+
     public void save(ApprovalRequest request) {
-        jdbcClient.sql("""
+        acquireReadLockWithTransaction();
+        int rows = jdbcClient.sql("""
                 INSERT INTO approval_requests (
                     id, agent_id, user_id, tool_name, policy_rule_id,
                     original_arguments_json, approved_arguments_json, status,
                     created_at, expires_at, decided_at, decided_by, decision_reason,
                     execution_state, executed_at, execution_result_json, execution_error
-                ) VALUES (
-                    :id, :agentId, :userId, :toolName, :policyRuleId,
-                    :originalArgs, :approvedArgs, :status,
-                    :createdAt, :expiresAt, :decidedAt, :decidedBy, :reason,
-                    :executionState, :executedAt, :executionResultJson, :executionError
+                )
+                SELECT :id, :agentId, :userId, :toolName, :policyRuleId,
+                       :originalArgs, :approvedArgs, :status,
+                       :createdAt, :expiresAt, :decidedAt, :decidedBy, :reason,
+                       :executionState, :executedAt, :executionResultJson, :executionError
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM kill_switches
+                    WHERE active = TRUE
+                      AND (
+                          (type = 'AGENT' AND target = :agentId)
+                       OR (type = 'TOOL' AND target = :toolName)
+                       OR (type = 'GLOBAL_WRITE')
+                      )
                 )
                 """)
                 .param("id", request.id())
@@ -83,6 +140,10 @@ public class ApprovalRequestRepository {
                 .param("executionResultJson", request.executionResultJson())
                 .param("executionError", request.executionError())
                 .update();
+
+        if (rows == 0) {
+            throw new IllegalStateException("KILL_SWITCH_ACTIVE: Tool execution is disabled by an emergency control.");
+        }
     }
 
     public Optional<ApprovalRequest> findById(String id) {
@@ -156,6 +217,15 @@ public class ApprovalRequestRepository {
                     decided_at = :decidedAt,
                     decided_by = :decidedBy
                 WHERE id = :id AND status = 'PENDING' AND expires_at > :now
+                  AND NOT EXISTS (
+                      SELECT 1 FROM kill_switches
+                      WHERE active = TRUE
+                        AND (
+                            (type = 'AGENT' AND target = approval_requests.agent_id)
+                         OR (type = 'TOOL' AND target = approval_requests.tool_name)
+                         OR (type = 'GLOBAL_WRITE')
+                        )
+                  )
                 """)
                 .param("id", id)
                 .param("approvedArgs", approvedArgsJson)
@@ -390,6 +460,22 @@ public class ApprovalRequestRepository {
                 .param("limit", limit)
                 .query(this::mapRow)
                 .list();
+    }
+
+    /**
+     * Acquires a database table lock on approval_requests for the duration of the current transaction.
+     * Serializes concurrent approval creation (INSERT) against emergency switch activation and cancellation.
+     */
+    public void lockForSwitchActivation() {
+        try {
+            // PostgreSQL: SHARE ROW EXCLUSIVE blocks concurrent INSERT, UPDATE, DELETE while permitting SELECT
+            jdbcClient.sql("LOCK TABLE approval_requests IN SHARE ROW EXCLUSIVE MODE").update();
+        } catch (Exception e) {
+            // Expected in H2 in-memory test DB which does not support PostgreSQL table lock syntax
+            log.debug("PostgreSQL table lock skipped: {}", e.getMessage());
+        }
+
+        acquireWriteLockWithTransaction();
     }
 
     /**
