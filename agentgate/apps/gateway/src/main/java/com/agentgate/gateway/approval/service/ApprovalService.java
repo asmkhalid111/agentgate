@@ -5,6 +5,7 @@ import com.agentgate.gateway.approval.domain.ApprovalStatus;
 import com.agentgate.gateway.approval.dto.ApprovalDetailResponse;
 import com.agentgate.gateway.approval.dto.ApprovalSummaryResponse;
 import com.agentgate.gateway.approval.dto.PagedApprovalResponse;
+import com.agentgate.gateway.approval.event.ApprovalCreatedEvent;
 import com.agentgate.gateway.approval.exception.ApprovalNotFoundException;
 import com.agentgate.gateway.approval.exception.InvalidApprovalStateException;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
@@ -12,8 +13,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,14 +43,21 @@ public class ApprovalService {
 
     private final ApprovalRequestRepository repository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public ApprovalService(ApprovalRequestRepository repository, ObjectMapper objectMapper) {
+    public ApprovalService(
+            ApprovalRequestRepository repository,
+            ObjectMapper objectMapper,
+            ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
      * Creates and persists a new approval request in PENDING status.
+     * Enclosed in an atomic transaction to ensure event publication aligns
+     * with database commit (Reviewer Correction A).
      *
      * @param agentId requesting agent client identifier
      * @param userId optional end-user identity on whose behalf the agent acts
@@ -57,6 +67,7 @@ public class ApprovalService {
      * @param timeout duration until the request expires (defaults to 15m if null)
      * @return persisted ApprovalRequest
      */
+    @Transactional
     public ApprovalRequest createRequest(
             String agentId,
             String userId,
@@ -96,6 +107,10 @@ public class ApprovalService {
         );
 
         repository.save(request);
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new ApprovalCreatedEvent(request));
+        }
 
         // Security requirement: Never log raw arguments
         log.info("Created approval request '{}' for tool '{}' by agent '{}' [rule='{}', expiresAt={}]",

@@ -20,6 +20,8 @@ services:
       KEYCLOAK_AUTH_URI: http://localhost:8180/realms/agentgate/protocol/openid-connect/auth
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/token
       KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
+      AGENTGATE_APPROVAL_WEBHOOK_ENABLED: ${AGENTGATE_APPROVAL_WEBHOOK_ENABLED:-true}
+      AGENTGATE_APPROVAL_WEBHOOK_URL: ${AGENTGATE_APPROVAL_WEBHOOK_URL:-http://demo-tools:8082/api/webhook/approvals}
     depends_on:
       postgres:
         condition: service_healthy
