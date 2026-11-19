@@ -10,6 +10,24 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: agentgate-web
+            client-secret: ${KEYCLOAK_WEB_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email,roles
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/agentgate}
+            authorization-uri: ${KEYCLOAK_AUTH_URI:http://localhost:8180/realms/agentgate/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/agentgate/protocol/openid-connect/token}
+            jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8180/realms/agentgate/protocol/openid-connect/certs}
+            user-info-uri: ${KEYCLOAK_USER_INFO_URI:http://localhost:8180/realms/agentgate/protocol/openid-connect/userinfo}
+            user-name-attribute: preferred_username
   ai:
     mcp:
       server:
