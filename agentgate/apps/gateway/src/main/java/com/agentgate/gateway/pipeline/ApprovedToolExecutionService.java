@@ -10,6 +10,8 @@ import com.agentgate.gateway.guard.ValidationResult;
 import com.agentgate.gateway.policy.domain.PolicyAction;
 import com.agentgate.gateway.policy.domain.PolicyDecision;
 import com.agentgate.gateway.policy.service.StructuredPolicyEvaluator;
+import com.agentgate.gateway.ratelimit.WriteCapDecision;
+import com.agentgate.gateway.ratelimit.WriteCapLimiter;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -43,6 +45,29 @@ public class ApprovedToolExecutionService {
     private final PiiRedactionGuard piiRedactionGuard;
     private final ResponseTruncationGuard responseTruncationGuard;
     private final ObjectMapper objectMapper;
+    private final WriteCapLimiter writeCapLimiter;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ApprovedToolExecutionService(
+            ApprovalRequestRepository approvalRepository,
+            RegisteredToolRepository toolRepository,
+            List<ToolAdapter> adapters,
+            StructuredPolicyEvaluator policyEvaluator,
+            JsonSchemaValidationGuard validationGuard,
+            PiiRedactionGuard piiRedactionGuard,
+            ResponseTruncationGuard responseTruncationGuard,
+            ObjectMapper objectMapper,
+            WriteCapLimiter writeCapLimiter) {
+        this.approvalRepository = approvalRepository;
+        this.toolRepository = toolRepository;
+        this.adapters = adapters;
+        this.policyEvaluator = policyEvaluator;
+        this.validationGuard = validationGuard;
+        this.piiRedactionGuard = piiRedactionGuard;
+        this.responseTruncationGuard = responseTruncationGuard;
+        this.objectMapper = objectMapper;
+        this.writeCapLimiter = writeCapLimiter;
+    }
 
     public ApprovedToolExecutionService(
             ApprovalRequestRepository approvalRepository,
@@ -53,14 +78,7 @@ public class ApprovedToolExecutionService {
             PiiRedactionGuard piiRedactionGuard,
             ResponseTruncationGuard responseTruncationGuard,
             ObjectMapper objectMapper) {
-        this.approvalRepository = approvalRepository;
-        this.toolRepository = toolRepository;
-        this.adapters = adapters;
-        this.policyEvaluator = policyEvaluator;
-        this.validationGuard = validationGuard;
-        this.piiRedactionGuard = piiRedactionGuard;
-        this.responseTruncationGuard = responseTruncationGuard;
-        this.objectMapper = objectMapper;
+        this(approvalRepository, toolRepository, adapters, policyEvaluator, validationGuard, piiRedactionGuard, responseTruncationGuard, objectMapper, null);
     }
 
     /**
@@ -179,7 +197,18 @@ public class ApprovedToolExecutionService {
             }
         }
 
-        // 4. Downstream Adapter Dispatch
+        // 4. Hourly Write Cap Check for write tools (FR6)
+        if (tool.isWriteOperation() && writeCapLimiter != null) {
+            WriteCapDecision writeDecision = writeCapLimiter.tryAcquireWrite(request.agentId());
+            if (!writeDecision.allowed()) {
+                log.warn("Write cap rejected approved execution for request '{}' [agent='{}', tool='{}']: {}",
+                        approvalId, request.agentId(), tool.name(), writeDecision.message());
+                approvalRepository.recordExecutionFailure(approvalId, writeDecision.message(), Instant.now());
+                return;
+            }
+        }
+
+        // 5. Downstream Adapter Dispatch
         ToolAdapter adapter = adapters.stream()
                 .filter(a -> a.supports(tool.protocolType()))
                 .findFirst()

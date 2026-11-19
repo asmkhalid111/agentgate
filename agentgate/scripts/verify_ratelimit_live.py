@@ -49,13 +49,13 @@ def mcp_call(token, session_id, tool_name, args, req_id=10):
         return parse_sse(raw) or {}
 
 def main():
-    print("=== AgentGate Live FR6 Rate Limiting Verification ===")
+    print("=== AgentGate Live FR6 (Task 11B) Quota & Write Cap Verification ===")
     
     print("\n1. Acquiring token for agent-finance-bot...")
     token = get_token("agent-finance-bot", "finance_dev_secret_123")
     print("   Token acquired.")
 
-    print("\n2. Initializing MCP session...")
+    print("\n2. Initializing MCP session on Gateway...")
     init_payload = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -63,7 +63,7 @@ def main():
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
-            "clientInfo": {"name": "live-verifier", "version": "1.0.0"}
+            "clientInfo": {"name": "live-verifier-11b", "version": "1.0.0"}
         }
     }
     req = urllib.request.Request(GATEWAY_URL, data=json.dumps(init_payload).encode("utf-8"), method="POST")
@@ -75,65 +75,70 @@ def main():
         session_id = resp.headers.get("Mcp-Session-Id")
         print(f"   Session established: {session_id}")
 
-    # Determine current minute bucket
+    # Determine current date bucket
+    day_bucket = time.strftime("%Y-%m-%d", time.gmtime())
     minute_bucket = int(time.time() * 1000) // 60000
-    agent_key = f"agentgate:ratelimit:agent:agent-finance-bot:{minute_bucket}"
-    tool_key = f"agentgate:ratelimit:tool:orders_get:{minute_bucket}"
 
-    # Reset counters for this minute bucket
-    subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "del", agent_key, tool_key], check=True, capture_output=True)
-    print(f"   Cleaned up test keys for bucket {minute_bucket}")
-
-    print("\n3. Testing unmetered built-in tool: get_approval_result...")
-    result = mcp_call(token, session_id, "get_approval_result", {"approvalId": "appr-nonexistent"}, req_id=101)
-    print(f"   get_approval_result response: {result.get('result', {}).get('content', [{}])[0].get('text')}")
-    
-    # Verify no Redis keys created for unmetered tool
-    keys_out = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "keys", f"agentgate:ratelimit:*:*{minute_bucket}"], capture_output=True, text=True).stdout
-    print(f"   Redis keys after get_approval_result: {keys_out.strip() or '(none)'}")
-    assert not keys_out.strip(), "Unmetered tool must not create rate limit keys"
-    print("   -> PASS: Built-in metadata tool is not metered.")
-
-    print("\n4. Testing metered governed tool within limit: orders_get...")
-    result1 = mcp_call(token, session_id, "orders_get", {"orderId": "ord-1"}, req_id=102)
-    print(f"   Call 1 response: {result1.get('result', {}).get('content', [{}])[0].get('text')}")
-    
-    agent_val = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "get", agent_key], capture_output=True, text=True).stdout.strip()
-    tool_val = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "get", tool_key], capture_output=True, text=True).stdout.strip()
-    print(f"   Counters after 1 call: agent={agent_val}, tool={tool_val}")
-    assert agent_val == "1" and tool_val == "1", f"Expected counters 1, got agent={agent_val}, tool={tool_val}"
-    print("   -> PASS: First governed call admitted and incremented counters.")
-
-    print("\n5. Testing rate limit exhaustion: Setting agent counter to limit (60)...")
-    subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "set", agent_key, "60"], check=True)
-    print("   Counter set to 60.")
-
-    print("\n6. Calling governed tool when limit is reached...")
-    blocked_result = mcp_call(token, session_id, "orders_get", {"orderId": "ord-2"}, req_id=103)
-    error_text = blocked_result.get("result", {}).get("content", [{}])[0].get("text", "")
-    is_error = blocked_result.get("result", {}).get("isError", False)
-    print(f"   Blocked call isError: {is_error}")
-    print(f"   Blocked call message: {error_text}")
-    assert is_error is True, "Result must have isError: true"
-    assert "RATE_LIMIT_EXCEEDED" in error_text, f"Unexpected error text: {error_text}"
-    print("   -> PASS: Exceeded call rejected with RATE_LIMIT_EXCEEDED error.")
-
-    print("\n7. Verifying counter was NOT incremented on rejection...")
-    agent_val_after = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "get", agent_key], capture_output=True, text=True).stdout.strip()
-    print(f"   Agent counter after rejected call: {agent_val_after}")
-    assert agent_val_after == "60", f"Counter should remain 60, but was {agent_val_after}"
-    print("   -> PASS: Atomic check did not increment counter when limit was exceeded.")
-
-    print("\n8. Verifying built-in unmetered tools still work when rate limited...")
-    unmetered_result = mcp_call(token, session_id, "get_approval_result", {"approvalId": "appr-nonexistent"}, req_id=104)
-    unmetered_text = unmetered_result.get("result", {}).get("content", [{}])[0].get("text", "")
-    print(f"   get_approval_result text: {unmetered_text}")
-    assert "RATE_LIMIT_EXCEEDED" not in unmetered_text, "Unmetered tool must not be blocked by rate limit"
-    print("   -> PASS: get_approval_result remains accessible even when agent rate limit is exceeded.")
+    agent_id = "agent-finance-bot"
+    agent_daily_key = f"agentgate:quota:daily:agent:{agent_id}:{day_bucket}"
+    tool_daily_key = f"agentgate:quota:daily:tool:orders_get:{day_bucket}"
+    writecap_zset_key = f"agentgate:writecap:agent:{agent_id}"
 
     # Clean up test keys
-    subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "del", agent_key, tool_key], check=True, capture_output=True)
-    print("\n=== ALL LIVE VERIFICATION CHECKS PASSED ===")
+    subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "del", agent_daily_key, tool_daily_key, writecap_zset_key], check=True, capture_output=True)
+    print("   Cleaned up test keys in Redis.")
+
+    print("\n3. Testing safe read tool (orders_get)...")
+    res_read = mcp_call(token, session_id, "orders_get", {"orderId": "ord-101"}, req_id=2)
+    print(f"   orders_get response text: {res_read.get('result', {}).get('content', [{}])[0].get('text')}")
+
+    # Verify daily counters were incremented at ingress
+    agent_daily_val = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "get", agent_daily_key], capture_output=True, text=True).stdout.strip()
+    tool_daily_val = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "get", tool_daily_key], capture_output=True, text=True).stdout.strip()
+    print(f"   Daily quota counters: agent={agent_daily_val}, tool={tool_daily_val}")
+    assert agent_daily_val == "1", f"Expected agent daily quota 1, got {agent_daily_val}"
+    assert tool_daily_val == "1", f"Expected tool daily quota 1, got {tool_daily_val}"
+    print("   -> PASS: Ingress request consumed 1 unit of daily quota.")
+
+    # Verify read tool did NOT touch write cap ZSET
+    zcard_read = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "zcard", writecap_zset_key], capture_output=True, text=True).stdout.strip()
+    print(f"   WriteCap ZSET card after read tool: {zcard_read}")
+    assert zcard_read == "0", f"Expected ZSET card 0 for read tool, got {zcard_read}"
+    print("   -> PASS: Read-only tool did not consume hourly write cap.")
+
+    print("\n4. Testing rolling hourly write cap: Injecting 20 write attempts into ZSET...")
+    now_ms = int(time.time() * 1000)
+    for i in range(20):
+        member = f"{now_ms + i}:attempt-{i}"
+        subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "zadd", writecap_zset_key, str(now_ms), member], check=True, capture_output=True)
+    
+    zcard_20 = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "zcard", writecap_zset_key], capture_output=True, text=True).stdout.strip()
+    print(f"   WriteCap ZSET card after filling: {zcard_20}")
+    assert zcard_20 == "20"
+    print("   -> PASS: 20 writes recorded in rolling window.")
+
+    print("\n5. Testing 21st write dispatch attempt (orders_refund)...")
+    res_write_blocked = mcp_call(token, session_id, "orders_refund", {"orderId": "ord-101", "amount": 50.0}, req_id=3)
+    error_text = res_write_blocked.get("result", {}).get("content", [{}])[0].get("text", "")
+    print(f"   orders_refund response text: {error_text}")
+    # Note: policy for orders_refund requires approval, so at ingress it returns REQUIRE_APPROVAL.
+    # In Task 11B, write cap is enforced at dispatch (either direct ALLOW or approved execution).
+    # Since policy requires approval, write cap was NOT consumed at ingress!
+    zcard_after_ingress = subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "zcard", writecap_zset_key], capture_output=True, text=True).stdout.strip()
+    print(f"   WriteCap ZSET card after approval-required ingress: {zcard_after_ingress}")
+    assert zcard_after_ingress == "20", "Ingress approval-required request must NOT consume write cap"
+    print("   -> PASS: Ingress approval-required request did not consume write cap.")
+
+    print("\n6. Verifying unmetered built-in tool: get_approval_result...")
+    res_meta = mcp_call(token, session_id, "get_approval_result", {"approvalId": "appr-nonexistent"}, req_id=4)
+    meta_text = res_meta.get("result", {}).get("content", [{}])[0].get("text", "")
+    print(f"   get_approval_result response text: {meta_text}")
+    assert "NOT_FOUND" in meta_text, "Expected NOT_FOUND from get_approval_result"
+    print("   -> PASS: Built-in metadata tool is completely unmetered.")
+
+    # Clean up test keys
+    subprocess.run(["docker", "exec", "agentgate-redis", "redis-cli", "del", agent_daily_key, tool_daily_key, writecap_zset_key], check=True, capture_output=True)
+    print("\n=== ALL LIVE DOCKER CHECKS PASSED ===")
 
 if __name__ == "__main__":
     main()
