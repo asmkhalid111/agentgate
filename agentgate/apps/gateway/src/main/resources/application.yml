@@ -83,6 +83,23 @@ agentgate:
     agent-hourly-write-caps:
       agent-finance-bot: 20
       agent-support-bot: 10
+  resilience:
+    default-connect-timeout: ${AGENTGATE_RESILIENCE_DEFAULT_CONNECT_TIMEOUT:3s}
+    default-read-timeout: ${AGENTGATE_RESILIENCE_DEFAULT_READ_TIMEOUT:5s}
+    default-execution-deadline: ${AGENTGATE_RESILIENCE_DEFAULT_EXECUTION_DEADLINE:10s}
+    default-failure-threshold: ${AGENTGATE_RESILIENCE_DEFAULT_FAILURE_THRESHOLD:3}
+    default-open-wait-duration: ${AGENTGATE_RESILIENCE_DEFAULT_OPEN_WAIT_DURATION:30s}
+    tools:
+      orders_refund:
+        connect-timeout: 3s
+        read-timeout: 5s
+        failure-threshold: 3
+        open-wait-duration: 30s
+      orders_get:
+        connect-timeout: 3s
+        read-timeout: 5s
+        failure-threshold: 3
+        open-wait-duration: 30s
 
 logging:
   pattern:
