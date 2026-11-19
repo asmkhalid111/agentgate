@@ -86,9 +86,48 @@ public class ApprovalRequestRepository {
     }
 
     public List<ApprovalRequest> findAll() {
-        return jdbcClient.sql("SELECT * FROM approval_requests ORDER BY created_at ASC")
+        return jdbcClient.sql("SELECT * FROM approval_requests ORDER BY created_at ASC, id ASC")
                 .query(this::mapRow)
                 .list();
+    }
+
+    public List<ApprovalRequest> findPaged(ApprovalStatus status, int offset, int limit) {
+        if (status != null) {
+            return jdbcClient.sql("""
+                    SELECT * FROM approval_requests
+                    WHERE status = :status
+                    ORDER BY created_at ASC, id ASC
+                    LIMIT :limit OFFSET :offset
+                    """)
+                    .param("status", status.name())
+                    .param("limit", limit)
+                    .param("offset", offset)
+                    .query(this::mapRow)
+                    .list();
+        } else {
+            return jdbcClient.sql("""
+                    SELECT * FROM approval_requests
+                    ORDER BY created_at ASC, id ASC
+                    LIMIT :limit OFFSET :offset
+                    """)
+                    .param("limit", limit)
+                    .param("offset", offset)
+                    .query(this::mapRow)
+                    .list();
+        }
+    }
+
+    public long countByStatus(ApprovalStatus status) {
+        if (status != null) {
+            return jdbcClient.sql("SELECT COUNT(*) FROM approval_requests WHERE status = :status")
+                    .param("status", status.name())
+                    .query(Long.class)
+                    .single();
+        } else {
+            return jdbcClient.sql("SELECT COUNT(*) FROM approval_requests")
+                    .query(Long.class)
+                    .single();
+        }
     }
 
     /**

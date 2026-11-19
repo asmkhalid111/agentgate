@@ -2,7 +2,13 @@ package com.agentgate.gateway.approval.service;
 
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.domain.ApprovalStatus;
+import com.agentgate.gateway.approval.dto.ApprovalDetailResponse;
+import com.agentgate.gateway.approval.dto.ApprovalSummaryResponse;
+import com.agentgate.gateway.approval.dto.PagedApprovalResponse;
+import com.agentgate.gateway.approval.exception.ApprovalNotFoundException;
+import com.agentgate.gateway.approval.exception.InvalidApprovalStateException;
 import com.agentgate.gateway.approval.repository.ApprovalRequestRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,10 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service managing the human approval request lifecycle and atomic state transitions (FR4).
@@ -132,14 +135,14 @@ public class ApprovalService {
         int updated = repository.transitionToApproved(id, approvedArgsJson, decidedBy, now, now);
         if (updated == 0) {
             ApprovalRequest current = repository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Approval request not found: " + id));
+                    .orElseThrow(() -> new ApprovalNotFoundException("Approval request not found: " + id));
 
             if (current.isExpired(now) || (current.expiresAt() != null && !now.isBefore(current.expiresAt()))) {
                 repository.transitionToExpired(id, now);
-                throw new IllegalStateException("Cannot approve request '" + id + "': request has expired at " + current.expiresAt());
+                throw new InvalidApprovalStateException("Cannot approve request '" + id + "': request has expired at " + current.expiresAt());
             }
 
-            throw new IllegalStateException("Cannot approve request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException("Cannot approve request '" + id + "': request is in state " + current.status());
         }
 
         log.info("Approved request '{}' by '{}' [edited={}]", id, decidedBy, (approvedArgsJson != null));
@@ -160,14 +163,14 @@ public class ApprovalService {
         int updated = repository.transitionToRejected(id, decidedBy, reason, now, now);
         if (updated == 0) {
             ApprovalRequest current = repository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Approval request not found: " + id));
+                    .orElseThrow(() -> new ApprovalNotFoundException("Approval request not found: " + id));
 
             if (current.isExpired(now) || (current.expiresAt() != null && !now.isBefore(current.expiresAt()))) {
                 repository.transitionToExpired(id, now);
-                throw new IllegalStateException("Cannot reject request '" + id + "': request has expired at " + current.expiresAt());
+                throw new InvalidApprovalStateException("Cannot reject request '" + id + "': request has expired at " + current.expiresAt());
             }
 
-            throw new IllegalStateException("Cannot reject request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException("Cannot reject request '" + id + "': request is in state " + current.status());
         }
 
         log.info("Rejected approval request '{}' by '{}' [reason='{}']", id, decidedBy, reason);
@@ -188,9 +191,9 @@ public class ApprovalService {
         int updated = repository.transitionToCancelled(id, cancelledBy, reason, now);
         if (updated == 0) {
             ApprovalRequest current = repository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Approval request not found: " + id));
+                    .orElseThrow(() -> new ApprovalNotFoundException("Approval request not found: " + id));
 
-            throw new IllegalStateException("Cannot cancel request '" + id + "': request is in state " + current.status());
+            throw new InvalidApprovalStateException("Cannot cancel request '" + id + "': request is in state " + current.status());
         }
 
         log.info("Cancelled approval request '{}' by '{}' [reason='{}']", id, cancelledBy, reason);
@@ -209,5 +212,77 @@ public class ApprovalService {
             log.info("Expired {} overdue approval requests at {}", count, now);
         }
         return count;
+    }
+
+    /**
+     * Retrieves a paginated list of approval requests matching the given status.
+     *
+     * @param status status filter (null for all statuses)
+     * @param page zero-based page index
+     * @param size page size
+     * @return PagedApprovalResponse containing lightweight summaries
+     */
+    public PagedApprovalResponse findPaged(ApprovalStatus status, int page, int size) {
+        int boundedPage = Math.max(0, page);
+        int boundedSize = Math.min(100, Math.max(1, size));
+        int offset = boundedPage * boundedSize;
+
+        List<ApprovalRequest> requests = repository.findPaged(status, offset, boundedSize);
+        long totalElements = repository.countByStatus(status);
+        int totalPages = boundedSize > 0 ? (int) Math.ceil((double) totalElements / boundedSize) : 0;
+
+        List<ApprovalSummaryResponse> summaries = requests.stream()
+                .map(this::toSummaryResponse)
+                .toList();
+
+        return new PagedApprovalResponse(summaries, boundedPage, boundedSize, totalElements, totalPages);
+    }
+
+    public ApprovalSummaryResponse toSummaryResponse(ApprovalRequest req) {
+        return new ApprovalSummaryResponse(
+                req.id(),
+                req.agentId(),
+                req.userId(),
+                req.toolName(),
+                req.policyRuleId(),
+                req.status().name(),
+                req.createdAt(),
+                req.expiresAt(),
+                req.decidedAt(),
+                req.decidedBy(),
+                req.decisionReason()
+        );
+    }
+
+    public ApprovalDetailResponse toDetailResponse(ApprovalRequest req) {
+        Map<String, Object> originalArgs = parseJsonMap(req.originalArgumentsJson());
+        Map<String, Object> approvedArgs = parseJsonMap(req.approvedArgumentsJson());
+
+        return new ApprovalDetailResponse(
+                req.id(),
+                req.agentId(),
+                req.userId(),
+                req.toolName(),
+                req.policyRuleId(),
+                req.status().name(),
+                req.createdAt(),
+                req.expiresAt(),
+                req.decidedAt(),
+                req.decidedBy(),
+                req.decisionReason(),
+                originalArgs,
+                approvedArgs
+        );
+    }
+
+    private Map<String, Object> parseJsonMap(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
     }
 }
