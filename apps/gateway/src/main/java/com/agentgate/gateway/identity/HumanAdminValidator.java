@@ -1,6 +1,5 @@
-package com.agentgate.gateway.killswitch.security;
+package com.agentgate.gateway.identity;
 
-import com.agentgate.gateway.identity.AgentAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,7 +15,7 @@ import java.util.Set;
 
 /**
  * Validates that an incoming authentication belongs to a genuine human administrator,
- * explicitly denying automated agent service-account tokens (FR8 Security).
+ * explicitly denying automated agent service-account tokens (FR7 & FR8 Security).
  */
 @Component
 public class HumanAdminValidator {
@@ -33,12 +32,12 @@ public class HumanAdminValidator {
      * Verifies that the caller is a genuine human user with ROLE_ADMIN.
      *
      * @param authentication active Spring Security authentication
-     * @return verified human username (to be recorded as createdBy)
+     * @return verified human username (to be recorded as actor / admin identity)
      * @throws AccessDeniedException if caller lacks authority or is an automated agent service account
      */
     public String verifyHumanAdmin(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AccessDeniedException("Authentication required for emergency kill switch administration");
+            throw new AccessDeniedException("Authentication required for administration operations");
         }
 
         // 1. Must possess ROLE_ADMIN authority
@@ -47,14 +46,14 @@ public class HumanAdminValidator {
                 .anyMatch(a -> a.equals("ROLE_ADMIN"));
 
         if (!hasAdminRole) {
-            log.warn("Access denied to kill switch admin API: caller '{}' lacks ROLE_ADMIN", authentication.getName());
+            log.warn("Access denied to admin API: caller '{}' lacks ROLE_ADMIN", authentication.getName());
             throw new AccessDeniedException("Caller lacks required ROLE_ADMIN authority");
         }
 
         // 2. Extract underlying claims (JWT or OIDC user attributes)
         Map<String, Object> claims = extractClaims(authentication);
         if (claims == null) {
-            log.warn("Access denied to kill switch admin API: no verifiable credentials found in authentication");
+            log.warn("Access denied to admin API: no verifiable credentials found in authentication");
             throw new AccessDeniedException("No verifiable credentials found for human administrator");
         }
 
@@ -67,28 +66,28 @@ public class HumanAdminValidator {
 
         // Indicator A: Keycloak service account username convention
         if (preferredUsername != null && preferredUsername.startsWith("service-account-")) {
-            log.warn("Security violation: Machine service account '{}' attempted kill switch admin operation", preferredUsername);
-            throw new AccessDeniedException("Machine service accounts are not permitted to manage emergency kill switches");
+            log.warn("Security violation: Machine service account '{}' attempted admin operation", preferredUsername);
+            throw new AccessDeniedException("Machine service accounts are not permitted to perform administrative operations");
         }
 
         // Indicator B: Subject matches service account pattern
         if (subject != null && subject.startsWith("service-account-")) {
-            log.warn("Security violation: Machine subject '{}' attempted kill switch admin operation", subject);
-            throw new AccessDeniedException("Machine service accounts are not permitted to manage emergency kill switches");
+            log.warn("Security violation: Machine subject '{}' attempted admin operation", subject);
+            throw new AccessDeniedException("Machine service accounts are not permitted to perform administrative operations");
         }
 
         // Indicator C: Client-credentials grant type explicit claim
         if ("client-credentials".equalsIgnoreCase(grantType)) {
-            log.warn("Security violation: Client credentials token attempted kill switch admin operation");
-            throw new AccessDeniedException("Client credentials tokens cannot manage emergency kill switches");
+            log.warn("Security violation: Client credentials token attempted admin operation");
+            throw new AccessDeniedException("Client credentials tokens cannot perform administrative operations");
         }
 
         // Indicator D: Token azp or clientId is an agent client
         String effectiveClient = azp != null ? azp : clientId;
         if (effectiveClient != null && (effectiveClient.startsWith("agent-") || KNOWN_AGENT_CLIENTS.contains(effectiveClient))) {
             if (preferredUsername == null || preferredUsername.equals(effectiveClient) || preferredUsername.startsWith("service-account-")) {
-                log.warn("Security violation: Agent client '{}' attempted kill switch admin operation without human user context", effectiveClient);
-                throw new AccessDeniedException("Agent client tokens cannot manage emergency kill switches");
+                log.warn("Security violation: Agent client '{}' attempted admin operation without human user context", effectiveClient);
+                throw new AccessDeniedException("Agent client tokens cannot perform administrative operations");
             }
         }
 
@@ -97,8 +96,8 @@ public class HumanAdminValidator {
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(a -> a.equals("SCOPE_agent:invoke"));
         if (hasAgentScope && (preferredUsername == null || preferredUsername.startsWith("agent-"))) {
-            log.warn("Security violation: Agent invoke scope token attempted kill switch admin operation");
-            throw new AccessDeniedException("Machine agent tokens cannot manage emergency kill switches");
+            log.warn("Security violation: Agent invoke scope token attempted admin operation");
+            throw new AccessDeniedException("Machine agent tokens cannot perform administrative operations");
         }
 
         // 4. Derives verified human administrator username

@@ -2,13 +2,17 @@ package com.agentgate.gateway.audit.repository;
 
 import com.agentgate.gateway.audit.domain.AuditChainState;
 import com.agentgate.gateway.audit.domain.AuditEvent;
+import com.agentgate.gateway.audit.dto.AuditSearchCriteria;
+import com.agentgate.gateway.audit.dto.AuditSearchResult;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -162,6 +166,103 @@ public class JdbcAuditRepository implements AuditRepository {
         return jdbcClient.sql("SELECT COUNT(*) FROM audit_log")
                 .query(Long.class)
                 .single();
+    }
+
+    @Override
+    public AuditSearchResult search(AuditSearchCriteria criteria) {
+        StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
+        Map<String, Object> params = new LinkedHashMap<>();
+
+        if (criteria.agentId() != null) {
+            whereClause.append(" AND agent_id = :agentId");
+            params.put("agentId", criteria.agentId());
+        }
+        if (criteria.toolName() != null) {
+            whereClause.append(" AND tool_name = :toolName");
+            params.put("toolName", criteria.toolName());
+        }
+        if (criteria.approvalId() != null) {
+            whereClause.append(" AND approval_id = :approvalId");
+            params.put("approvalId", criteria.approvalId());
+        }
+        if (criteria.outcome() != null) {
+            whereClause.append(" AND outcome = :outcome");
+            params.put("outcome", criteria.outcome());
+        }
+        if (criteria.decision() != null) {
+            whereClause.append(" AND decision = :decision");
+            params.put("decision", criteria.decision());
+        }
+        if (criteria.from() != null) {
+            whereClause.append(" AND event_timestamp >= :fromTimestamp");
+            params.put("fromTimestamp", Timestamp.from(criteria.from()));
+        }
+        if (criteria.to() != null) {
+            whereClause.append(" AND event_timestamp <= :toTimestamp");
+            params.put("toTimestamp", Timestamp.from(criteria.to()));
+        }
+
+        String countSql = "SELECT COUNT(*) FROM audit_log" + whereClause;
+        var countQuery = jdbcClient.sql(countSql);
+        params.forEach(countQuery::param);
+        long totalElements = countQuery.query(Long.class).single();
+
+        if (totalElements == 0) {
+            return AuditSearchResult.of(List.of(), criteria.page(), criteria.size(), 0);
+        }
+
+        int offset = criteria.page() * criteria.size();
+        String dataSql = "SELECT * FROM audit_log" + whereClause + " ORDER BY sequence_number ASC LIMIT :limit OFFSET :offset";
+        var dataQuery = jdbcClient.sql(dataSql);
+        params.forEach(dataQuery::param);
+        dataQuery.param("limit", criteria.size());
+        dataQuery.param("offset", offset);
+
+        List<AuditEvent> content = dataQuery.query(this::mapAuditEventRow).list();
+        return AuditSearchResult.of(content, criteria.page(), criteria.size(), totalElements);
+    }
+
+    @Override
+    public List<AuditEvent> export(AuditSearchCriteria criteria, int limit) {
+        int boundedLimit = Math.min(Math.max(1, limit), 1000);
+        StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
+        Map<String, Object> params = new LinkedHashMap<>();
+
+        if (criteria.agentId() != null) {
+            whereClause.append(" AND agent_id = :agentId");
+            params.put("agentId", criteria.agentId());
+        }
+        if (criteria.toolName() != null) {
+            whereClause.append(" AND tool_name = :toolName");
+            params.put("toolName", criteria.toolName());
+        }
+        if (criteria.approvalId() != null) {
+            whereClause.append(" AND approval_id = :approvalId");
+            params.put("approvalId", criteria.approvalId());
+        }
+        if (criteria.outcome() != null) {
+            whereClause.append(" AND outcome = :outcome");
+            params.put("outcome", criteria.outcome());
+        }
+        if (criteria.decision() != null) {
+            whereClause.append(" AND decision = :decision");
+            params.put("decision", criteria.decision());
+        }
+        if (criteria.from() != null) {
+            whereClause.append(" AND event_timestamp >= :fromTimestamp");
+            params.put("fromTimestamp", Timestamp.from(criteria.from()));
+        }
+        if (criteria.to() != null) {
+            whereClause.append(" AND event_timestamp <= :toTimestamp");
+            params.put("toTimestamp", Timestamp.from(criteria.to()));
+        }
+
+        String dataSql = "SELECT * FROM audit_log" + whereClause + " ORDER BY sequence_number ASC LIMIT :limit";
+        var dataQuery = jdbcClient.sql(dataSql);
+        params.forEach(dataQuery::param);
+        dataQuery.param("limit", boundedLimit);
+
+        return dataQuery.query(this::mapAuditEventRow).list();
     }
 
     @Override

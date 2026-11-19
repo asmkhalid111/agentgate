@@ -235,6 +235,7 @@ public class ApprovalService {
      * @throws IllegalStateException if request is expired, already decided, or in
      *                               terminal state
      */
+    @Transactional(noRollbackFor = InvalidApprovalStateException.class)
     public ApprovalRequest reject(String id, String decidedBy, String reason) {
         Instant now = Instant.now();
         int updated = repository.transitionToRejected(id, decidedBy, reason, now, now);
@@ -279,6 +280,7 @@ public class ApprovalService {
      * @return updated ApprovalRequest in CANCELLED status
      * @throws IllegalStateException if request is not in PENDING state
      */
+    @Transactional(noRollbackFor = InvalidApprovalStateException.class)
     public ApprovalRequest cancel(String id, String cancelledBy, String reason) {
         Instant now = Instant.now();
         int updated = repository.transitionToCancelled(id, cancelledBy, reason, now);
@@ -314,6 +316,7 @@ public class ApprovalService {
      *
      * @return number of requests transitioned to EXPIRED
      */
+    @Transactional
     @Scheduled(fixedDelayString = "${agentgate.approval.expiration-interval-ms:60000}", initialDelayString = "${agentgate.approval.expiration-initial-delay-ms:5000}")
     public int expirePendingRequests() {
         Instant now = Instant.now();
