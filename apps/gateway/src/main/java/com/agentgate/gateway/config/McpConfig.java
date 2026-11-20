@@ -2,8 +2,13 @@ package com.agentgate.gateway.config;
 
 import com.agentgate.gateway.identity.AgentAuthenticationToken;
 import com.agentgate.gateway.identity.AgentIdentity;
+import com.agentgate.gateway.killswitch.dto.KillSwitchCheckResult;
+import com.agentgate.gateway.killswitch.service.KillSwitchService;
 import com.agentgate.gateway.mcp.DynamicToolCallbackProvider;
+import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
+import com.agentgate.gateway.resilience.circuitbreaker.ToolCircuitBreaker;
+import com.agentgate.gateway.resilience.circuitbreaker.ToolCircuitBreakerRegistry;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import org.slf4j.Logger;
@@ -12,6 +17,7 @@ import org.springframework.ai.mcp.customizer.McpSyncServerCustomizer;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
 import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -21,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.Optional;
 
 @Configuration
 public class McpConfig {
@@ -73,11 +80,19 @@ public class McpConfig {
 
     /**
      * Registers a native MCP sync tool-list filter that governs discovery per authenticated agent.
-     * Annotated with @Primary to override the default servletMcpSyncServerCustomizer while preserving immediateExecution.
+     * Enforces:
+     * 1. Preserved metadata tools (e.g. get_approval_result).
+     * 2. Direct agent permissions (unauthorized tools remain hidden).
+     * 3. Enabled status (disabled tools remain hidden).
+     * 4. FR8 emergency kill switches (agent, tool, global-write).
+     * 5. FR10 circuit breaker availability (OPEN tools hidden during cooldown, discoverable for HALF_OPEN trial).
      */
     @Bean
     @Primary
-    public McpSyncServerCustomizer mcpToolListFilterCustomizer(RegisteredToolRepository toolRepository) {
+    public McpSyncServerCustomizer mcpToolListFilterCustomizer(
+            RegisteredToolRepository toolRepository,
+            @Autowired(required = false) KillSwitchService killSwitchService,
+            @Autowired(required = false) ToolCircuitBreakerRegistry circuitBreakerRegistry) {
         return spec -> {
             spec.immediateExecution(true);
             spec.addToolFilter((context, tool) -> {
@@ -94,12 +109,12 @@ public class McpConfig {
 
                 String toolName = tool.name();
 
-                // Built-in approval result retrieval tool (FR4)
+                // 1. Built-in approval result retrieval tool (FR4): always preserved
                 if ("get_approval_result".equals(toolName)) {
                     return true;
                 }
 
-                // Baseline M01 fixture tools
+                // 2. Baseline M01 fixture tools
                 if ("m01_status".equals(toolName)) {
                     return true;
                 }
@@ -109,14 +124,52 @@ public class McpConfig {
                     return isAdmin;
                 }
 
-                // Registered dynamic tools: check permissions in registered tool repository
+                // 3. Registered dynamic tools
+                // Authorization check FIRST: never leak tool existence or health state to unauthorized agents
                 boolean permitted = toolRepository.isAgentPermitted(toolName, agent.clientId());
-                log.debug("Tool filter check for '{}' by agent '{}': permitted={}", toolName, agent.clientId(), permitted);
-                return permitted;
+                if (!permitted) {
+                    log.debug("Tool filter denied '{}' for agent '{}': unauthorized", toolName, agent.clientId());
+                    return false;
+                }
+
+                Optional<RegisteredTool> toolOpt = toolRepository.findByName(toolName);
+                if (toolOpt.isEmpty()) {
+                    return false;
+                }
+                RegisteredTool registeredTool = toolOpt.get();
+
+                // Enabled check: disabled tools remain hidden
+                if (!registeredTool.enabled()) {
+                    log.debug("Tool filter denied '{}' for agent '{}': disabled", toolName, agent.clientId());
+                    return false;
+                }
+
+                // FR8 Emergency Kill-Switch check (agent, tool, global-write)
+                if (killSwitchService != null) {
+                    KillSwitchCheckResult killCheck = killSwitchService.checkBlocked(
+                            agent.clientId(),
+                            toolName,
+                            registeredTool.isWriteOperation()
+                    );
+                    if (killCheck.blocked()) {
+                        log.debug("Tool filter denied '{}' for agent '{}': emergency kill switch active ({})",
+                                toolName, agent.clientId(), killCheck.message());
+                        return false;
+                    }
+                }
+
+                // FR10 Circuit Breaker availability check
+                if (circuitBreakerRegistry != null) {
+                    ToolCircuitBreaker breaker = circuitBreakerRegistry.getBreaker(toolName);
+                    if (!breaker.isAvailableForDiscovery()) {
+                        log.debug("Tool filter denied '{}' for agent '{}': circuit OPEN during cooldown", toolName, agent.clientId());
+                        return false;
+                    }
+                }
+
+                log.debug("Tool filter allowed '{}' for agent '{}'", toolName, agent.clientId());
+                return true;
             });
         };
     }
 }
-
-
-
