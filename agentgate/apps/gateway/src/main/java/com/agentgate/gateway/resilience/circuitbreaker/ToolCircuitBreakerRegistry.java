@@ -2,6 +2,7 @@ package com.agentgate.gateway.resilience.circuitbreaker;
 
 import com.agentgate.gateway.resilience.config.ResilienceProperties;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -17,16 +18,25 @@ public class ToolCircuitBreakerRegistry {
 
     private final ResilienceProperties properties;
     private final Clock clock;
+    private final ApplicationEventPublisher eventPublisher;
     private final ConcurrentHashMap<String, ToolCircuitBreaker> breakers = new ConcurrentHashMap<>();
 
     @Autowired
-    public ToolCircuitBreakerRegistry(ResilienceProperties properties, @Autowired(required = false) Clock clock) {
+    public ToolCircuitBreakerRegistry(
+            ResilienceProperties properties,
+            @Autowired(required = false) Clock clock,
+            @Autowired(required = false) ApplicationEventPublisher eventPublisher) {
         this.properties = properties;
         this.clock = clock != null ? clock : Clock.systemUTC();
+        this.eventPublisher = eventPublisher;
+    }
+
+    public ToolCircuitBreakerRegistry(ResilienceProperties properties, Clock clock) {
+        this(properties, clock, null);
     }
 
     public ToolCircuitBreakerRegistry(ResilienceProperties properties) {
-        this(properties, Clock.systemUTC());
+        this(properties, Clock.systemUTC(), null);
     }
 
     public ToolCircuitBreaker getBreaker(String toolName) {
@@ -34,7 +44,8 @@ public class ToolCircuitBreakerRegistry {
                 name,
                 properties.getFailureThreshold(name),
                 properties.getOpenWaitDuration(name),
-                clock
+                clock,
+                eventPublisher != null ? eventPublisher::publishEvent : null
         ));
     }
 

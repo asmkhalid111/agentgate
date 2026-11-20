@@ -27,6 +27,14 @@ public class ResilienceProperties {
 
     /**
      * Default end-to-end execution deadline for downstream tool requests.
+     * <p>
+     * Architecture Note (FR10): Connection timeouts and read/response timeouts are strictly enforced
+     * at the transport socket layer via {@code JdkClientHttpRequestFactory}. This execution deadline
+     * property is reserved for future protocol-level deadline header propagation (e.g. gRPC/MCP) and
+     * is not independently enforced via unbounded background threads to prevent thread pool exhaustion.
+     * A transport-level timeout aborts the client socket read cleanly, but cannot guarantee cancellation
+     * of downstream side effects on the external service; hence timed-out mutating operations remain
+     * classified as {@code INDETERMINATE} and are never automatically retried.
      */
     private Duration defaultExecutionDeadline = Duration.ofSeconds(10);
 

@@ -12,6 +12,8 @@ spring:
     enabled: false
   data:
     redis:
+      host: ${SPRING_DATA_REDIS_HOST:172.28.119.242}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
       repositories:
         enabled: false
 
@@ -35,3 +37,14 @@ agentgate:
     default-execution-deadline: 10s
     default-failure-threshold: 3
     default-open-wait-duration: 1s
+    tools:
+      orders_refund:
+        connect-timeout: 3s
+        read-timeout: 5s
+        failure-threshold: 3
+        open-wait-duration: 1s
+      orders_get:
+        connect-timeout: 3s
+        read-timeout: 5s
+        failure-threshold: 3
+        open-wait-duration: 1s
