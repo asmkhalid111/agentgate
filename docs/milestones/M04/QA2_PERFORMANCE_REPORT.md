@@ -2,10 +2,19 @@
 
 **Milestone:** M04  
 **Date:** November 23, 2026  
-**Status:** COMPLETE — EMPIRICAL EVALUATION VERIFIED  
-**Final Verdict:** **FAIL** (Measured $p95 = 98.96\text{ ms} > 30.0\text{ ms}$ threshold)  
+**Status:** HISTORICAL BASELINE — FORMALLY CLASSIFIED AS **INCONCLUSIVE** (SUPERSEDED BY TASK 16D RERUN)<br/>
+**Historical Reported Verdict:** **FAIL** ($p95 = 98.96\text{ ms} > 30.0\text{ ms}$ threshold)<br/>
 **Authoritative QA2 Requirement:**
 > *"The gateway adds no more than 30 ms at p95 to a tool call at 100 calls per second, excluding approval waits."*
+
+> [!WARNING] HISTORICAL RESULTS NOTICE — MEASUREMENT DEFECT IDENTIFIED
+> The data recorded in this document represents the initial Task 16B execution. A subsequent forensic audit (Task 16C) determined that this test was contaminated by a configuration defect: `agent-support-bot` was subject to a hardcoded 60 RPM limit in `application.yml`, causing **98.67% of governed calls (17,746 / 18,000) to short-circuit at the rate limiter** while returning JSON-RPC errors masked by HTTP 200 OK.
+>
+> As a result, this initial benchmark measured rate-limit denial and audit logging rather than governed tool execution.
+> - **Forensic Audit Document:** [QA2_MEASUREMENT_AUDIT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_MEASUREMENT_AUDIT.md)
+> - **Verified Task 16D Rerun Report:** [QA2_PERFORMANCE_RERUN_REPORT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M04/QA2_PERFORMANCE_RERUN_REPORT.md)
+>
+> The numerical observations below are preserved unedited for auditability and historical record.
 
 ---
 

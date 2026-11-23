@@ -1,0 +1,19 @@
+agentgate:
+  benchmark:
+    timing:
+      enabled: true
+  ratelimit:
+    default-agent-rpm: 12000
+    default-tool-rpm: 12000
+    default-agent-daily-quota: 1000000
+    default-tool-daily-quota: 1000000
+    agent-limits:
+      agent-support-bot: 12000
+      agent-finance-bot: 12000
+    tool-limits:
+      benchmark_read: 12000
+      orders_get: 12000
+    agent-daily-quotas:
+      agent-support-bot: 1000000
+    tool-daily-quotas:
+      benchmark_read: 1000000
