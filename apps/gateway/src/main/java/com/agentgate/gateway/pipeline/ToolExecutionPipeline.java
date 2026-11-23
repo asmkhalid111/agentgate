@@ -221,6 +221,7 @@ public class ToolExecutionPipeline {
      * circuit breaker state, write quotas, and clearance-aware output PII redaction.
      */
     public ToolExecutionResult execute(ToolExecutionContext context) {
+        long tPermStart = System.nanoTime();
         RegisteredTool tool = toolRepository.findByName(context.toolName())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown tool: " + context.toolName()));
 
@@ -239,6 +240,10 @@ public class ToolExecutionPipeline {
                 auditRecorder.recordGovernanceDenial(context.agentId(), context.userId(), context.toolName(), context.arguments(), "AGENT_UNAUTHORIZED", null, null, "Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'", 0L);
             }
             throw new SecurityException("Agent '" + context.agentId() + "' is not authorized to invoke tool '" + context.toolName() + "'");
+        }
+        long tPermNs = System.nanoTime() - tPermStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setPermissionNs(tPermNs);
         }
 
         // Emergency Kill Switch Check at Ingress (FR8)
@@ -261,6 +266,7 @@ public class ToolExecutionPipeline {
 
         // Atomic Ingress Rate Limiting (FR6)
         // Evaluated after authentication/permission check, before policy evaluation, schema validation, and approval persistence
+        long tRateStart = System.nanoTime();
         if (rateLimiter != null) {
             RateLimitDecision rateDecision = rateLimiter.tryAcquire(context.agentId(), context.toolName());
             if (!rateDecision.allowed()) {
@@ -272,9 +278,18 @@ public class ToolExecutionPipeline {
                 return ToolExecutionResult.failure(rateDecision.message(), 0L);
             }
         }
+        long tRateNs = System.nanoTime() - tRateStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setRateLimitNs(tRateNs);
+        }
 
         // JSON Schema Input Validation (FR5)
+        long tSchemaStart = System.nanoTime();
         ValidationResult validation = validationGuard.validate(tool, context.arguments());
+        long tSchemaNs = System.nanoTime() - tSchemaStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setSchemaNs(tSchemaNs);
+        }
         if (!validation.valid()) {
             log.warn("Input validation failed for tool '{}' from agent '{}': {}", context.toolName(), context.agentId(), validation.error());
             if (auditRecorder != null) {
@@ -286,7 +301,12 @@ public class ToolExecutionPipeline {
         ToolExecutionContext enrichedContext = context.withRiskLevel(tool.riskLevel());
 
         // Policy Evaluation (FR3, QA4)
+        long tPolicyStart = System.nanoTime();
         PolicyDecision decision = policyEvaluator.evaluate(enrichedContext);
+        long tPolicyNs = System.nanoTime() - tPolicyStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setPolicyNs(tPolicyNs);
+        }
         if (decision.action() == PolicyAction.DENY) {
             log.warn("Call blocked by policy: rule='{}', reason='{}'", decision.matchedRuleName(), decision.reason());
             if (auditRecorder != null) {
@@ -350,6 +370,7 @@ public class ToolExecutionPipeline {
         }
 
         // Circuit Breaker check (FR10) - fast rejection before write cap and pre-dispatch write intent
+        long tCircuitStart = System.nanoTime();
         ToolCircuitBreaker circuitBreaker = circuitBreakerRegistry != null ? circuitBreakerRegistry.getBreaker(tool.name()) : null;
         if (circuitBreaker != null && !circuitBreaker.tryAcquirePermission()) {
             log.warn("Direct execution fast-rejected by circuit breaker for tool '{}' [agent='{}']",
@@ -369,6 +390,10 @@ public class ToolExecutionPipeline {
                 );
             }
             return ToolExecutionResult.failure(errorMsg, decision.evaluationTimeMs());
+        }
+        long tCircuitNs = System.nanoTime() - tCircuitStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setCircuitNs(tCircuitNs);
         }
 
         // Hourly Write Cap check for mutating tools (FR6)
@@ -492,14 +517,33 @@ public class ToolExecutionPipeline {
             circuitBreaker.onSuccess();
         }
         if (auditRecorder != null) {
+            long tAuditStart = System.nanoTime();
             auditRecorder.recordDirectToolExecution(context.agentId(), context.userId(), tool.name(), context.arguments(), decision.matchedRuleId(), decision.matchedRuleName(), decision.action().name(), rawResult.latencyMs(), "SUCCESS", null);
+            long tAuditTotalNs = System.nanoTime() - tAuditStart;
+            com.agentgate.gateway.audit.service.AuditRecorder.AuditTimingBreakdown auditBreakdown = com.agentgate.gateway.audit.service.AuditRecorder.getLastTiming();
+            if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setAuditTotalNs(tAuditTotalNs);
+                if (auditBreakdown != null) {
+                    com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setAuditLockNs(auditBreakdown.lockWaitNs());
+                    com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setAuditHashNs(auditBreakdown.hashNs());
+                    com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setAuditDbWriteNs(auditBreakdown.dbWriteNs());
+                    long commitNs = Math.max(0, tAuditTotalNs - (auditBreakdown.lockWaitNs() + auditBreakdown.hashNs() + auditBreakdown.dbWriteNs()));
+                    com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setAuditCommitNs(commitNs);
+                }
+            }
+            com.agentgate.gateway.audit.service.AuditRecorder.clearTiming();
         }
 
+        long tPiiStart = System.nanoTime();
         // Clearance-aware output PII redaction (FR5)
         Object redactedData = piiRedactionGuard.redact(rawResult.data(), enrichedContext);
 
         // Oversized tool response truncation (FR5)
         Object truncatedData = responseTruncationGuard.truncate(redactedData);
+        long tPiiNs = System.nanoTime() - tPiiStart;
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setPiiNs(tPiiNs);
+        }
         return ToolExecutionResult.success(truncatedData, rawResult.latencyMs());
     }
 

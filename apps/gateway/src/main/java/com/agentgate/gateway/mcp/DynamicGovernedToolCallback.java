@@ -77,13 +77,23 @@ public class DynamicGovernedToolCallback implements ToolCallback {
                 agentRoles
         );
 
+        long pipelineEnterNs = System.nanoTime();
+        Long gwStartNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getGatewayStartNs();
+        if (gwStartNs != null && com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setSecurityIngressNs(Math.max(0, pipelineEnterNs - gwStartNs));
+        }
+
         try {
             ToolExecutionResult result = pipeline.execute(context);
-            if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
-                attachBenchmarkTimingHeaders();
-            }
             if (result.success()) {
-                return objectMapper.writeValueAsString(result.data());
+                long tSerializeStart = System.nanoTime();
+                String serialized = objectMapper.writeValueAsString(result.data());
+                long tSerializeNs = System.nanoTime() - tSerializeStart;
+                if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+                    com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setSerializationNs(tSerializeNs);
+                    attachBenchmarkTimingHeaders();
+                }
+                return serialized;
             } else {
                 log.warn("Governed tool execution rejected for '{}': {}", tool.name(), result.error());
                 throw new IllegalArgumentException(safeJsonError(result.error()));
@@ -120,10 +130,31 @@ public class DynamicGovernedToolCallback implements ToolCallback {
                         if (corr != null) {
                             response.setHeader("X-Request-Correlation-Id", corr);
                         }
+
+                        // Attach granular profiling spans
+                        setProfileHeader(response, "X-Profile-Security-Ingress-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSecurityIngressNs());
+                        setProfileHeader(response, "X-Profile-Permission-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getPermissionNs());
+                        setProfileHeader(response, "X-Profile-RateLimit-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getRateLimitNs());
+                        setProfileHeader(response, "X-Profile-Schema-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSchemaNs());
+                        setProfileHeader(response, "X-Profile-Policy-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getPolicyNs());
+                        setProfileHeader(response, "X-Profile-Circuit-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getCircuitNs());
+                        setProfileHeader(response, "X-Profile-Audit-Total-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getAuditTotalNs());
+                        setProfileHeader(response, "X-Profile-Audit-Lock-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getAuditLockNs());
+                        setProfileHeader(response, "X-Profile-Audit-Hash-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getAuditHashNs());
+                        setProfileHeader(response, "X-Profile-Audit-Write-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getAuditDbWriteNs());
+                        setProfileHeader(response, "X-Profile-Audit-Commit-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getAuditCommitNs());
+                        setProfileHeader(response, "X-Profile-Pii-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getPiiNs());
+                        setProfileHeader(response, "X-Profile-Serialization-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSerializationNs());
                     }
                 }
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private void setProfileHeader(jakarta.servlet.http.HttpServletResponse response, String headerName, Long valueNs) {
+        if (valueNs != null) {
+            response.setHeader(headerName, String.valueOf(valueNs));
         }
     }
 
