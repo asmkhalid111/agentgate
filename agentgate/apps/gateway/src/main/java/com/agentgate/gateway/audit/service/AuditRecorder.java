@@ -76,8 +76,22 @@ public class AuditRecorder {
         return doAppend(draft);
     }
 
+    public record AuditTimingBreakdown(long lockWaitNs, long hashNs, long dbWriteNs) {}
+    private static final ThreadLocal<AuditTimingBreakdown> LAST_TIMING = new ThreadLocal<>();
+
+    public static AuditTimingBreakdown getLastTiming() {
+        return LAST_TIMING.get();
+    }
+
+    public static void clearTiming() {
+        LAST_TIMING.remove();
+    }
+
     private AuditEvent doAppend(AuditRecordDraft draft) {
+        long tLockStart = System.nanoTime();
         AuditChainState tip = auditRepository.getChainStateForUpdate();
+        long lockWaitNs = System.nanoTime() - tLockStart;
+
         long nextSequence = tip.lastSequence() + 1;
         String prevHash = tip.lastHash();
 
@@ -102,7 +116,9 @@ public class AuditRecorder {
                 draft.errorMessage()
         );
 
+        long tHashStart = System.nanoTime();
         String recordHash = auditHashEngine.computeRecordHash(nextSequence, prevHash, normalizedDraft);
+        long hashNs = System.nanoTime() - tHashStart;
 
         AuditEvent event = new AuditEvent(
                 nextSequence,
@@ -124,8 +140,12 @@ public class AuditRecorder {
                 recordHash
         );
 
+        long tWriteStart = System.nanoTime();
         auditRepository.insertAuditEvent(event);
         auditRepository.updateChainState(nextSequence, recordHash);
+        long dbWriteNs = System.nanoTime() - tWriteStart;
+
+        LAST_TIMING.set(new AuditTimingBreakdown(lockWaitNs, hashNs, dbWriteNs));
 
         log.debug("Audited event: seq={}, type={}, tool={}, outcome={}, hash={}",
                 nextSequence, event.eventType(), event.toolName(), event.outcome(), recordHash);
