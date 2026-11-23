@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-AgentGate — QA2 Performance Benchmark Load Runner
+AgentGate — QA2 Performance Benchmark Load Runner (v2 Validated)
 Authoritative QA2 Requirement:
   "The gateway adds no more than 30 ms at p95 to a tool call at 100 calls per second, excluding approval waits."
 
 Protocol:
-  1. Warmup: 30s at 50 RPS to stabilize JVM C2 JIT, HikariCP, Redis, JWKS cache.
-  2. Direct Baseline: 60s at 100 RPS (6,000 requests) to downstream mock service.
-  3. Governed Steady-State: 3 distinct runs of 60s at 100 RPS (3 x 6,000 = 18,000 requests) to governed gateway.
-  4. Post-benchmark audit cryptographic verification.
+  1. Calibration Gate (pre-benchmark): Verify non-zero downstream duration and 200-call burst beyond 60 RPM.
+  2. Warmup: 30s at 50 RPS to stabilize JVM C2 JIT, HikariCP, Redis, JWKS cache.
+  3. Direct Baseline: 60s at 100 RPS (6,000 requests) to downstream mock service.
+  4. Governed Steady-State: 3 distinct runs of 60s at 100 RPS (3 x 6,000 = 18,000 requests) to governed gateway.
+  5. Post-benchmark audit cryptographic verification.
 """
 
 import argparse
@@ -46,6 +47,7 @@ class ConnectionPool:
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.max_size = max_size
         self.pool = queue.Queue(maxsize=max_size)
         for _ in range(max_size):
             self.pool.put(self._create_conn())
@@ -82,6 +84,11 @@ class ConnectionPool:
             except Exception:
                 pass
 
+    def refresh_all(self):
+        self.close_all()
+        for _ in range(self.max_size):
+            self.pool.put(self._create_conn())
+
 class ResourceMonitor(threading.Thread):
     def __init__(self, interval_sec=5.0):
         super().__init__(daemon=True)
@@ -108,7 +115,6 @@ class ResourceMonitor(threading.Thread):
                                 cpu_str = parts[1].strip().replace("%", "")
                                 mem_parts = parts[2].strip().split("/")
                                 mem_str = mem_parts[0].strip()
-                                # parse mem to MB
                                 mem_mb = 0.0
                                 if "MiB" in mem_str or "MB" in mem_str:
                                     mem_mb = float(mem_str.replace("MiB", "").replace("MB", "").strip())
@@ -138,7 +144,7 @@ def init_governed_session(token):
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
-            "clientInfo": {"name": "qa2-load-runner", "version": "1.0.0"}
+            "clientInfo": {"name": "qa2-load-runner", "version": "2.0.0"}
         }
     }
     data = json.dumps(init_payload).encode("utf-8")
@@ -150,11 +156,81 @@ def init_governed_session(token):
         sid = resp.headers.get("Mcp-Session-Id") or resp.headers.get("mcp-session-id")
         return sid
 
+def parse_mcp_body(raw: str):
+    if not raw:
+        return {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if line.startswith("data:"):
+            try:
+                return json.loads(line[5:].strip())
+            except Exception:
+                pass
+    try:
+        return json.loads(raw.strip())
+    except Exception:
+        return {"raw": raw}
+
+def parse_governed_response(status, body, down_dur_ms):
+    """
+    Forensic validation of JSON-RPC response body.
+    Categorizes outcome into explicit classification:
+      - SUCCESSFUL_GOVERNED_EXECUTION
+      - RATE_LIMIT_EXCEEDED
+      - POLICY_DENIED
+      - TOOL_EXECUTION_ERROR
+      - INVALID_TIMING_ERROR
+      - MALFORMED_JSON_ERROR
+      - UNEXPECTED_PAYLOAD_ERROR
+      - HTTP_TRANSPORT_ERROR
+    """
+    if status != 200:
+        return "HTTP_TRANSPORT_ERROR", f"HTTP {status}"
+
+    raw = body.decode("utf-8", errors="replace")
+    data = parse_mcp_body(raw)
+    if not data or ("error" not in data and "result" not in data):
+        return "MALFORMED_JSON_ERROR", f"Could not parse MCP JSON-RPC payload: {raw[:150]}"
+
+    if "error" in data:
+        err = data["error"]
+        msg = str(err.get("message", ""))
+        code = err.get("code")
+        if "RATE_LIMIT_EXCEEDED" in msg or "rate limit" in msg.lower():
+            return "RATE_LIMIT_EXCEEDED", msg
+        elif "POLICY_DENIED" in msg or "policy" in msg.lower():
+            return "POLICY_DENIED", msg
+        else:
+            return f"JSON_RPC_ERROR_{code}", msg
+
+    if "result" in data:
+        res = data["result"]
+        if res.get("isError"):
+            return "TOOL_EXECUTION_ERROR", "Tool execution returned isError=true"
+
+        content = res.get("content", [])
+        text = ""
+        for c in content:
+            if c.get("type") == "text":
+                text += c.get("text", "")
+
+        if "ORD-BENCH-01" in text or "customerName" in text:
+            if down_dur_ms <= 0.0:
+                return "INVALID_TIMING_ERROR", "Downstream duration reported as 0.0 ms"
+            return "SUCCESSFUL_GOVERNED_EXECUTION", ""
+        else:
+            return "UNEXPECTED_PAYLOAD_ERROR", f"Payload missing expected content: {text[:100]}"
+
+    return "UNKNOWN_JSON_RPC_FORMAT", "Neither result nor error found in response"
+
 def run_phase(name, is_governed, pool, duration_sec, target_rps, token, session_id, concurrency=20):
     total_requests = int(duration_sec * target_rps)
     interval = 1.0 / target_rps
     results = []
     print(f"\n[{name.upper()}] Starting: duration={duration_sec}s, target_rps={target_rps}, total_requests={total_requests}, concurrency={concurrency}")
+
+    # Pre-warm connection pool to eliminate idle keep-alive socket drops
+    pool.refresh_all()
 
     call_payload = json.dumps({
         "jsonrpc": "2.0",
@@ -215,6 +291,15 @@ def run_phase(name, is_governed, pool, duration_sec, target_rps, token, session_
                 if over_ns:
                     over_ms = float(over_ns) / 1e6
 
+                classification, err_detail = parse_governed_response(resp.status, body, down_dur_ms)
+            else:
+                if resp.status == 200:
+                    classification = "SUCCESSFUL_DIRECT_EXECUTION"
+                    err_detail = ""
+                else:
+                    classification = f"HTTP_{resp.status}_ERROR"
+                    err_detail = f"HTTP {resp.status}"
+
             res = {
                 "phase": name,
                 "request_index": req_idx,
@@ -224,7 +309,9 @@ def run_phase(name, is_governed, pool, duration_sec, target_rps, token, session_
                 "gateway_duration_ms": round(gw_dur_ms, 3),
                 "downstream_duration_ms": round(down_dur_ms, 3),
                 "overhead_ms": round(over_ms, 3),
-                "correlation_id": corr_id
+                "correlation_id": corr_id,
+                "classification": classification,
+                "error": err_detail
             }
         except Exception as e:
             t_end = time.perf_counter()
@@ -239,6 +326,7 @@ def run_phase(name, is_governed, pool, duration_sec, target_rps, token, session_
                 "downstream_duration_ms": 0.0,
                 "overhead_ms": 0.0,
                 "correlation_id": corr_id,
+                "classification": "CONNECTION_EXCEPTION",
                 "error": str(e)
             }
         finally:
@@ -293,8 +381,70 @@ def calculate_stats(latencies):
         "max": round(s[-1], 3)
     }
 
+def run_calibration_probe(token, sid):
+    """
+    Single probe + 200-call burst calibration test.
+    Returns True if calibration passes, False otherwise.
+    """
+    print("\n--- Calibration Gate: Single Probe ---")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "Authorization": f"Bearer {token}",
+        "Mcp-Session-Id": sid
+    }
+    payload = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 999,
+        "method": "tools/call",
+        "params": {
+            "name": "benchmark_read",
+            "arguments": {"id": "ORD-BENCH-01"}
+        }
+    }).encode("utf-8")
+
+    req = urllib.request.Request(GATEWAY_MCP_URL, data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read()
+            gw_ns = resp.headers.get("x-gateway-duration-ns")
+            down_ns = resp.headers.get("x-downstream-duration-ns")
+            over_ns = resp.headers.get("x-gateway-overhead-ns")
+            gw_ms = float(gw_ns) / 1e6 if gw_ns else 0.0
+            down_ms = float(down_ns) / 1e6 if down_ns else 0.0
+            over_ms = float(over_ns) / 1e6 if over_ns else 0.0
+            classification, err = parse_governed_response(resp.status, body, down_ms)
+            print(f"Probe Result: status={resp.status}, classification={classification}")
+            print(f"Timing Headers: gw_dur={gw_ms:.2f}ms, down_dur={down_ms:.2f}ms, overhead={over_ms:.2f}ms")
+            if classification != "SUCCESSFUL_GOVERNED_EXECUTION" or down_ms <= 0.0:
+                print(f"[CALIBRATION FAILED] Single probe failed or downstream duration is 0: {err}")
+                return False
+    except Exception as e:
+        print(f"[CALIBRATION FAILED] Single probe exception: {e}")
+        return False
+
+    print("\n--- Calibration Gate: 200-Call Burst at 100 RPS (Threshold Verification) ---")
+    pool = ConnectionPool(GATEWAY_HOST, GATEWAY_PORT, max_size=25)
+    try:
+        burst_results, burst_dur, burst_rps = run_phase("calibration_burst", True, pool, 2.0, 100, token, sid, concurrency=20)
+        successes = sum(1 for s in burst_results if s["classification"] == "SUCCESSFUL_GOVERNED_EXECUTION")
+        rate_limits = sum(1 for s in burst_results if s["classification"] == "RATE_LIMIT_EXCEEDED")
+        invalid_timings = sum(1 for s in burst_results if s["classification"] == "INVALID_TIMING_ERROR")
+        print(f"Calibration Burst Results (Total: {len(burst_results)}):")
+        print(f"  SUCCESSFUL_GOVERNED_EXECUTION: {successes}")
+        print(f"  RATE_LIMIT_EXCEEDED:           {rate_limits}")
+        print(f"  INVALID_TIMING_ERROR:          {invalid_timings}")
+        if successes != 200:
+            print(f"[CALIBRATION FAILED] Expected 200 successful executions, got {successes}. Rate limits: {rate_limits}")
+            return False
+        print("[CALIBRATION PASSED] All 200 burst calls succeeded beyond 60 RPM with valid downstream timings!")
+        return True
+    finally:
+        pool.close_all()
+
 def main():
-    parser = argparse.ArgumentParser(description="QA2 Performance Benchmark Load Runner")
+    parser = argparse.ArgumentParser(description="QA2 Performance Benchmark Load Runner (v2 Validated)")
+    parser.add_argument("--mode", choices=["full", "calibrate-only"], default="full")
     parser.add_argument("--target-rps", type=int, default=100)
     parser.add_argument("--warmup-sec", type=int, default=30)
     parser.add_argument("--direct-sec", type=int, default=60)
@@ -304,7 +454,7 @@ def main():
     args = parser.parse_args()
 
     print("=================================================================")
-    print("AgentGate QA2 Performance Benchmark Execution")
+    print("AgentGate QA2 Performance Benchmark Execution (v2 Validated)")
     print(f"Target RPS: {args.target_rps} | Governed Runs: {args.runs} x {args.governed_sec}s | Baseline: {args.direct_sec}s")
     print("=================================================================")
 
@@ -314,6 +464,16 @@ def main():
     admin_token = get_user_token("human-admin")
     sid = init_governed_session(token)
     print(f"MCP Session initialized: {sid}")
+
+    # Mandatory Calibration Gate
+    cal_ok = run_calibration_probe(token, sid)
+    if not cal_ok:
+        print("\nFATAL: Calibration gate failed! Halting benchmark rerun to avoid generating invalid data.")
+        sys.exit(1)
+
+    if args.mode == "calibrate-only":
+        print("\nCalibration mode complete. Exiting.")
+        return
 
     gw_pool = ConnectionPool(GATEWAY_HOST, GATEWAY_PORT, max_size=args.workers + 5)
     down_pool = ConnectionPool(DOWNSTREAM_HOST, DOWNSTREAM_PORT, max_size=args.workers + 5)
@@ -328,7 +488,6 @@ def main():
         # Phase 1: Warmup
         monitor.set_phase("warmup")
         warmup_results, _, _ = run_phase("warmup", True, gw_pool, args.warmup_sec, 50, token, sid, concurrency=args.workers)
-        # Warmup is not included in final evaluation dataset
 
         # Phase 2: Direct Downstream Baseline
         monitor.set_phase("direct_baseline")
@@ -359,25 +518,25 @@ def main():
         audit_verify_data = json.loads(resp.read().decode("utf-8"))
         print(f"Audit verification result: {audit_verify_data}")
 
-    with open(os.path.join(DATA_DIR, "qa2_audit_verification.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(DATA_DIR, "qa2_v2_audit_verification.json"), "w", encoding="utf-8") as f:
         json.dump(audit_verify_data, f, indent=2)
 
-    # 4. Save CSV Latency Samples
-    print("\n[6/6] Exporting CSV and JSON data files...")
-    samples_csv_path = os.path.join(DATA_DIR, "qa2_latency_samples.csv")
+    # 4. Save CSV Latency Samples (v2)
+    print("\n[6/6] Exporting versioned v2 CSV and JSON data files...")
+    samples_csv_path = os.path.join(DATA_DIR, "qa2_v2_latency_samples.csv")
     with open(samples_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "phase", "request_index", "timestamp_s", "status_code",
             "client_latency_ms", "gateway_duration_ms", "downstream_duration_ms",
-            "overhead_ms", "correlation_id"
+            "overhead_ms", "correlation_id", "classification", "error"
         ])
         writer.writeheader()
         for s in all_samples:
             row = {k: s.get(k, "") for k in writer.fieldnames}
             writer.writerow(row)
 
-    # Save Throughput Timeseries
-    ts_csv_path = os.path.join(DATA_DIR, "qa2_throughput_timeseries.csv")
+    # Save Throughput Timeseries (v2)
+    ts_csv_path = os.path.join(DATA_DIR, "qa2_v2_throughput_timeseries.csv")
     with open(ts_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["phase", "second", "actual_rps", "error_count", "p50_overhead_ms", "p95_overhead_ms"])
@@ -388,13 +547,13 @@ def main():
                 sec = int(s["timestamp_s"])
                 sec_buckets.setdefault(sec, []).append(s)
             for sec, b_samples in sorted(sec_buckets.items()):
-                errs = sum(1 for x in b_samples if x["status_code"] != 200)
-                overs = [x["overhead_ms"] for x in b_samples if x["overhead_ms"] > 0]
+                errs = sum(1 for x in b_samples if x["classification"] not in ("SUCCESSFUL_GOVERNED_EXECUTION", "SUCCESSFUL_DIRECT_EXECUTION"))
+                overs = [x["overhead_ms"] for x in b_samples if x["classification"] == "SUCCESSFUL_GOVERNED_EXECUTION"]
                 st = calculate_stats(overs)
                 writer.writerow([phase_name, sec, len(b_samples), errs, st["p50"], st["p95"]])
 
-    # Save Resource Samples
-    res_csv_path = os.path.join(DATA_DIR, "qa2_resource_samples.csv")
+    # Save Resource Samples (v2)
+    res_csv_path = os.path.join(DATA_DIR, "qa2_v2_resource_samples.csv")
     with open(res_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["phase", "timestamp_s", "container_name", "cpu_percent", "memory_usage_mb"])
         writer.writeheader()
@@ -402,7 +561,7 @@ def main():
             writer.writerow(r)
 
     # Compute Aggregate Metrics
-    direct_lats = [s["client_latency_ms"] for s in direct_results if s["status_code"] == 200]
+    direct_lats = [s["client_latency_ms"] for s in direct_results if s["classification"] == "SUCCESSFUL_DIRECT_EXECUTION"]
     direct_stats = calculate_stats(direct_lats)
 
     summary = {
@@ -412,7 +571,7 @@ def main():
             "total_requests": len(direct_results),
             "actual_duration_s": round(direct_dur, 2),
             "actual_rps": round(direct_rps, 2),
-            "error_count": sum(1 for s in direct_results if s["status_code"] != 200),
+            "error_count": sum(1 for s in direct_results if s["classification"] != "SUCCESSFUL_DIRECT_EXECUTION"),
             "client_latency_ms": direct_stats
         },
         "governed_runs": {},
@@ -423,47 +582,61 @@ def main():
     pooled_gw_durs = []
     pooled_down_durs = []
     pooled_overheads = []
-    pooled_errors = 0
+    pooled_classification_counts = {}
     total_governed_calls = 0
 
     for r_name, r_samples, r_dur, r_rps in governed_runs_results:
-        c_lats = [s["client_latency_ms"] for s in r_samples if s["status_code"] == 200]
-        g_durs = [s["gateway_duration_ms"] for s in r_samples if s["status_code"] == 200]
-        d_durs = [s["downstream_duration_ms"] for s in r_samples if s["status_code"] == 200]
-        o_lats = [s["overhead_ms"] for s in r_samples if s["status_code"] == 200]
-        err_count = sum(1 for s in r_samples if s["status_code"] != 200)
+        # Only valid successful governed tool executions are used for the primary metric
+        valid_samples = [s for s in r_samples if s["classification"] == "SUCCESSFUL_GOVERNED_EXECUTION"]
+        c_lats = [s["client_latency_ms"] for s in valid_samples]
+        g_durs = [s["gateway_duration_ms"] for s in valid_samples]
+        d_durs = [s["downstream_duration_ms"] for s in valid_samples]
+        o_lats = [s["overhead_ms"] for s in valid_samples]
+
+        class_counts = {}
+        for s in r_samples:
+            c = s["classification"]
+            class_counts[c] = class_counts.get(c, 0) + 1
+            pooled_classification_counts[c] = pooled_classification_counts.get(c, 0) + 1
 
         pooled_client_lats.extend(c_lats)
         pooled_gw_durs.extend(g_durs)
         pooled_down_durs.extend(d_durs)
         pooled_overheads.extend(o_lats)
-        pooled_errors += err_count
         total_governed_calls += len(r_samples)
+
+        err_count = sum(cnt for c, cnt in class_counts.items() if c != "SUCCESSFUL_GOVERNED_EXECUTION")
 
         summary["governed_runs"][r_name] = {
             "total_requests": len(r_samples),
+            "successful_requests": len(valid_samples),
             "actual_duration_s": round(r_dur, 2),
             "actual_rps": round(r_rps, 2),
             "error_count": err_count,
             "error_rate_percent": round(err_count / len(r_samples) * 100.0, 3) if r_samples else 0,
+            "classification_breakdown": class_counts,
             "client_latency_ms": calculate_stats(c_lats),
             "gateway_duration_ms": calculate_stats(g_durs),
             "downstream_duration_ms": calculate_stats(d_durs),
             "overhead_ms": calculate_stats(o_lats),
-            "client_delta_p95_ms": round(calculate_stats(c_lats)["p95"] - direct_stats["p95"], 3)
+            "client_delta_p95_ms": round(calculate_stats(c_lats)["p95"] - direct_stats["p95"], 3) if c_lats else 0.0
         }
 
     pooled_c_stats = calculate_stats(pooled_client_lats)
     pooled_o_stats = calculate_stats(pooled_overheads)
-    delta_client_p95 = round(pooled_c_stats["p95"] - direct_stats["p95"], 3)
+    delta_client_p95 = round(pooled_c_stats["p95"] - direct_stats["p95"], 3) if pooled_client_lats else 0.0
 
     qa2_overhead_p95 = pooled_o_stats["p95"]
-    qa2_passed = qa2_overhead_p95 <= 30.0
+    qa2_passed = qa2_overhead_p95 <= 30.0 and pooled_o_stats["count"] == total_governed_calls
+
+    pooled_errors = sum(cnt for c, cnt in pooled_classification_counts.items() if c != "SUCCESSFUL_GOVERNED_EXECUTION")
 
     summary["pooled_governed"] = {
         "total_requests": total_governed_calls,
+        "successful_requests": len(pooled_overheads),
         "error_count": pooled_errors,
         "error_rate_percent": round(pooled_errors / total_governed_calls * 100.0, 3) if total_governed_calls else 0,
+        "classification_breakdown": pooled_classification_counts,
         "client_latency_ms": pooled_c_stats,
         "gateway_duration_ms": calculate_stats(pooled_gw_durs),
         "downstream_duration_ms": calculate_stats(pooled_down_durs),
@@ -473,22 +646,25 @@ def main():
 
     summary["qa2_evaluation"] = {
         "authoritative_requirement": "The gateway adds no more than 30 ms at p95 to a tool call at 100 calls per second, excluding approval waits.",
-        "primary_metric": "Incremental Gateway Overhead p95 (overhead_ms = gateway_duration_ms - downstream_duration_ms)",
+        "primary_metric": "Incremental Gateway Overhead p95 (overhead_ms = gateway_duration_ms - downstream_duration_ms) on successful executions",
         "measured_overhead_p95_ms": qa2_overhead_p95,
         "overhead_threshold_ms": 30.0,
         "secondary_metric": "Client End-to-End Latency Delta p95 (p95(governed) - p95(direct))",
         "measured_client_delta_p95_ms": delta_client_p95,
+        "valid_governed_executions": len(pooled_overheads),
+        "total_governed_requests": total_governed_calls,
         "verdict": "PASS" if qa2_passed else "FAIL",
         "audit_chain_verified": audit_verify_data.get("valid", False),
         "total_audit_records_verified": audit_verify_data.get("recordsChecked", 0)
     }
 
-    summary_json_path = os.path.join(DATA_DIR, "qa2_benchmark_summary.json")
+    summary_json_path = os.path.join(DATA_DIR, "qa2_v2_benchmark_summary.json")
     with open(summary_json_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    # Save Config
+    # Save Config (v2)
     config_data = {
+        "benchmark_version": "v2",
         "target_rps": args.target_rps,
         "warmup_sec": args.warmup_sec,
         "direct_sec": args.direct_sec,
@@ -507,18 +683,22 @@ def main():
             "gateway_container": "agentgate-benchmark-gateway (512MB RAM)",
             "postgres_container": "agentgate-benchmark-postgres (256MB RAM)",
             "redis_container": "agentgate-benchmark-redis (64MB RAM)",
-            "demo_tools_container": "agentgate-benchmark-demo-tools (192MB RAM)"
+            "demo_tools_container": "agentgate-benchmark-demo-tools (192MB RAM)",
+            "spring_profiles": "dev,benchmark",
+            "agent_support_bot_rpm_override": 12000,
+            "benchmark_read_rpm_override": 12000
         }
     }
-    with open(os.path.join(DATA_DIR, "qa2_benchmark_config.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(DATA_DIR, "qa2_v2_benchmark_config.json"), "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2)
 
     print("\n=================================================================")
-    print("BENCHMARK EXECUTION COMPLETE")
+    print("BENCHMARK EXECUTION COMPLETE (v2 Validated)")
     print(f"Direct Baseline Client Latency p95: {direct_stats['p95']:.2f} ms")
     print(f"Governed Client Latency p95:        {pooled_c_stats['p95']:.2f} ms")
     print(f"Client-Side Delta p95:             {delta_client_p95:.2f} ms")
     print(f"Primary Metric (Overhead p95):      {qa2_overhead_p95:.2f} ms (Threshold <= 30.0 ms)")
+    print(f"Classification Breakdown:          {pooled_classification_counts}")
     print(f"VERDICT:                           {summary['qa2_evaluation']['verdict']}")
     print(f"Audit Chain Integrity:             {'VERIFIED' if audit_verify_data.get('valid') else 'FAILED'} ({audit_verify_data.get('recordsChecked')} records)")
     print("=================================================================")
