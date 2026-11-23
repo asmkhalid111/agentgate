@@ -55,13 +55,13 @@ public class McpConnectivityTest {
     @Test
     @DisplayName("Restricted tool m01_restricted_admin_tool should succeed when called by authorized admin agent")
     void m01_restrictedAdminTool_shouldSucceedForAdminAgent() {
-        authenticateAgent("agent-finance-bot", Set.of("agent:invoke", "tool:admin"), Set.of("ADMIN"));
+        authenticateAgent("agent-admin-bot", Set.of("agent:invoke", "tool:admin"), Set.of("ADMIN"));
 
         Map<String, Object> result = demoToolsMcpProvider.m01_restricted_admin_tool("database_backup");
 
         assertNotNull(result);
         assertEquals("EXECUTED", result.get("status"));
-        assertEquals("agent-finance-bot", result.get("authorizedAgent"));
+        assertEquals("agent-admin-bot", result.get("authorizedAgent"));
         assertEquals("database_backup", result.get("action"));
     }
 
@@ -76,6 +76,19 @@ public class McpConnectivityTest {
 
         assertTrue(exception.getMessage().contains("Access Denied"));
         assertTrue(exception.getMessage().contains("agent-support-bot"));
+    }
+
+    @Test
+    @DisplayName("Restricted tool m01_restricted_admin_tool should throw AccessDeniedException when called by finance agent under least privilege")
+    void m01_restrictedAdminTool_shouldFailForFinanceAgent() {
+        authenticateAgent("agent-finance-bot", Set.of("agent:invoke"), Set.of("USER"));
+
+        AccessDeniedException exception = assertThrows(AccessDeniedException.class, () -> {
+            demoToolsMcpProvider.m01_restricted_admin_tool("unauthorized_action");
+        });
+
+        assertTrue(exception.getMessage().contains("Access Denied"));
+        assertTrue(exception.getMessage().contains("agent-finance-bot"));
     }
 }
 

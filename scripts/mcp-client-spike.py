@@ -146,13 +146,14 @@ def run_spike():
     assert "m01_restricted_admin_tool" not in tools, f"m01_restricted_admin_tool should NOT be visible to support bot! Found: {tools}"
     print("  PASS: Permitted tool discovered; restricted admin tool correctly hidden from support agent.")
 
-    # Check that finance agent DOES discover m01_restricted_admin_tool
+    # Check that finance agent does NOT discover m01_restricted_admin_tool under least privilege
     status, headers, body = send_mcp_request(token=token_finance, rpc_request=tools_list_payload, session_id=session_id)
     finance_tools = []
     if isinstance(body, dict) and "result" in body and "tools" in body["result"]:
         finance_tools = [t.get("name") for t in body["result"]["tools"]]
-    assert "m01_restricted_admin_tool" in finance_tools, f"m01_restricted_admin_tool should be visible to finance bot! Found: {finance_tools}"
-    print("  PASS: Restricted admin tool correctly discovered by authorized finance agent.")
+    print(f"  Discovered tool names for finance bot: {finance_tools}")
+    assert "m01_restricted_admin_tool" not in finance_tools, f"m01_restricted_admin_tool should NOT be visible to finance bot (least privilege)! Found: {finance_tools}"
+    print("  PASS: Restricted admin tool correctly hidden from finance agent under least privilege.")
 
     # 6. Permitted Tool Call: m01_status (agent-support-bot)
     print("\n[Test 5] Permitted Tool Call: m01_status (agent-support-bot)")
@@ -200,15 +201,23 @@ def run_spike():
     assert is_rejected, f"Restricted tool invocation should have failed for unprivileged agent! Body: {body}"
     print("  PASS: Restricted tool invocation rejected for unprivileged agent.")
 
-    # 8. Restricted Tool Call WITH Authority: m01_restricted_admin_tool (agent-finance-bot)
-    print("\n[Test 7] Direct Restricted Tool Call WITH Authority (agent-finance-bot)")
+    # 8. Restricted Tool Call WITHOUT Authority: m01_restricted_admin_tool (agent-finance-bot)
+    print("\n[Test 7] Direct Restricted Tool Call for Finance Bot (Least Privilege Rejection)")
     status, headers, body = send_mcp_request(token=token_finance, rpc_request=call_restricted_payload, session_id=session_id)
     print(f"  HTTP Status: {status}")
     print(f"  Response: {json.dumps(body, indent=2) if isinstance(body, dict) else body}")
-    assert status == 200, f"Expected 200 OK, got {status}"
-    if isinstance(body, dict) and "result" in body:
-        assert not body["result"].get("isError"), f"Expected success but got error result: {body}"
-    print("  PASS: Restricted tool executed successfully for privileged agent.")
+    is_rejected = False
+    if status in (401, 403, 500):
+        is_rejected = True
+    elif isinstance(body, dict):
+        if "error" in body:
+            is_rejected = True
+        elif "result" in body and body["result"].get("isError"):
+            is_rejected = True
+        elif "result" in body and any("Access Denied" in str(c) for c in body["result"].get("content", [])):
+            is_rejected = True
+    assert is_rejected, f"Restricted tool invocation should have failed for non-admin finance agent! Body: {body}"
+    print("  PASS: Restricted tool invocation rejected for non-admin finance agent under least privilege.")
 
     print("\n" + "=" * 70)
     print("ALL 7 MCP STREAMABLE HTTP & SECURITY SPIKE TESTS PASSED!")

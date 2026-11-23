@@ -188,12 +188,12 @@ public class McpDiscoveryFilteringIntegrationTest {
     }
 
     @Test
-    @DisplayName("Finance agent sees all its permitted tools including orders_refund and admin fixtures")
+    @DisplayName("Finance agent sees all its permitted tools including orders_refund but restricted admin tool is hidden (least privilege)")
     void financeAgent_seesPermittedTools() throws Exception {
         AgentAuthenticationToken financeAuth = createAgentToken(
                 "agent-finance-bot",
-                Set.of("agent:invoke", "tool:admin"),
-                Set.of("ADMIN", "USER")
+                Set.of("agent:invoke"),
+                Set.of("USER")
         );
 
         String sessionId = initializeSession(financeAuth);
@@ -203,8 +203,93 @@ public class McpDiscoveryFilteringIntegrationTest {
         assertTrue(sseResponse.contains("\"name\":\"m01_status\""), "m01_status should be visible to finance bot");
         assertTrue(sseResponse.contains("\"name\":\"orders_get\""), "orders_get should be visible to finance bot");
         assertTrue(sseResponse.contains("\"name\":\"orders_refund\""), "orders_refund should be visible to finance bot");
+        assertFalse(sseResponse.contains("\"name\":\"m01_restricted_admin_tool\""),
+                "m01_restricted_admin_tool must NOT be visible to finance bot under least privilege");
+    }
+
+    @Test
+    @DisplayName("Finance agent cannot invoke m01_restricted_admin_tool directly without admin authority")
+    void financeAgent_cannotInvokeRestrictedAdminToolDirectly() throws Exception {
+        AgentAuthenticationToken financeAuth = createAgentToken(
+                "agent-finance-bot",
+                Set.of("agent:invoke"),
+                Set.of("USER")
+        );
+
+        String sessionId = initializeSession(financeAuth);
+
+        String callPayload = """
+                {
+                    "jsonrpc": "2.0",
+                    "id": 106,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "m01_restricted_admin_tool",
+                        "arguments": {
+                            "action": "unauthorized_admin_maintenance"
+                        }
+                    }
+                }
+                """;
+
+        MvcResult result = mockMvc.perform(post("/mcp")
+                        .with(authentication(financeAuth))
+                        .header("Mcp-Session-Id", sessionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
+                        .content(callPayload))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String sseContent = result.getResponse().getContentAsString();
+        assertTrue(sseContent.contains("isError") || sseContent.contains("error") || sseContent.contains("Access Denied") || sseContent.contains("not authorized"),
+                "Direct invocation of m01_restricted_admin_tool must fail for non-admin finance agent");
+        assertFalse(sseContent.contains("Administrative task completed successfully"),
+                "Restricted admin tool must NOT execute successfully for non-admin finance agent");
+    }
+
+    @Test
+    @DisplayName("Admin agent with tool:admin and ROLE_ADMIN can discover and invoke m01_restricted_admin_tool")
+    void adminAgent_canDiscoverAndInvokeRestrictedAdminTool() throws Exception {
+        AgentAuthenticationToken adminAuth = createAgentToken(
+                "agent-admin-bot",
+                Set.of("agent:invoke", "tool:admin"),
+                Set.of("ADMIN", "USER")
+        );
+
+        String sessionId = initializeSession(adminAuth);
+        String sseResponse = listTools(adminAuth, sessionId);
+
+        assertNotNull(sseResponse);
         assertTrue(sseResponse.contains("\"name\":\"m01_restricted_admin_tool\""),
-                "m01_restricted_admin_tool should be visible to admin finance bot");
+                "m01_restricted_admin_tool must be discoverable by authorized admin agent");
+
+        String callPayload = """
+                {
+                    "jsonrpc": "2.0",
+                    "id": 107,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "m01_restricted_admin_tool",
+                        "arguments": {
+                            "action": "authorized_backup"
+                        }
+                    }
+                }
+                """;
+
+        MvcResult callResult = mockMvc.perform(post("/mcp")
+                        .with(authentication(adminAuth))
+                        .header("Mcp-Session-Id", sessionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
+                        .content(callPayload))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String callContent = callResult.getResponse().getContentAsString();
+        assertTrue(callContent.contains("Administrative task completed successfully"),
+                "Restricted admin tool must execute successfully for authorized admin agent");
     }
 
     @Test
@@ -285,8 +370,8 @@ public class McpDiscoveryFilteringIntegrationTest {
     void separateRequests_doNotLeakVisibilityAcrossAgents() throws Exception {
         AgentAuthenticationToken financeAuth = createAgentToken(
                 "agent-finance-bot",
-                Set.of("agent:invoke", "tool:admin"),
-                Set.of("ADMIN", "USER")
+                Set.of("agent:invoke"),
+                Set.of("USER")
         );
         AgentAuthenticationToken supportAuth = createAgentToken(
                 "agent-support-bot",

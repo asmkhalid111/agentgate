@@ -237,4 +237,51 @@ class PiiRedactionGuardTest {
         assertFalse(sanitized.contains("01712345678"));
         assertFalse(sanitized.contains("1234567890"));
     }
+
+    @Test
+    @DisplayName("10. Legitimate business IDs (ORD-1732085139, refund IDs, timestamps) must NOT be false-positive masked")
+    void businessIdentifiersAndTimestamps_NotMasked() {
+        Map<String, Object> data = Map.of(
+                "orderId", "ORD-1732085139",
+                "refundId", "REF-1732085139012",
+                "timestamp", 1732085139L,
+                "createdEpoch", "1732085139",
+                "txnReference", "TXN-19901234567890123",
+                "description", "Order ORD-1732085139 processed at 1732085139 for amount 5000"
+        );
+        ToolExecutionContext ctx = createContext(Set.of("ROLE_AGENT"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) guard.redact(data, ctx);
+
+        assertEquals("ORD-1732085139", result.get("orderId"), "Order ID must NOT be masked as NID");
+        assertEquals("REF-1732085139012", result.get("refundId"), "Refund ID must NOT be masked as NID");
+        assertEquals(1732085139L, ((Number) result.get("timestamp")).longValue(), "Timestamp must remain numeric and unmasked");
+        assertEquals("1732085139", result.get("createdEpoch"), "Epoch string must NOT be masked without NID context");
+        assertEquals("TXN-19901234567890123", result.get("txnReference"), "Transaction ref must NOT be masked");
+        assertEquals("Order ORD-1732085139 processed at 1732085139 for amount 5000", result.get("description"), "Free text without NID label must NOT be masked");
+    }
+
+    @Test
+    @DisplayName("11. Explicitly labeled NID in free text and recognized NID fields are masked while preserving order IDs")
+    void contextSensitiveNid_MaskedWhenLabeledOrInNidField() {
+        Map<String, Object> data = Map.of(
+                "orderId", "ORD-1732085139",
+                "userNid", "1234567890",
+                "customer_nid", "1234567890123",
+                "nationalId", 19901234567890123L,
+                "notes", "Customer verified with NID: 1234567890 and National ID: 1234567890123; order ORD-1732085139"
+        );
+        ToolExecutionContext ctx = createContext(Set.of("ROLE_AGENT"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) guard.redact(data, ctx);
+
+        assertEquals("ORD-1732085139", result.get("orderId"), "Order ID must be preserved");
+        assertEquals("[REDACTED_NID]", result.get("userNid"), "userNid field must be redacted");
+        assertEquals("[REDACTED_NID]", result.get("customer_nid"), "customer_nid field must be redacted");
+        assertEquals("[REDACTED_NID]", result.get("nationalId"), "nationalId numeric field must be redacted");
+        assertEquals("Customer verified with NID: [REDACTED_NID] and National ID: [REDACTED_NID]; order ORD-1732085139",
+                result.get("notes"), "Labeled NIDs must be redacted while preserving order reference");
+    }
 }
