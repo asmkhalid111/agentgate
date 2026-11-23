@@ -1,0 +1,22 @@
+{
+  "target_rps": 100,
+  "warmup_sec": 30,
+  "direct_sec": 60,
+  "governed_sec": 60,
+  "runs": 3,
+  "workers": 20,
+  "endpoints": {
+    "gateway_mcp": "http://localhost:8081/mcp",
+    "downstream_direct": "http://localhost:8083/api/orders/ORD-BENCH-01",
+    "keycloak_token": "http://localhost:8180/realms/agentgate/protocol/openid-connect/token"
+  },
+  "environment": {
+    "os": "Windows 11 Pro",
+    "jvm": "Eclipse Temurin Java 21",
+    "docker_engine": "Docker Desktop 28.x (WSL2 backend)",
+    "gateway_container": "agentgate-benchmark-gateway (512MB RAM)",
+    "postgres_container": "agentgate-benchmark-postgres (256MB RAM)",
+    "redis_container": "agentgate-benchmark-redis (64MB RAM)",
+    "demo_tools_container": "agentgate-benchmark-demo-tools (192MB RAM)"
+  }
+}

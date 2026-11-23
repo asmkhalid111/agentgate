@@ -1,0 +1,240 @@
+{
+  "benchmark_timestamp": "2026-11-23T13:50:16Z",
+  "target_rps": 100,
+  "direct_baseline": {
+    "total_requests": 6000,
+    "actual_duration_s": 59.99,
+    "actual_rps": 100.01,
+    "error_count": 0,
+    "client_latency_ms": {
+      "count": 6000,
+      "mean": 3.382,
+      "std": 3.649,
+      "min": 1.397,
+      "p50": 2.755,
+      "p90": 4.764,
+      "p95": 5.706,
+      "p99": 14.46,
+      "max": 79.017
+    }
+  },
+  "governed_runs": {
+    "governed_run1": {
+      "total_requests": 6000,
+      "actual_duration_s": 60.04,
+      "actual_rps": 99.94,
+      "error_count": 14,
+      "error_rate_percent": 0.233,
+      "client_latency_ms": {
+        "count": 5986,
+        "mean": 67.09,
+        "std": 46.441,
+        "min": 9.502,
+        "p50": 55.619,
+        "p90": 97.071,
+        "p95": 144.963,
+        "p99": 287.286,
+        "max": 755.659
+      },
+      "gateway_duration_ms": {
+        "count": 5986,
+        "mean": 61.978,
+        "std": 44.845,
+        "min": 5.547,
+        "p50": 51.879,
+        "p90": 86.858,
+        "p95": 133.482,
+        "p99": 279.857,
+        "max": 715.52
+      },
+      "downstream_duration_ms": {
+        "count": 5986,
+        "mean": 0.177,
+        "std": 1.837,
+        "min": 0.0,
+        "p50": 0.0,
+        "p90": 0.0,
+        "p95": 0.0,
+        "p99": 5.624,
+        "max": 60.002
+      },
+      "overhead_ms": {
+        "count": 5986,
+        "mean": 61.801,
+        "std": 44.636,
+        "min": 5.547,
+        "p50": 51.85,
+        "p90": 86.624,
+        "p95": 133.233,
+        "p99": 279.857,
+        "max": 702.082
+      },
+      "client_delta_p95_ms": 139.257
+    },
+    "governed_run2": {
+      "total_requests": 6000,
+      "actual_duration_s": 60.04,
+      "actual_rps": 99.93,
+      "error_count": 0,
+      "error_rate_percent": 0.0,
+      "client_latency_ms": {
+        "count": 6000,
+        "mean": 62.613,
+        "std": 43.328,
+        "min": 8.258,
+        "p50": 53.639,
+        "p90": 75.672,
+        "p95": 112.486,
+        "p99": 276.625,
+        "max": 821.491
+      },
+      "gateway_duration_ms": {
+        "count": 6000,
+        "mean": 58.615,
+        "std": 41.937,
+        "min": 5.856,
+        "p50": 50.475,
+        "p90": 68.85,
+        "p95": 104.843,
+        "p99": 260.123,
+        "max": 818.012
+      },
+      "downstream_duration_ms": {
+        "count": 6000,
+        "mean": 0.281,
+        "std": 3.716,
+        "min": 0.0,
+        "p50": 0.0,
+        "p90": 0.0,
+        "p95": 0.0,
+        "p99": 0.039,
+        "max": 99.002
+      },
+      "overhead_ms": {
+        "count": 6000,
+        "mean": 58.334,
+        "std": 40.433,
+        "min": 5.856,
+        "p50": 50.475,
+        "p90": 68.801,
+        "p95": 103.892,
+        "p99": 257.708,
+        "max": 773.362
+      },
+      "client_delta_p95_ms": 106.78
+    },
+    "governed_run3": {
+      "total_requests": 6000,
+      "actual_duration_s": 60.04,
+      "actual_rps": 99.93,
+      "error_count": 0,
+      "error_rate_percent": 0.0,
+      "client_latency_ms": {
+        "count": 6000,
+        "mean": 55.469,
+        "std": 25.161,
+        "min": 9.52,
+        "p50": 52.297,
+        "p90": 58.513,
+        "p95": 64.612,
+        "p99": 161.184,
+        "max": 673.013
+      },
+      "gateway_duration_ms": {
+        "count": 6000,
+        "mean": 52.369,
+        "std": 24.358,
+        "min": 4.292,
+        "p50": 49.43,
+        "p90": 54.97,
+        "p95": 59.299,
+        "p99": 155.746,
+        "max": 669.679
+      },
+      "downstream_duration_ms": {
+        "count": 6000,
+        "mean": 0.034,
+        "std": 0.4,
+        "min": 0.0,
+        "p50": 0.0,
+        "p90": 0.0,
+        "p95": 0.0,
+        "p99": 0.019,
+        "max": 12.73
+      },
+      "overhead_ms": {
+        "count": 6000,
+        "mean": 52.335,
+        "std": 24.353,
+        "min": 4.292,
+        "p50": 49.412,
+        "p90": 54.88,
+        "p95": 59.181,
+        "p99": 155.746,
+        "max": 669.679
+      },
+      "client_delta_p95_ms": 58.906
+    }
+  },
+  "pooled_governed": {
+    "total_requests": 18000,
+    "error_count": 14,
+    "error_rate_percent": 0.078,
+    "client_latency_ms": {
+      "count": 17986,
+      "mean": 61.72,
+      "std": 39.726,
+      "min": 8.258,
+      "p50": 53.692,
+      "p90": 74.142,
+      "p95": 109.409,
+      "p99": 249.388,
+      "max": 821.491
+    },
+    "gateway_duration_ms": {
+      "count": 17986,
+      "mean": 57.651,
+      "std": 38.338,
+      "min": 4.292,
+      "p50": 50.45,
+      "p90": 66.961,
+      "p95": 99.386,
+      "p99": 242.23,
+      "max": 818.012
+    },
+    "downstream_duration_ms": {
+      "count": 17986,
+      "mean": 0.164,
+      "std": 2.407,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "p95": 0.0,
+      "p99": 3.342,
+      "max": 99.002
+    },
+    "overhead_ms": {
+      "count": 17986,
+      "mean": 57.486,
+      "std": 37.704,
+      "min": 4.292,
+      "p50": 50.436,
+      "p90": 66.547,
+      "p95": 98.958,
+      "p99": 240.102,
+      "max": 773.362
+    },
+    "client_delta_p95_ms": 103.703
+  },
+  "qa2_evaluation": {
+    "authoritative_requirement": "The gateway adds no more than 30 ms at p95 to a tool call at 100 calls per second, excluding approval waits.",
+    "primary_metric": "Incremental Gateway Overhead p95 (overhead_ms = gateway_duration_ms - downstream_duration_ms)",
+    "measured_overhead_p95_ms": 98.958,
+    "overhead_threshold_ms": 30.0,
+    "secondary_metric": "Client End-to-End Latency Delta p95 (p95(governed) - p95(direct))",
+    "measured_client_delta_p95_ms": 103.703,
+    "verdict": "FAIL",
+    "audit_chain_verified": true,
+    "total_audit_records_verified": 19497
+  }
+}

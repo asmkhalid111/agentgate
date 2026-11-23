@@ -79,6 +79,9 @@ public class DynamicGovernedToolCallback implements ToolCallback {
 
         try {
             ToolExecutionResult result = pipeline.execute(context);
+            if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+                attachBenchmarkTimingHeaders();
+            }
             if (result.success()) {
                 return objectMapper.writeValueAsString(result.data());
             } else {
@@ -93,6 +96,34 @@ public class DynamicGovernedToolCallback implements ToolCallback {
         } catch (Exception e) {
             log.error("Tool execution failed: {}", e.getMessage());
             throw new RuntimeException(safeJsonError(e.getMessage()), e);
+        }
+    }
+
+    private void attachBenchmarkTimingHeaders() {
+        try {
+            org.springframework.web.context.request.RequestAttributes attrs =
+                    org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes servletAttrs) {
+                jakarta.servlet.http.HttpServletResponse response = servletAttrs.getResponse();
+                if (response != null && !response.isCommitted()) {
+                    Long startNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getGatewayStartNs();
+                    if (startNs != null) {
+                        long totalNs = System.nanoTime() - startNs;
+                        Long downstreamNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getDownstreamDurationNs();
+                        long downstream = (downstreamNs != null) ? downstreamNs : 0L;
+                        long overheadNs = Math.max(0, totalNs - downstream);
+
+                        response.setHeader("X-Gateway-Duration-Ns", String.valueOf(totalNs));
+                        response.setHeader("X-Downstream-Duration-Ns", String.valueOf(downstream));
+                        response.setHeader("X-Gateway-Overhead-Ns", String.valueOf(overheadNs));
+                        String corr = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getCorrelationId();
+                        if (corr != null) {
+                            response.setHeader("X-Request-Correlation-Id", corr);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
         }
     }
 
