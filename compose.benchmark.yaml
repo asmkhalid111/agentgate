@@ -1,0 +1,107 @@
+services:
+  benchmark-postgres:
+    image: postgres:16-alpine
+    container_name: agentgate-benchmark-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentgate_db}
+      POSTGRES_USER: ${POSTGRES_USER:-agentgate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+    volumes:
+      - agentgate_benchmark_pgdata:/var/lib/postgresql/data
+    mem_limit: 256m
+    networks:
+      - default
+      - agentgate-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentgate} -d ${POSTGRES_DB:-agentgate_db}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  benchmark-redis:
+    image: redis:7-alpine
+    container_name: agentgate-benchmark-redis
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    mem_limit: 64m
+    networks:
+      - default
+      - agentgate-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  benchmark-demo-tools:
+    image: agentgate-demo-tools
+    container_name: agentgate-benchmark-demo-tools
+    ports:
+      - "8083:8082"
+    mem_limit: 192m
+    networks:
+      - default
+      - agentgate-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  benchmark-gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    image: agentgate-benchmark-gateway
+    container_name: agentgate-benchmark-gateway
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      POSTGRES_HOST: benchmark-postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-agentgate_db}
+      POSTGRES_USER: ${POSTGRES_USER:-agentgate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+      REDIS_HOST: benchmark-redis
+      REDIS_PORT: 6379
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/agentgate
+      KEYCLOAK_JWKS_URI: http://agentgate-keycloak:8080/realms/agentgate/protocol/openid-connect/certs
+      KEYCLOAK_AUTH_URI: http://localhost:8180/realms/agentgate/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: http://agentgate-keycloak:8080/realms/agentgate/protocol/openid-connect/token
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
+      AGENTGATE_BENCHMARK_TIMING_ENABLED: "true"
+      AGENTGATE_RATELIMIT_DEFAULT_AGENT_RPM: "12000"
+      AGENTGATE_RATELIMIT_DEFAULT_TOOL_RPM: "12000"
+      AGENTGATE_RATELIMIT_DEFAULT_AGENT_DAILY_QUOTA: "1000000"
+      AGENTGATE_RATELIMIT_DEFAULT_TOOL_DAILY_QUOTA: "1000000"
+      AGENTGATE_APPROVAL_WEBHOOK_ENABLED: "false"
+    depends_on:
+      benchmark-postgres:
+        condition: service_healthy
+      benchmark-redis:
+        condition: service_healthy
+      benchmark-demo-tools:
+        condition: service_healthy
+    mem_limit: 512m
+    networks:
+      - default
+      - agentgate-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+volumes:
+  agentgate_benchmark_pgdata:
+
+networks:
+  agentgate-net:
+    name: agentgate_default
+    external: true

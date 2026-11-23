@@ -47,6 +47,9 @@ management:
         enabled: true
 
 agentgate:
+  benchmark:
+    timing:
+      enabled: ${AGENTGATE_BENCHMARK_TIMING_ENABLED:false}
   approval:
     default-timeout-seconds: 900
     expiration-interval-ms: 60000

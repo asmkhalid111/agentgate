@@ -4,6 +4,7 @@ import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.resilience.config.ResilienceProperties;
+import com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +89,13 @@ public class RestToolAdapter implements ToolAdapter {
                 spec.body(remainingArgs);
             }
 
+            long downstreamStartNs = System.nanoTime();
             String responseBody = spec.retrieve().body(String.class);
-            long latency = System.currentTimeMillis() - startTime;
+            long downstreamDurationNs = System.nanoTime() - downstreamStartNs;
+            if (BenchmarkTimingContext.isTimingEnabled()) {
+                BenchmarkTimingContext.setDownstreamDurationNs(downstreamDurationNs);
+            }
+            long latency = downstreamDurationNs / 1_000_000;
 
             Object parsedData;
             try {
