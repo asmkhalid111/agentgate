@@ -12,7 +12,7 @@ spring:
     enabled: false
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:172.28.119.242}
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
       repositories:
         enabled: false

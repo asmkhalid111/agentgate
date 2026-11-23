@@ -414,11 +414,18 @@ public class AuditRecorder {
             if (isSecretField(key)) {
                 result.put(key, "[REDACTED_SECRET]");
             } else if (value instanceof String strVal) {
-                result.put(key, piiRedactionGuard.redactString(strVal));
+                result.put(key, piiRedactionGuard.redactStringInField(key, strVal));
+            } else if (value instanceof Number numVal && PiiRedactionGuard.isNidFieldName(key)) {
+                String numStr = numVal.toString();
+                if (numStr.length() == 10 || numStr.length() == 13 || numStr.length() == 17) {
+                    result.put(key, "[REDACTED_NID]");
+                } else {
+                    result.put(key, value);
+                }
             } else if (value instanceof Map<?, ?> subMap) {
                 result.put(key, scrubMapRecursively((Map<String, Object>) subMap));
             } else if (value instanceof List<?> subList) {
-                result.put(key, scrubListRecursively(subList));
+                result.put(key, scrubListRecursively(subList, key));
             } else {
                 result.put(key, value);
             }
@@ -427,15 +434,21 @@ public class AuditRecorder {
     }
 
     @SuppressWarnings("unchecked")
-    private List<?> scrubListRecursively(List<?> list) {
+    private List<?> scrubListRecursively(List<?> list, String parentField) {
         if (list == null) return null;
         return list.stream().map(item -> {
             if (item instanceof String strVal) {
-                return piiRedactionGuard.redactString(strVal);
+                return piiRedactionGuard.redactStringInField(parentField, strVal);
+            } else if (item instanceof Number numVal && PiiRedactionGuard.isNidFieldName(parentField)) {
+                String numStr = numVal.toString();
+                if (numStr.length() == 10 || numStr.length() == 13 || numStr.length() == 17) {
+                    return "[REDACTED_NID]";
+                }
+                return item;
             } else if (item instanceof Map<?, ?> subMap) {
                 return scrubMapRecursively((Map<String, Object>) subMap);
             } else if (item instanceof List<?> subList) {
-                return scrubListRecursively(subList);
+                return scrubListRecursively(subList, parentField);
             } else {
                 return item;
             }

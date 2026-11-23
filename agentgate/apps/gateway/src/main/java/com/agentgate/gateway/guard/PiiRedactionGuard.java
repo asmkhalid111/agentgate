@@ -18,6 +18,32 @@ import java.util.regex.Pattern;
  * Clearance-aware output PII redaction guard (FR5).
  * Redacts email addresses, Bangladeshi mobile phone numbers, and Bangladeshi NID numbers
  * before responses or error messages reach unauthorized calling agents.
+ *
+ * <p><b>Numeric Ambiguity and Context-Sensitive NID Redaction:</b></p>
+ * <p>
+ * Bangladeshi National ID (NID) numbers comprise 10 digits (Smart NID), 13 digits (legacy NID),
+ * or 17 digits (birth-year prefixed legacy NID). A naive global regex matching any 10-digit sequence
+ * introduces unacceptable false-positive redactions on business identifiers such as:
+ * <ul>
+ *   <li>Unix epoch timestamps (e.g., 1732085139 representing November 2024 dates)</li>
+ *   <li>Order reference numbers (e.g., ORD-1732085139)</li>
+ *   <li>Refund reference codes and transaction sequence numbers (e.g., REF-1732085139012)</li>
+ *   <li>Monetary amounts, quantities, and balances</li>
+ * </ul>
+ * Because a 10-digit integer is statistically indistinguishable from current Unix epoch seconds,
+ * raw unlabeled numbers cannot be universally redacted without corrupting legitimate business payloads.
+ * Therefore, AgentGate enforces context-sensitive NID redaction:
+ * <ol>
+ *   <li><b>Recognized NID Fields:</b> Fields explicitly denoting NID identity (e.g., {@code nid},
+ *       {@code national_id}, {@code userNid}, {@code customerNid}, etc.) are redacted whether textual or numeric.</li>
+ *   <li><b>Explicitly Labeled Free Text:</b> In unstructured text, error messages, or unclassified fields,
+ *       NID values are redacted only when preceded by contextual labels (e.g., "NID: 1234567890",
+ *       "National ID: 1234567890123", "Voter ID: ...").</li>
+ *   <li><b>Unlabeled Text & Fields:</b> Business identifiers (e.g., "ORD-1732085139") and numeric timestamps
+ *       remain untouched, eliminating false positives.</li>
+ * </ol>
+ * Mobile phone numbers (which feature distinctive Bangladeshi prefixes 01[3-9] or +8801[3-9])
+ * and email addresses continue to be matched and redacted globally.
  */
 @Component
 public class PiiRedactionGuard {
@@ -29,7 +55,15 @@ public class PiiRedactionGuard {
     private static final Pattern BD_PHONE_PATTERN = Pattern.compile("(?<!\\d)(?:\\+?8801|01)[3-9]\\d{8}(?!\\d)");
 
     // Bangladeshi National ID (NID) regex: 10-digit (Smart), 13-digit (Legacy), 17-digit (Birth-year prefixed)
+    // Used in recognized NID fields where the field identity is already established
     private static final Pattern BD_NID_PATTERN = Pattern.compile("(?<!\\d)(?:\\d{17}|\\d{13}|\\d{10})(?!\\d)");
+
+    // Context-sensitive labeled NID regex for free text, error messages, and unclassified fields.
+    // Matches NID values accompanied by explicit labels such as "NID: ...", "National ID: ...", "Voter ID: ...", "Citizen ID: ..."
+    // Preserves the label prefix while redacting the numeric identifier.
+    private static final Pattern LABELED_NID_PATTERN = Pattern.compile(
+            "(?i)(\\b(?:nid|national[\\s_]*id|voter[\\s_]*id|citizen[\\s_]*id)(?:[\\s_]*(?:no\\.?|number|num|#))?\\s*[:=\\-\\s]\\s*)(?:\\d{17}|\\d{13}|\\d{10})(?!\\d)"
+    );
 
     // Standard RFC-compliant Email address regex
     private static final Pattern EMAIL_PATTERN = Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -85,12 +119,31 @@ public class PiiRedactionGuard {
      * @return sanitized error message without exposed PII
      */
     public String redactString(String input) {
+        return redactStringInField(null, input);
+    }
+
+    /**
+     * Redacts sensitive PII from a string value within a specific named field context.
+     * If the field name is a recognized NID field, NID numbers (10, 13, 17 digits) are redacted even without labels.
+     *
+     * @param fieldName the name of the field containing the string, or null if unclassified
+     * @param input     the string value
+     * @return sanitized string
+     */
+    public String redactStringInField(String fieldName, String input) {
         if (input == null || input.isEmpty()) {
             return input;
         }
-        // Apply phone redaction first, then NID, then email
+        // Apply phone redaction first
         String result = BD_PHONE_PATTERN.matcher(input).replaceAll("[REDACTED_PHONE]");
-        result = BD_NID_PATTERN.matcher(result).replaceAll("[REDACTED_NID]");
+        // Context-sensitive NID redaction: in recognized NID fields, redact bare NID numbers;
+        // in unclassified or free-text fields, redact only labeled NIDs
+        if (isNidFieldName(fieldName)) {
+            result = BD_NID_PATTERN.matcher(result).replaceAll("[REDACTED_NID]");
+        } else {
+            result = LABELED_NID_PATTERN.matcher(result).replaceAll("$1[REDACTED_NID]");
+        }
+        // Apply email redaction
         result = EMAIL_PATTERN.matcher(result).replaceAll("[REDACTED_EMAIL]");
         return result;
     }
@@ -119,7 +172,7 @@ public class PiiRedactionGuard {
         }
 
         if (node.isTextual()) {
-            return new TextNode(redactString(node.asText()));
+            return new TextNode(redactStringInField(fieldName, node.asText()));
         }
 
         // Numeric NID values: only redact numbers if the field name explicitly denotes an NID
@@ -134,10 +187,24 @@ public class PiiRedactionGuard {
         return node;
     }
 
-    private static boolean isNidFieldName(String fieldName) {
+    public static boolean isNidFieldName(String fieldName) {
         if (fieldName == null) return false;
-        String normalized = fieldName.toLowerCase().replace("_", "").replace("-", "");
-        return normalized.equals("nid") || normalized.equals("nationalid") || normalized.equals("nidnumber")
-                || normalized.equals("nationalidnumber") || normalized.equals("nidno");
+        String lower = fieldName.toLowerCase();
+        String normalized = lower.replace("_", "").replace("-", "");
+        if (normalized.equals("nid") || normalized.equals("nationalid") || normalized.equals("nidnumber")
+                || normalized.equals("nationalidnumber") || normalized.equals("nidno")
+                || normalized.equals("nids") || normalized.equals("voterid") || normalized.equals("citizenid")) {
+            return true;
+        }
+        // Matches patterns like nid10, nid13, nid17, nid_..., nidValue
+        if (lower.startsWith("nid") && (lower.length() == 3 || lower.startsWith("nid_") || lower.startsWith("nid-")
+                || (lower.length() > 3 && (Character.isDigit(lower.charAt(3)) || Character.isUpperCase(fieldName.charAt(3)))))) {
+            return true;
+        }
+        // Matches suffixes like userNid, customerNid, userNationalId
+        if (lower.endsWith("nid") || lower.endsWith("nationalid") || lower.endsWith("_nid") || lower.endsWith("-nid") || lower.endsWith("nids")) {
+            return true;
+        }
+        return false;
     }
 }
