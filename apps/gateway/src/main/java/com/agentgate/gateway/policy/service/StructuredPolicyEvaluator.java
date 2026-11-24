@@ -7,14 +7,18 @@ import com.agentgate.gateway.registry.domain.RiskLevel;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
@@ -23,12 +27,24 @@ public class StructuredPolicyEvaluator {
     private static final Logger log = LoggerFactory.getLogger(StructuredPolicyEvaluator.class);
 
     private final PolicyRepository repository;
+    private final Clock clock;
     private final AtomicReference<List<PolicyRule>> cachedRules = new AtomicReference<>(Collections.emptyList());
-    private volatile Instant lastSuccessfulRefresh = Instant.now();
+    private volatile Instant lastSuccessfulRefresh;
     private volatile boolean dbAvailable = true;
 
+    @Autowired
+    public StructuredPolicyEvaluator(PolicyRepository repository, ObjectProvider<Clock> clockProvider) {
+        this(repository, clockProvider != null ? clockProvider.getIfAvailable(Clock::systemUTC) : Clock.systemUTC());
+    }
+
     public StructuredPolicyEvaluator(PolicyRepository repository) {
+        this(repository, Clock.systemUTC());
+    }
+
+    public StructuredPolicyEvaluator(PolicyRepository repository, Clock clock) {
         this.repository = repository;
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
+        this.lastSuccessfulRefresh = this.clock.instant();
     }
 
     @PostConstruct
@@ -44,7 +60,7 @@ public class StructuredPolicyEvaluator {
         try {
             List<PolicyRule> rules = repository.findAll();
             cachedRules.set(rules);
-            lastSuccessfulRefresh = Instant.now();
+            lastSuccessfulRefresh = clock.instant();
             dbAvailable = true;
             log.debug("Policy cache refreshed: {} active rules loaded", rules.size());
         } catch (Exception e) {
@@ -70,7 +86,7 @@ public class StructuredPolicyEvaluator {
             }
 
             // Low-risk tools can continue using last-known policies for at most 5 minutes
-            Duration outageDuration = Duration.between(lastSuccessfulRefresh, Instant.now());
+            Duration outageDuration = Duration.between(lastSuccessfulRefresh, clock.instant());
             if (outageDuration.toMinutes() >= 5) {
                 log.warn("QA4 Cutoff: Policy store unavailable > 5 minutes, cutting off low-risk tool '{}'", context.toolName());
                 return PolicyDecision.deny("QA4_CUTOFF", "Policy Store Outage",
