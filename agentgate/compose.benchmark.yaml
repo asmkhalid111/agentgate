@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
     volumes:
       - agentgate_benchmark_pgdata:/var/lib/postgresql/data
-    mem_limit: 256m
+    mem_limit: 512m
     networks:
       - default
       - agentgate-net
@@ -80,6 +80,7 @@ services:
       AGENTGATE_RATELIMIT_DEFAULT_AGENT_DAILY_QUOTA: "1000000"
       AGENTGATE_RATELIMIT_DEFAULT_TOOL_DAILY_QUOTA: "1000000"
       AGENTGATE_APPROVAL_WEBHOOK_ENABLED: "false"
+      JAVA_TOOL_OPTIONS: "-Xlog:gc*:file=/tmp/gc.log:time,uptime,level,tags:filecount=2,filesize=10m"
     depends_on:
       benchmark-postgres:
         condition: service_healthy
@@ -87,7 +88,7 @@ services:
         condition: service_healthy
       benchmark-demo-tools:
         condition: service_healthy
-    mem_limit: 512m
+    mem_limit: 1024m
     networks:
       - default
       - agentgate-net

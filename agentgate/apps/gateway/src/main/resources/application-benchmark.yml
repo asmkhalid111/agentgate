@@ -27,3 +27,9 @@ agentgate:
       agent-support-bot: 1000000
     tool-daily-quotas:
       benchmark_read: 1000000
+
+logging:
+  level:
+    com.agentgate.gateway: INFO
+    org.springframework.security: WARN
+    org.springframework.ai.mcp: INFO

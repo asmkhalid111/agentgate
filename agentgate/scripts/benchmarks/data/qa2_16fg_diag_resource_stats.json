@@ -1,0 +1,932 @@
+{
+  "container_stats": [
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548900.697,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 143.65,
+      "memory_usage_mb": 443.7
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548900.697,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 17.37,
+      "memory_usage_mb": 65.5
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548900.697,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 1.54,
+      "memory_usage_mb": 4.207
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548900.697,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 24.12,
+      "memory_usage_mb": 138.9
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548905.228,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 58.2,
+      "memory_usage_mb": 445.1
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548905.228,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 8.16,
+      "memory_usage_mb": 65.76
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548905.228,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 0.81,
+      "memory_usage_mb": 4.539
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548905.228,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 10.76,
+      "memory_usage_mb": 140.4
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548909.346,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 33.71,
+      "memory_usage_mb": 447.5
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548909.346,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 8.81,
+      "memory_usage_mb": 69.95
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548909.346,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.73,
+      "memory_usage_mb": 4.238
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548909.346,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 8.88,
+      "memory_usage_mb": 142.0
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548913.642,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 36.6,
+      "memory_usage_mb": 449.8
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548913.642,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 7.13,
+      "memory_usage_mb": 66.63
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548913.642,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 0.79,
+      "memory_usage_mb": 4.508
+    },
+    {
+      "phase": "warmup_10rps",
+      "timestamp_s": 1795548913.642,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 6.03,
+      "memory_usage_mb": 141.6
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548918.026,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 83.73,
+      "memory_usage_mb": 452.9
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548918.026,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 17.14,
+      "memory_usage_mb": 67.24
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548918.026,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.5,
+      "memory_usage_mb": 4.695
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548918.026,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 17.04,
+      "memory_usage_mb": 142.1
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548922.446,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 209.9,
+      "memory_usage_mb": 458.1
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548922.446,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 37.53,
+      "memory_usage_mb": 70.22
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548922.446,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 2.75,
+      "memory_usage_mb": 5.07
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548922.446,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 40.01,
+      "memory_usage_mb": 143.1
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548927.53,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 170.81,
+      "memory_usage_mb": 463.2
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548927.53,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 33.46,
+      "memory_usage_mb": 75.62
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548927.53,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 6.56,
+      "memory_usage_mb": 5.035
+    },
+    {
+      "phase": "warmup_30rps",
+      "timestamp_s": 1795548927.53,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 21.17,
+      "memory_usage_mb": 144.7
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548932.353,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 14.77,
+      "memory_usage_mb": 462.7
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548932.353,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 4.54,
+      "memory_usage_mb": 75.57
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548932.353,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 0.69,
+      "memory_usage_mb": 4.16
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548932.353,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 4.76,
+      "memory_usage_mb": 146.6
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548936.82,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 301.45,
+      "memory_usage_mb": 464.6
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548936.82,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 73.08,
+      "memory_usage_mb": 87.62
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548936.82,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 12.84,
+      "memory_usage_mb": 5.066
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548936.82,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 61.13,
+      "memory_usage_mb": 146.6
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548941.788,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 369.16,
+      "memory_usage_mb": 467.0
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548941.788,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 73.96,
+      "memory_usage_mb": 97.14
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548941.788,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 17.18,
+      "memory_usage_mb": 4.594
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548941.788,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 109.75,
+      "memory_usage_mb": 147.1
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548948.201,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 0.64,
+      "memory_usage_mb": 467.0
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548948.201,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 7.36,
+      "memory_usage_mb": 99.38
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548948.201,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 0.72,
+      "memory_usage_mb": 4.262
+    },
+    {
+      "phase": "warmup_60rps",
+      "timestamp_s": 1795548948.201,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 6.27,
+      "memory_usage_mb": 148.9
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548952.953,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 325.23,
+      "memory_usage_mb": 470.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548952.953,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 87.1,
+      "memory_usage_mb": 108.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548952.953,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 14.49,
+      "memory_usage_mb": 4.797
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548952.953,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 53.57,
+      "memory_usage_mb": 149.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548958.02,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 285.04,
+      "memory_usage_mb": 472.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548958.02,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 92.79,
+      "memory_usage_mb": 109.4
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548958.02,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 16.75,
+      "memory_usage_mb": 4.078
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548958.02,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 71.06,
+      "memory_usage_mb": 150.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548965.232,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 255.97,
+      "memory_usage_mb": 472.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548965.232,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 95.08,
+      "memory_usage_mb": 109.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548965.232,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 5.13,
+      "memory_usage_mb": 4.738
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548965.232,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 56.45,
+      "memory_usage_mb": 149.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548970.328,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 209.89,
+      "memory_usage_mb": 472.1
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548970.328,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 134.09,
+      "memory_usage_mb": 111.4
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548970.328,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 5.5,
+      "memory_usage_mb": 5.074
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548970.328,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 72.08,
+      "memory_usage_mb": 149.7
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548975.499,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 340.28,
+      "memory_usage_mb": 473.3
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548975.499,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 108.29,
+      "memory_usage_mb": 110.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548975.499,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.79,
+      "memory_usage_mb": 4.332
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548975.499,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 40.72,
+      "memory_usage_mb": 150.1
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548979.914,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 200.35,
+      "memory_usage_mb": 473.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548979.914,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 103.6,
+      "memory_usage_mb": 110.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548979.914,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 6.67,
+      "memory_usage_mb": 4.57
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548979.914,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 55.83,
+      "memory_usage_mb": 153.4
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548985.062,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 293.19,
+      "memory_usage_mb": 496.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548985.062,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 89.39,
+      "memory_usage_mb": 111.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548985.062,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 5.63,
+      "memory_usage_mb": 4.809
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548985.062,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 100.17,
+      "memory_usage_mb": 150.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548989.544,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 257.2,
+      "memory_usage_mb": 484.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548989.544,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 121.06,
+      "memory_usage_mb": 114.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548989.544,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 13.5,
+      "memory_usage_mb": 4.996
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548989.544,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 26.83,
+      "memory_usage_mb": 150.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548994.611,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 161.3,
+      "memory_usage_mb": 475.2
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548994.611,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 96.82,
+      "memory_usage_mb": 112.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548994.611,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.14,
+      "memory_usage_mb": 4.07
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548994.611,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 37.66,
+      "memory_usage_mb": 150.2
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548998.799,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 214.1,
+      "memory_usage_mb": 475.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548998.799,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 85.58,
+      "memory_usage_mb": 114.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548998.799,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 12.15,
+      "memory_usage_mb": 5.23
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795548998.799,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 42.43,
+      "memory_usage_mb": 151.3
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549003.563,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 256.89,
+      "memory_usage_mb": 477.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549003.563,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 72.48,
+      "memory_usage_mb": 114.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549003.563,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.48,
+      "memory_usage_mb": 4.078
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549003.563,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 99.62,
+      "memory_usage_mb": 157.6
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549008.567,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 153.97,
+      "memory_usage_mb": 477.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549008.567,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 94.97,
+      "memory_usage_mb": 114.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549008.567,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 12.36,
+      "memory_usage_mb": 4.266
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549008.567,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 37.06,
+      "memory_usage_mb": 151.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549013.304,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 207.88,
+      "memory_usage_mb": 476.8
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549013.304,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 95.74,
+      "memory_usage_mb": 113.9
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549013.304,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 4.38,
+      "memory_usage_mb": 4.531
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549013.304,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 61.49,
+      "memory_usage_mb": 151.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549017.693,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 188.62,
+      "memory_usage_mb": 477.9
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549017.693,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 96.87,
+      "memory_usage_mb": 114.3
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549017.693,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 15.0,
+      "memory_usage_mb": 5.133
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549017.693,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 23.49,
+      "memory_usage_mb": 151.4
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549022.611,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 183.19,
+      "memory_usage_mb": 478.0
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549022.611,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 107.27,
+      "memory_usage_mb": 117.1
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549022.611,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 5.7,
+      "memory_usage_mb": 4.816
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549022.611,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 14.3,
+      "memory_usage_mb": 151.3
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549027.369,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 0.24,
+      "memory_usage_mb": 476.9
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549027.369,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 11.94,
+      "memory_usage_mb": 114.5
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549027.369,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 5.41,
+      "memory_usage_mb": 4.266
+    },
+    {
+      "phase": "warmup_stabilization",
+      "timestamp_s": 1795549027.369,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 0.14,
+      "memory_usage_mb": 150.7
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549032.299,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 173.07,
+      "memory_usage_mb": 478.1
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549032.299,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 107.05,
+      "memory_usage_mb": 115.1
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549032.299,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 16.57,
+      "memory_usage_mb": 4.812
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549032.299,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 20.86,
+      "memory_usage_mb": 151.8
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549037.952,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 229.81,
+      "memory_usage_mb": 481.3
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549037.952,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 115.95,
+      "memory_usage_mb": 115.8
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549037.952,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 7.42,
+      "memory_usage_mb": 5.293
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549037.952,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 15.0,
+      "memory_usage_mb": 151.9
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549042.833,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 208.55,
+      "memory_usage_mb": 480.4
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549042.833,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 104.06,
+      "memory_usage_mb": 115.4
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549042.833,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 22.95,
+      "memory_usage_mb": 4.73
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549042.833,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 110.64,
+      "memory_usage_mb": 151.8
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549048.529,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 171.68,
+      "memory_usage_mb": 479.2
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549048.529,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 88.81,
+      "memory_usage_mb": 115.3
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549048.529,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 14.38,
+      "memory_usage_mb": 8.66
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549048.529,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 21.24,
+      "memory_usage_mb": 152.5
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549053.997,
+      "container_name": "agentgate-benchmark-gateway",
+      "cpu_percent": 195.58,
+      "memory_usage_mb": 480.0
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549053.997,
+      "container_name": "agentgate-benchmark-postgres",
+      "cpu_percent": 90.31,
+      "memory_usage_mb": 116.4
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549053.997,
+      "container_name": "agentgate-benchmark-redis",
+      "cpu_percent": 3.72,
+      "memory_usage_mb": 4.223
+    },
+    {
+      "phase": "diag_30s_100rps",
+      "timestamp_s": 1795549053.997,
+      "container_name": "agentgate-benchmark-demo-tools",
+      "cpu_percent": 54.62,
+      "memory_usage_mb": 152.7
+    }
+  ],
+  "pg_stats_before": {
+    "bgwriter": {
+      "checkpoints_timed": 4,
+      "checkpoints_req": 5,
+      "checkpoint_write_time": 278286,
+      "checkpoint_sync_time": 283,
+      "buffers_checkpoint": 6383,
+      "buffers_backend": 4208
+    },
+    "wal": {
+      "wal_records": 538778,
+      "wal_bytes": 83874478,
+      "wal_sync": 56028,
+      "wal_sync_time": 0
+    }
+  },
+  "pg_stats_after": {
+    "bgwriter": {
+      "checkpoints_timed": 4,
+      "checkpoints_req": 5,
+      "checkpoint_write_time": 278286,
+      "checkpoint_sync_time": 283,
+      "buffers_checkpoint": 6383,
+      "buffers_backend": 4208
+    },
+    "wal": {
+      "wal_records": 634633,
+      "wal_bytes": 100472294,
+      "wal_sync": 66506,
+      "wal_sync_time": 0
+    }
+  }
+}
