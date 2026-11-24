@@ -153,7 +153,9 @@ public class SecurityConfig {
                         // Deny all other unmapped routes in this chain
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)));
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+                .addFilterAfter(new com.agentgate.gateway.pipeline.benchmark.BenchmarkSecurityExitFilter(),
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class);
 
         return http.build();
     }

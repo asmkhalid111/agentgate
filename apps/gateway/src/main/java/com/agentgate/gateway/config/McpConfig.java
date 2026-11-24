@@ -55,6 +55,9 @@ public class McpConfig {
                 .keepAliveInterval(properties.getKeepAliveInterval())
                 .disallowDelete(properties.isDisallowDelete())
                 .contextExtractor(serverRequest -> {
+                    if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+                        com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setMcpContextExtractNs(System.nanoTime());
+                    }
                     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                     if (auth == null && serverRequest != null && serverRequest.servletRequest() != null) {
                         Principal principal = serverRequest.servletRequest().getUserPrincipal();

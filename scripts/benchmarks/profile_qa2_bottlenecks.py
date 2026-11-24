@@ -300,6 +300,10 @@ def run_profile_phase(name, pool, duration_sec, target_rps, token, session_id, c
             overhead_ms = parse_header_ms("X-Gateway-Overhead-Ns")
 
             sec_ingress_ms = parse_header_ms("X-Profile-Security-Ingress-Ns")
+            ingress_auth_ms = parse_header_ms("X-Profile-Ingress-Auth-Ns")
+            ingress_routing_ms = parse_header_ms("X-Profile-Ingress-Routing-Ns")
+            ingress_mcp_parse_ms = parse_header_ms("X-Profile-Ingress-McpParse-Ns")
+            ingress_callback_prep_ms = parse_header_ms("X-Profile-Ingress-CallbackPrep-Ns")
             perm_ms = parse_header_ms("X-Profile-Permission-Ns")
             rate_ms = parse_header_ms("X-Profile-RateLimit-Ns")
             schema_ms = parse_header_ms("X-Profile-Schema-Ns")
@@ -322,6 +326,10 @@ def run_profile_phase(name, pool, duration_sec, target_rps, token, session_id, c
                 data = parse_mcp_body(raw)
                 if "error" in data:
                     classification = f"JSON_RPC_ERROR_{data['error'].get('message', '')[:30]}"
+                elif data.get("result", {}).get("isError") is True:
+                    classification = "TOOL_EXECUTION_ERROR"
+                elif "ORD-BENCH-01" not in raw:
+                    classification = "PAYLOAD_CONTENT_MISMATCH"
                 elif down_dur_ms <= 0.0:
                     classification = "INVALID_TIMING_ERROR"
 
@@ -336,6 +344,10 @@ def run_profile_phase(name, pool, duration_sec, target_rps, token, session_id, c
                 "downstream_duration_ms": down_dur_ms,
                 "overhead_ms": overhead_ms,
                 "sec_ingress_ms": sec_ingress_ms,
+                "ingress_auth_ms": ingress_auth_ms,
+                "ingress_routing_ms": ingress_routing_ms,
+                "ingress_mcp_parse_ms": ingress_mcp_parse_ms,
+                "ingress_callback_prep_ms": ingress_callback_prep_ms,
                 "permission_ms": perm_ms,
                 "rate_limit_ms": rate_ms,
                 "schema_ms": schema_ms,
@@ -437,6 +449,10 @@ def verify_single_probe(token, sid):
             print(f"  Downstream:         {p('X-Downstream-Duration-Ns')}")
             print(f"  Gateway Overhead:   {p('X-Gateway-Overhead-Ns')}")
             print(f"  Security Ingress:   {p('X-Profile-Security-Ingress-Ns')}")
+            print(f"    - Auth & JWT:     {p('X-Profile-Ingress-Auth-Ns')}")
+            print(f"    - MVC Routing:    {p('X-Profile-Ingress-Routing-Ns')}")
+            print(f"    - MCP Parsing:    {p('X-Profile-Ingress-McpParse-Ns')}")
+            print(f"    - Callback Prep:  {p('X-Profile-Ingress-CallbackPrep-Ns')}")
             print(f"  Permission Check:   {p('X-Profile-Permission-Ns')}")
             print(f"  Rate Limiter:       {p('X-Profile-RateLimit-Ns')}")
             print(f"  Schema Validation:  {p('X-Profile-Schema-Ns')}")
@@ -554,7 +570,8 @@ def main():
         fieldnames = [
             "phase", "request_index", "timestamp_s", "status_code", "classification",
             "client_latency_ms", "gateway_duration_ms", "downstream_duration_ms", "overhead_ms",
-            "sec_ingress_ms", "permission_ms", "rate_limit_ms", "schema_ms", "policy_ms", "circuit_ms",
+            "sec_ingress_ms", "ingress_auth_ms", "ingress_routing_ms", "ingress_mcp_parse_ms", "ingress_callback_prep_ms",
+            "permission_ms", "rate_limit_ms", "schema_ms", "policy_ms", "circuit_ms",
             "audit_total_ms", "audit_lock_ms", "audit_hash_ms", "audit_write_ms", "audit_commit_ms",
             "pii_ms", "serialization_ms", "correlation_id"
         ]
@@ -600,6 +617,10 @@ def main():
             "overhead_ms": st("overhead_ms"),
             "components_ms": {
                 "security_ingress": st("sec_ingress_ms"),
+                "ingress_auth": st("ingress_auth_ms"),
+                "ingress_routing": st("ingress_routing_ms"),
+                "ingress_mcp_parse": st("ingress_mcp_parse_ms"),
+                "ingress_callback_prep": st("ingress_callback_prep_ms"),
                 "permission_check": st("permission_ms"),
                 "rate_limiter": st("rate_limit_ms"),
                 "schema_validation": st("schema_ms"),
@@ -629,18 +650,20 @@ def main():
     print(f"Summary exported to {summary_path}")
 
     # Print high-level comparison table to console
-    print("\n=========================================================================================")
-    print(f"{'Phase':<22} | {'RPS':<6} | {'Overhead p50':<12} | {'Overhead p95':<12} | {'Audit Lock p95':<14} | {'Downstream p50':<14}")
-    print("-----------------------------------------------------------------------------------------")
+    print("\n=================================================================================================================")
+    print(f"{'Phase':<22} | {'RPS':<6} | {'Overhead p95':<12} | {'Ingress p95':<12} | {'Auth p95':<10} | {'Route p95':<10} | {'MCP p95':<10} | {'Prep p95':<10}")
+    print("-----------------------------------------------------------------------------------------------------------------")
     for p_name in ["profile_10rps", "profile_30rps", "profile_60rps", "profile_100rps_win1", "profile_100rps_win2"]:
         p_data = summary["phases"][p_name]
         rps = p_data["actual_rps"]
-        o_p50 = p_data["overhead_ms"]["p50"]
         o_p95 = p_data["overhead_ms"]["p95"]
-        a_lock_p95 = p_data["components_ms"]["audit_lock_wait"]["p95"]
-        d_p50 = p_data["downstream_duration_ms"]["p50"]
-        print(f"{p_name:<22} | {rps:<6.1f} | {o_p50:<12.2f} | {o_p95:<12.2f} | {a_lock_p95:<14.2f} | {d_p50:<14.2f}")
-    print("=========================================================================================")
+        i_p95 = p_data["components_ms"]["security_ingress"]["p95"]
+        auth_p95 = p_data["components_ms"]["ingress_auth"]["p95"]
+        route_p95 = p_data["components_ms"]["ingress_routing"]["p95"]
+        mcp_p95 = p_data["components_ms"]["ingress_mcp_parse"]["p95"]
+        prep_p95 = p_data["components_ms"]["ingress_callback_prep"]["p95"]
+        print(f"{p_name:<22} | {rps:<6.1f} | {o_p95:<12.2f} | {i_p95:<12.2f} | {auth_p95:<10.2f} | {route_p95:<10.2f} | {mcp_p95:<10.2f} | {prep_p95:<10.2f}")
+    print("=================================================================================================================")
 
 if __name__ == "__main__":
     main()

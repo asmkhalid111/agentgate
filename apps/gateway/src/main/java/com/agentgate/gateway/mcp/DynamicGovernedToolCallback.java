@@ -46,6 +46,10 @@ public class DynamicGovernedToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
+        long callbackEnterNs = System.nanoTime();
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setCallbackEnterNs(callbackEnterNs);
+        }
         java.util.Optional<AgentIdentity> currentAgent = AgentContextHolder.getCurrentAgent();
         String callingAgent = currentAgent
                 .map(AgentIdentity::clientId)
@@ -78,9 +82,27 @@ public class DynamicGovernedToolCallback implements ToolCallback {
         );
 
         long pipelineEnterNs = System.nanoTime();
-        Long gwStartNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getGatewayStartNs();
-        if (gwStartNs != null && com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
-            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setSecurityIngressNs(Math.max(0, pipelineEnterNs - gwStartNs));
+        if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
+            com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setPipelineEnterNs(pipelineEnterNs);
+            Long gwStartNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getGatewayStartNs();
+            Long secExitNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSecurityFilterExitNs();
+            Long mcpCtxNs = com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getMcpContextExtractNs();
+
+            if (gwStartNs != null) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setSecurityIngressNs(Math.max(0, pipelineEnterNs - gwStartNs));
+            }
+            if (gwStartNs != null && secExitNs != null && secExitNs >= gwStartNs) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setIngressAuthNs(secExitNs - gwStartNs);
+            }
+            if (secExitNs != null && mcpCtxNs != null && mcpCtxNs >= secExitNs) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setIngressRoutingNs(mcpCtxNs - secExitNs);
+            }
+            if (mcpCtxNs != null && callbackEnterNs >= mcpCtxNs) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setIngressMcpParseNs(callbackEnterNs - mcpCtxNs);
+            }
+            if (pipelineEnterNs >= callbackEnterNs) {
+                com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setIngressCallbackPrepNs(pipelineEnterNs - callbackEnterNs);
+            }
         }
 
         try {
@@ -133,6 +155,10 @@ public class DynamicGovernedToolCallback implements ToolCallback {
 
                         // Attach granular profiling spans
                         setProfileHeader(response, "X-Profile-Security-Ingress-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSecurityIngressNs());
+                        setProfileHeader(response, "X-Profile-Ingress-Auth-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getIngressAuthNs());
+                        setProfileHeader(response, "X-Profile-Ingress-Routing-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getIngressRoutingNs());
+                        setProfileHeader(response, "X-Profile-Ingress-McpParse-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getIngressMcpParseNs());
+                        setProfileHeader(response, "X-Profile-Ingress-CallbackPrep-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getIngressCallbackPrepNs());
                         setProfileHeader(response, "X-Profile-Permission-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getPermissionNs());
                         setProfileHeader(response, "X-Profile-RateLimit-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getRateLimitNs());
                         setProfileHeader(response, "X-Profile-Schema-Ns", com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.getSchemaNs());

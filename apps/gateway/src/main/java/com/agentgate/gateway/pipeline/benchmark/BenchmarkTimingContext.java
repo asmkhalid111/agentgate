@@ -2,7 +2,8 @@ package com.agentgate.gateway.pipeline.benchmark;
 
 /**
  * Thread-local context for high-resolution nanosecond benchmark timing and profiling.
- * Captures gateway total duration, downstream tool duration, and granular component breakdown.
+ * Captures gateway total duration, downstream tool duration, granular pipeline breakdown,
+ * and pre-pipeline security ingress decomposition.
  */
 public final class BenchmarkTimingContext {
 
@@ -11,6 +12,18 @@ public final class BenchmarkTimingContext {
     private static final ThreadLocal<Long> GATEWAY_START_NS = new ThreadLocal<>();
     private static final ThreadLocal<Long> DOWNSTREAM_DURATION_NS = new ThreadLocal<>();
     private static final ThreadLocal<String> CORRELATION_ID = new ThreadLocal<>();
+
+    // Diagnostic lifecycle checkpoints (T0 .. T4)
+    private static final ThreadLocal<Long> SECURITY_FILTER_EXIT_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> MCP_CONTEXT_EXTRACT_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> CALLBACK_ENTER_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> PIPELINE_ENTER_NS = new ThreadLocal<>();
+
+    // Decomposed ingress spans
+    private static final ThreadLocal<Long> INGRESS_AUTH_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> INGRESS_ROUTING_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> INGRESS_MCP_PARSE_NS = new ThreadLocal<>();
+    private static final ThreadLocal<Long> INGRESS_CALLBACK_PREP_NS = new ThreadLocal<>();
 
     // Profiling breakdown spans
     private static final ThreadLocal<Long> SECURITY_INGRESS_NS = new ThreadLocal<>();
@@ -61,6 +74,33 @@ public final class BenchmarkTimingContext {
         return CORRELATION_ID.get();
     }
 
+    // Checkpoint setters and getters
+    public static void setSecurityFilterExitNs(long ns) { SECURITY_FILTER_EXIT_NS.set(ns); }
+    public static Long getSecurityFilterExitNs() { return SECURITY_FILTER_EXIT_NS.get(); }
+
+    public static void setMcpContextExtractNs(long ns) { MCP_CONTEXT_EXTRACT_NS.set(ns); }
+    public static Long getMcpContextExtractNs() { return MCP_CONTEXT_EXTRACT_NS.get(); }
+
+    public static void setCallbackEnterNs(long ns) { CALLBACK_ENTER_NS.set(ns); }
+    public static Long getCallbackEnterNs() { return CALLBACK_ENTER_NS.get(); }
+
+    public static void setPipelineEnterNs(long ns) { PIPELINE_ENTER_NS.set(ns); }
+    public static Long getPipelineEnterNs() { return PIPELINE_ENTER_NS.get(); }
+
+    // Decomposed ingress span setters and getters
+    public static void setIngressAuthNs(long ns) { INGRESS_AUTH_NS.set(ns); }
+    public static Long getIngressAuthNs() { return INGRESS_AUTH_NS.get(); }
+
+    public static void setIngressRoutingNs(long ns) { INGRESS_ROUTING_NS.set(ns); }
+    public static Long getIngressRoutingNs() { return INGRESS_ROUTING_NS.get(); }
+
+    public static void setIngressMcpParseNs(long ns) { INGRESS_MCP_PARSE_NS.set(ns); }
+    public static Long getIngressMcpParseNs() { return INGRESS_MCP_PARSE_NS.get(); }
+
+    public static void setIngressCallbackPrepNs(long ns) { INGRESS_CALLBACK_PREP_NS.set(ns); }
+    public static Long getIngressCallbackPrepNs() { return INGRESS_CALLBACK_PREP_NS.get(); }
+
+    // Pipeline breakdown setters and getters
     public static void setSecurityIngressNs(long ns) { SECURITY_INGRESS_NS.set(ns); }
     public static Long getSecurityIngressNs() { return SECURITY_INGRESS_NS.get(); }
 
@@ -104,6 +144,17 @@ public final class BenchmarkTimingContext {
         GATEWAY_START_NS.remove();
         DOWNSTREAM_DURATION_NS.remove();
         CORRELATION_ID.remove();
+
+        SECURITY_FILTER_EXIT_NS.remove();
+        MCP_CONTEXT_EXTRACT_NS.remove();
+        CALLBACK_ENTER_NS.remove();
+        PIPELINE_ENTER_NS.remove();
+
+        INGRESS_AUTH_NS.remove();
+        INGRESS_ROUTING_NS.remove();
+        INGRESS_MCP_PARSE_NS.remove();
+        INGRESS_CALLBACK_PREP_NS.remove();
+
         SECURITY_INGRESS_NS.remove();
         PERMISSION_NS.remove();
         RATE_LIMIT_NS.remove();
