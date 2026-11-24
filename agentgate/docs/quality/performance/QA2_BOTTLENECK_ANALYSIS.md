@@ -247,3 +247,21 @@ Task 16E has decisively identified the physical mechanisms behind AgentGate's QA
    - Implement in-memory permission metadata caching.
    - Implement Mode B micro-batch asynchronous audit logging with bounded ring buffer.
    - Rerun the QA2 acceptance benchmark to verify whether gateway overhead drops below the $30\text{ ms}$ requirement.
+
+---
+
+## 12. Errata & Task 16F-B Empirical Validation
+
+### 12.1 Statistical Errata to Section 8
+1. **Non-Additivity of Percentiles:** Section 8 erroneously performed linear summation of component $p95$ values ($39.10\text{ ms} + 98.76\text{ ms} + 11.62\text{ ms} = 149.48\text{ ms}$) to evaluate SLA budget impact. Percentiles are distribution metrics and strictly non-additive ($p95(A + B) \le p95(A) + p95(B)$ in general). Individual requests hit tail spikes in different sub-components rather than simultaneously in all sub-components.
+2. **Compound Metric Attribution:** The measurement labeled `audit_lock_wait` captured the total execution duration of `jdbcClient.sql("SELECT ... FOR UPDATE").query(...)`. Under a 10-connection pool with 20 concurrent threads, this duration was dominated by connection acquisition wait inside HikariCP, rather than pure PostgreSQL row locking.
+
+### 12.2 Empirical Validation via Task 16F-B (Pool Size = 30)
+In Task 16F-B, expanding the HikariCP connection pool from 10 to 30 completely validated the connection-starvation hypothesis:
+- **Audit Lock Wait ($p95$):** Dropped from **$281.37\text{ ms}$** to **$2.50\text{ ms}$** (-99.1%).
+- **Permission Check ($p95$):** Dropped from **$98.76\text{ ms}$** to **$2.00\text{ ms}$** (-98.0%).
+- **Audit Commit ($p95$):** Dropped from **$73.21\text{ ms}$** to **$3.09\text{ ms}$** (-95.8%).
+- **Total Gateway Overhead ($p95$):** Dropped from **$447.71\text{ ms}$** to **$58.78\text{ ms}$** (-86.9%).
+- **Remaining Bottleneck:** Security Ingress at $48.02\text{ ms}$ ($81.7\%$ of total remaining overhead).
+- **Asynchronous Audit Ring Buffers (Option D):** Formally rejected as unnecessary, preserving 100% synchronous audit durability.
+- See detailed report in [QA2_POOL_SIZING_EXPERIMENT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_POOL_SIZING_EXPERIMENT.md) and decision in [QA2_OPTIMIZATION_DECISION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_OPTIMIZATION_DECISION.md).

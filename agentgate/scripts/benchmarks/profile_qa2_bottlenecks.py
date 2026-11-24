@@ -459,9 +459,13 @@ def verify_single_probe(token, sid):
         return False
 
 def main():
+    parser = argparse.ArgumentParser(description="AgentGate QA2 Root-Cause Performance Profiler")
+    parser.add_argument("--prefix", default="qa2_profile", help="Prefix for output data files")
+    args = parser.parse_args()
+
     print("=================================================================")
-    print("AgentGate QA2 Root-Cause Performance Profiler (Task 16E)")
-    print("Capturing component-level telemetry across 10, 30, 60, 100 RPS")
+    print("AgentGate QA2 Root-Cause Performance Profiler (Task 16E/16F)")
+    print(f"Capturing component-level telemetry across 10, 30, 60, 100 RPS [prefix: {args.prefix}]")
     print("=================================================================")
 
     token = get_client_token("agent-support-bot")
@@ -544,7 +548,7 @@ def main():
         print(f"Audit verification result: {audit_ver}")
 
     # Export CSV samples
-    samples_path = os.path.join(DATA_DIR, "qa2_profile_samples.csv")
+    samples_path = os.path.join(DATA_DIR, f"{args.prefix}_samples.csv")
     print(f"\nExporting {samples_path} ({len(all_samples)} rows)...")
     with open(samples_path, "w", newline="", encoding="utf-8") as f:
         fieldnames = [
@@ -560,7 +564,7 @@ def main():
             writer.writerow(s)
 
     # Export lock stats
-    lock_stats_path = os.path.join(DATA_DIR, "qa2_profile_lock_stats.json")
+    lock_stats_path = os.path.join(DATA_DIR, f"{args.prefix}_lock_stats.json")
     with open(lock_stats_path, "w", encoding="utf-8") as f:
         json.dump(lock_monitor.samples, f, indent=2)
 
@@ -612,9 +616,15 @@ def main():
             }
         }
 
-    summary_path = os.path.join(DATA_DIR, "qa2_profile_summary.json")
+    summary_path = os.path.join(DATA_DIR, f"{args.prefix}_summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
+
+    # Also keep standard qa2_profile_summary.json updated if prefix != qa2_profile
+    if args.prefix != "qa2_profile":
+        std_path = os.path.join(DATA_DIR, "qa2_profile_summary.json")
+        with open(std_path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2)
 
     print(f"Summary exported to {summary_path}")
 
