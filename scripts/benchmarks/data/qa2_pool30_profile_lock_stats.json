@@ -1,0 +1,1871 @@
+[
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463871.518,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463872.187,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463872.839,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463873.479,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463874.103,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463874.742,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463875.363,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463876.023,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463876.66,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463877.295,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463877.921,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463878.583,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463879.217,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463879.853,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463880.503,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463881.177,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463881.823,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463882.447,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463883.088,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463883.81,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463884.438,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463885.052,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463885.667,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463886.291,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463886.94,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463887.562,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_10rps",
+    "timestamp_s": 1795463888.188,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463888.805,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463889.438,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463890.07,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463890.701,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463891.327,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463891.96,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463892.654,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463893.281,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463893.91,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463894.541,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463895.178,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463895.815,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463896.45,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463897.082,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463897.707,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463898.385,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463899.01,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463899.648,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463900.293,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463900.991,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463901.617,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463902.231,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463902.877,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463903.526,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463904.166,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_30rps",
+    "timestamp_s": 1795463904.788,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463905.405,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463906.053,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463906.717,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463907.382,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463908.024,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463908.667,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463909.334,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463909.966,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463910.648,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463911.314,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463912.002,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463912.652,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463913.298,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463913.938,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463914.593,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463915.235,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463915.88,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463916.532,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463917.182,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463917.85,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463918.529,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463919.173,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463919.815,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463920.445,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463921.098,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463921.709,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_60rps",
+    "timestamp_s": 1795463922.321,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463922.974,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463923.63,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463924.312,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463924.985,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463925.638,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463926.367,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463927.02,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463927.669,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463928.377,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463929.024,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463929.669,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463930.324,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463930.986,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463931.642,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463932.289,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463932.952,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463933.601,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463934.278,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463934.963,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463935.623,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463936.33,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463937.071,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463937.716,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463938.433,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463939.134,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463939.784,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463940.444,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463941.144,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463941.83,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463942.497,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463943.135,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463943.782,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463944.434,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463945.083,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463945.727,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463946.369,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463947.042,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463947.685,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463948.393,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463949.037,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463949.693,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463950.346,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463950.996,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463951.668,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463952.333,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463952.974,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463953.617,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463954.264,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463954.914,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463955.577,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463956.287,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463956.949,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463957.615,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463958.305,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463958.966,
+    "waiting_locks_total": 3,
+    "waiting_chain_locks": 1,
+    "total_chain_locks": 8
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463959.733,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463960.398,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463961.087,
+    "waiting_locks_total": 3,
+    "waiting_chain_locks": 2,
+    "total_chain_locks": 7
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463961.792,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463962.442,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 4
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463963.117,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463963.773,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463964.416,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463965.063,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463965.714,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463966.392,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463967.041,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463967.687,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463968.402,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463969.05,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463969.692,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463970.331,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463970.994,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463971.705,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463972.45,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463973.124,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463973.784,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463974.42,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463975.081,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463975.721,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463976.367,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463977.06,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463977.711,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463978.423,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463979.061,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463979.698,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463980.334,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463981.021,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463981.665,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463982.312,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463982.963,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463983.587,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_stabilization",
+    "timestamp_s": 1795463984.213,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463984.823,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463985.469,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463986.131,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463986.792,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463987.441,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463988.088,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463988.731,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463989.411,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463990.084,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463990.718,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463991.347,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463991.984,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463992.647,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463993.293,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463993.934,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463994.579,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463995.24,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463995.906,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463996.574,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463997.264,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463997.96,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463998.653,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463999.299,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795463999.993,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464000.652,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464001.308,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464001.944,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464002.585,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464003.239,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464003.876,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464004.517,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464005.183,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464005.833,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464006.557,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464007.216,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464007.877,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464008.64,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464009.278,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464009.919,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464010.634,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464011.317,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464011.954,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464012.635,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464013.283,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464013.931,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464014.607,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464015.257,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464015.865,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win1",
+    "timestamp_s": 1795464016.487,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464017.104,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464017.759,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464018.454,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464019.103,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464019.746,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464020.414,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464021.053,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464021.71,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464022.373,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464023.018,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464023.665,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464024.299,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464024.967,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464025.609,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464026.297,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464026.974,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464027.642,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464028.321,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464028.982,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464029.628,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464030.382,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464031.084,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464031.812,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464032.594,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464033.276,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464033.927,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464034.589,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464035.244,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464035.925,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464036.583,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464037.24,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464037.92,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464038.626,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464039.285,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464040.003,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464040.725,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464041.457,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464042.159,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464042.819,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 2
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464043.463,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464044.153,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464044.796,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464045.435,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464046.075,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 0
+  },
+  {
+    "phase": "profile_100rps_win2",
+    "timestamp_s": 1795464046.736,
+    "waiting_locks_total": 0,
+    "waiting_chain_locks": 0,
+    "total_chain_locks": 1
+  }
+]

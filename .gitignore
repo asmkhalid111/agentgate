@@ -17,6 +17,10 @@
 # DB/storage/benchmark temporary outputs
 .data/
 local-data/
+# Python
+__pycache__/
+*.py[cod]
+
 # OS
 .DS_Store
 Thumbs.db
