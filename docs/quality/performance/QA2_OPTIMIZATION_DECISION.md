@@ -136,10 +136,22 @@ The hypothesis that Spring Security or JWT verification causes the ~44 ms interv
 Task 16F-D conducted a controlled diagnostic experiment testing client socket transmission buffering against server-side Spring AI MCP processing:
 
 1. **Root Cause Confirmed:** Standard CPython `http.client.HTTPConnection` transmits headers and body across two separate `send()` calls. Even with `TCP_NODELAY = 1`, this split write induces a ~40 ms delayed-ACK pause on the Linux TCP stack before the body reaches Tomcat's socket buffer.
-2. **Single-Buffer Verification:** Implementing `SingleBufferHTTPConnection` (consolidating headers and body into a single `sendall()` buffer) eliminated the delayed-ACK pause completely:
+2. **Single-Buffer Verification:** Implementing `SingleBufferHTTPConnection` (consolidating headers and body into a single `sendall()` buffer) eliminated the client-side transmission stall:
    - **$T_2 \to T_3$ (MCP Parse) Latency:** $47.38\text{ ms} \to \mathbf{5.57\text{ ms}}$ at $p95$ (**$-88.2\%$**). In isolated probes: $40.01\text{ ms} \to \mathbf{1.98\text{ ms}}$ (**$-95.1\%$**).
    - **Pre-Pipeline Security Ingress:** $48.02\text{ ms} \to \mathbf{15.69\text{ ms}}$ at 100 RPS; $\mathbf{8.20\text{ ms}}$ at 10 RPS.
-   - **10 RPS Total Overhead:** $\mathbf{28.84\text{ ms}} \le \mathbf{30.0\text{ ms}}$ (QA2 compliant).
+   - **10 RPS Diagnostic Overhead:** $\mathbf{28.84\text{ ms}}$ (diagnostic check only; **not** QA2 acceptance, which requires 100 RPS).
 3. **Cryptographic Integrity:** Cryptographic audit verification confirmed 30,310 / 30,310 valid records (100% verified, 0 corrupted).
-4. **Architectural Confirmation:** Spring AI MCP and Spring Security are exonerated. No production security, authorization, or audit semantics required alteration.
-5. **Report & Evidence:** Full methodology and metrics documented in [QA2_TRANSPORT_EXPERIMENT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_TRANSPORT_EXPERIMENT.md) and chart [qa2_transport_comparison.png](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/charts/qa2_transport_comparison.png).
+4. **Architectural Confirmation:** Spring AI MCP and Spring Security are exonerated. Note that the delayed-ACK explanation is an empirical correlation from client transmission testing rather than packet-capture proof.
+
+---
+
+## 9. Final QA2 Acceptance Result & Remaining Architectural Bottleneck (Task 16F-E)
+
+Task 16F-E executed the authoritative 18,000-call acceptance benchmark across three 60-second windows at 100 RPS (`SingleBufferHTTPConnection`, full security and synchronous audit active):
+
+- **Verdict:** **QA2: FAIL**
+- **Achieved Throughput & Validity:** `18,000 / 18,000` successful governed executions (`99.85 RPS` pooled).
+- **MCP Transport Exonerated:** Pooled `ingress_mcp_parse` ($T_2 \to T_3$) measured **$p95 = 1.72\text{ ms}$**, and pooled `security_ingress` measured **$p95 = 8.55\text{ ms}$**.
+- **Measured Gateway Overhead:** Pooled `p50 = 13.39 ms`, **`p95 = 342.05 ms`** (Window 1: `589.18 ms`, Window 2: `110.25 ms`, Window 3: `110.34 ms`).
+- **Confirmed Bottleneck:** Even after a 7,500-call warm-up/stabilization phase, synchronous PostgreSQL single-row `FOR UPDATE` locking on `audit_chain_state` caused `audit_lock_wait` $p95 = 314.22\text{ ms}$ (`audit_total` $p95 = 323.42\text{ ms}$).
+- **Documentation Correction:** Earlier projections of ~23.5 ms steady-state overhead were hypothetical and are superseded by this empirical measurement. Full evidence is recorded in [QA2_FINAL_ACCEPTANCE.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_FINAL_ACCEPTANCE.md).
