@@ -48,18 +48,40 @@ DOWNSTREAM_PATH = "/api/orders/ORD-BENCH-01"
 
 POSTGRES_CONTAINER = "agentgate-benchmark-postgres"
 
+class SingleBufferHTTPConnection(http.client.HTTPConnection):
+    """Combines HTTP request line, headers, and body into a single socket write (sendall).
+    Prevents TCP delayed-ACK latency stalls caused by separate header and body transmissions.
+    """
+    def _send_output(self, message_body=None, encode_chunked=False):
+        self._buffer.extend((b"", b""))
+        msg = b"\r\n".join(self._buffer)
+        del self._buffer[:]
+        if message_body is not None:
+            if hasattr(message_body, 'read'):
+                body_bytes = message_body.read()
+            elif isinstance(message_body, str):
+                body_bytes = message_body.encode("latin-1")
+            elif isinstance(message_body, (bytes, bytearray, memoryview)):
+                body_bytes = bytes(message_body)
+            else:
+                body_bytes = b"".join(message_body)
+            self.send(msg + body_bytes)
+        else:
+            self.send(msg)
+
 class ConnectionPool:
-    def __init__(self, host, port, max_size=25, timeout=10):
+    def __init__(self, host, port, max_size=25, timeout=10, conn_cls=SingleBufferHTTPConnection):
         self.host = host
         self.port = port
         self.timeout = timeout
         self.max_size = max_size
+        self.conn_cls = conn_cls
         self.pool = queue.Queue(maxsize=max_size)
         for _ in range(max_size):
             self.pool.put(self._create_conn())
 
     def _create_conn(self):
-        return http.client.HTTPConnection(self.host, self.port, timeout=self.timeout)
+        return self.conn_cls(self.host, self.port, timeout=self.timeout)
 
     def get(self):
         try:
@@ -477,11 +499,15 @@ def verify_single_probe(token, sid):
 def main():
     parser = argparse.ArgumentParser(description="AgentGate QA2 Root-Cause Performance Profiler")
     parser.add_argument("--prefix", default="qa2_profile", help="Prefix for output data files")
+    parser.add_argument("--transport", choices=["single_buffer", "standard"], default="single_buffer",
+                        help="Client transport socket buffering strategy: single_buffer (sendall) or standard (http.client)")
+    parser.add_argument("--workload", choices=["bounded", "full"], default="full",
+                        help="Workload scope: bounded (10 RPS + 100 RPS) or full (10, 30, 60, stab, 100w1, 100w2)")
     args = parser.parse_args()
 
     print("=================================================================")
     print("AgentGate QA2 Root-Cause Performance Profiler (Task 16E/16F)")
-    print(f"Capturing component-level telemetry across 10, 30, 60, 100 RPS [prefix: {args.prefix}]")
+    print(f"Transport: {args.transport} | Workload: {args.workload} | Prefix: {args.prefix}")
     print("=================================================================")
 
     token = get_client_token("agent-support-bot")
@@ -495,7 +521,8 @@ def main():
         print("FATAL: Profiling instrumentation verification failed! Aborting.")
         sys.exit(1)
 
-    pool = ConnectionPool(GATEWAY_HOST, GATEWAY_PORT, max_size=25)
+    conn_cls = SingleBufferHTTPConnection if args.transport == "single_buffer" else http.client.HTTPConnection
+    pool = ConnectionPool(GATEWAY_HOST, GATEWAY_PORT, max_size=25, conn_cls=conn_cls)
     lock_monitor = PostgresLockMonitor(interval_sec=0.5)
     res_monitor = ResourceMonitor(interval_sec=2.0)
 
@@ -503,7 +530,7 @@ def main():
     res_monitor.start()
 
     all_samples = []
-    phase_metrics = {}
+    evaluated_phases = []
 
     try:
         # Phase 1: 10 RPS (15s = 150 calls)
@@ -511,43 +538,49 @@ def main():
         res_monitor.set_phase("profile_10rps")
         p10_res, p10_dur, p10_rps = run_profile_phase("profile_10rps", pool, 15.0, 10, token, sid, concurrency=10)
         all_samples.extend(p10_res)
+        evaluated_phases.append(("profile_10rps", p10_res, p10_dur, p10_rps))
         time.sleep(2.0)
 
-        # Phase 2: 30 RPS (15s = 450 calls)
-        lock_monitor.set_phase("profile_30rps")
-        res_monitor.set_phase("profile_30rps")
-        p30_res, p30_dur, p30_rps = run_profile_phase("profile_30rps", pool, 15.0, 30, token, sid, concurrency=15)
-        all_samples.extend(p30_res)
-        time.sleep(2.0)
+        if args.workload == "full":
+            # Phase 2: 30 RPS (15s = 450 calls)
+            lock_monitor.set_phase("profile_30rps")
+            res_monitor.set_phase("profile_30rps")
+            p30_res, p30_dur, p30_rps = run_profile_phase("profile_30rps", pool, 15.0, 30, token, sid, concurrency=15)
+            all_samples.extend(p30_res)
+            evaluated_phases.append(("profile_30rps", p30_res, p30_dur, p30_rps))
+            time.sleep(2.0)
 
-        # Phase 3: 60 RPS (15s = 900 calls)
-        lock_monitor.set_phase("profile_60rps")
-        res_monitor.set_phase("profile_60rps")
-        p60_res, p60_dur, p60_rps = run_profile_phase("profile_60rps", pool, 15.0, 60, token, sid, concurrency=20)
-        all_samples.extend(p60_res)
-        time.sleep(2.0)
+            # Phase 3: 60 RPS (15s = 900 calls)
+            lock_monitor.set_phase("profile_60rps")
+            res_monitor.set_phase("profile_60rps")
+            p60_res, p60_dur, p60_rps = run_profile_phase("profile_60rps", pool, 15.0, 60, token, sid, concurrency=20)
+            all_samples.extend(p60_res)
+            evaluated_phases.append(("profile_60rps", p60_res, p60_dur, p60_rps))
+            time.sleep(2.0)
 
-        # Phase 4: Extended Stabilization Phase at 100 RPS (60s = 6,000 calls)
-        # Allows JIT compiler to optimize SpEL, Jackson, and HikariCP connection pool
-        lock_monitor.set_phase("profile_stabilization")
-        res_monitor.set_phase("profile_stabilization")
-        p_stab_res, _, _ = run_profile_phase("profile_stabilization", pool, 60.0, 100, token, sid, concurrency=20)
-        # Note: stabilization samples are recorded in all_samples for timeseries/progression analysis
-        all_samples.extend(p_stab_res)
-        time.sleep(2.0)
+            # Phase 4: Extended Stabilization Phase at 100 RPS (60s = 6,000 calls)
+            lock_monitor.set_phase("profile_stabilization")
+            res_monitor.set_phase("profile_stabilization")
+            p_stab_res, _, _ = run_profile_phase("profile_stabilization", pool, 60.0, 100, token, sid, concurrency=20)
+            all_samples.extend(p_stab_res)
+            evaluated_phases.append(("profile_stabilization", p_stab_res, 60.0, len(p_stab_res) / 60.0))
+            time.sleep(2.0)
 
-        # Phase 5: 100 RPS Window 1 (30s = 3,000 calls)
-        lock_monitor.set_phase("profile_100rps_win1")
-        res_monitor.set_phase("profile_100rps_win1")
-        p100_w1_res, p100_w1_dur, p100_w1_rps = run_profile_phase("profile_100rps_win1", pool, 30.0, 100, token, sid, concurrency=20)
-        all_samples.extend(p100_w1_res)
-        time.sleep(2.0)
+            # Phase 5: 100 RPS Window 1 (30s = 3,000 calls)
+            lock_monitor.set_phase("profile_100rps_win1")
+            res_monitor.set_phase("profile_100rps_win1")
+            p100_w1_res, p100_w1_dur, p100_w1_rps = run_profile_phase("profile_100rps_win1", pool, 30.0, 100, token, sid, concurrency=20)
+            all_samples.extend(p100_w1_res)
+            evaluated_phases.append(("profile_100rps_win1", p100_w1_res, p100_w1_dur, p100_w1_rps))
+            time.sleep(2.0)
 
-        # Phase 6: 100 RPS Window 2 (30s = 3,000 calls)
-        lock_monitor.set_phase("profile_100rps_win2")
-        res_monitor.set_phase("profile_100rps_win2")
-        p100_w2_res, p100_w2_dur, p100_w2_rps = run_profile_phase("profile_100rps_win2", pool, 30.0, 100, token, sid, concurrency=20)
+        # 100 RPS Window (bounded or Window 2) (30s = 3,000 calls)
+        win2_name = "profile_100rps" if args.workload == "bounded" else "profile_100rps_win2"
+        lock_monitor.set_phase(win2_name)
+        res_monitor.set_phase(win2_name)
+        p100_w2_res, p100_w2_dur, p100_w2_rps = run_profile_phase(win2_name, pool, 30.0, 100, token, sid, concurrency=20)
         all_samples.extend(p100_w2_res)
+        evaluated_phases.append((win2_name, p100_w2_res, p100_w2_dur, p100_w2_rps))
 
     finally:
         lock_monitor.stop()
@@ -592,15 +625,6 @@ def main():
         "audit_verification": audit_ver
     }
 
-    evaluated_phases = [
-        ("profile_10rps", p10_res, p10_dur, p10_rps),
-        ("profile_30rps", p30_res, p30_dur, p30_rps),
-        ("profile_60rps", p60_res, p60_dur, p60_rps),
-        ("profile_stabilization", p_stab_res, 60.0, len(p_stab_res) / 60.0),
-        ("profile_100rps_win1", p100_w1_res, p100_w1_dur, p100_w1_rps),
-        ("profile_100rps_win2", p100_w2_res, p100_w2_dur, p100_w2_rps)
-    ]
-
     for p_name, p_samples, p_dur, p_rps in evaluated_phases:
         valid = [s for s in p_samples if s["classification"] == "SUCCESSFUL_GOVERNED_EXECUTION"]
         def st(key):
@@ -641,19 +665,13 @@ def main():
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    # Also keep standard qa2_profile_summary.json updated if prefix != qa2_profile
-    if args.prefix != "qa2_profile":
-        std_path = os.path.join(DATA_DIR, "qa2_profile_summary.json")
-        with open(std_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=2)
-
     print(f"Summary exported to {summary_path}")
 
     # Print high-level comparison table to console
     print("\n=================================================================================================================")
     print(f"{'Phase':<22} | {'RPS':<6} | {'Overhead p95':<12} | {'Ingress p95':<12} | {'Auth p95':<10} | {'Route p95':<10} | {'MCP p95':<10} | {'Prep p95':<10}")
     print("-----------------------------------------------------------------------------------------------------------------")
-    for p_name in ["profile_10rps", "profile_30rps", "profile_60rps", "profile_100rps_win1", "profile_100rps_win2"]:
+    for p_name, _, _, _ in evaluated_phases:
         p_data = summary["phases"][p_name]
         rps = p_data["actual_rps"]
         o_p95 = p_data["overhead_ms"]["p95"]
