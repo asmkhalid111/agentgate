@@ -37,8 +37,9 @@ Task 16F-D executed a controlled diagnostic experiment to determine whether this
    - **Security Ingress ($T_0 \to T_4$) Results:**
      - Split-Send Control: $p95 = 48.02\text{ ms}$
      - Single-Buffer Sendall: $p95 = 15.69\text{ ms}$ at 100 RPS; **$8.20\text{ ms}$** at 10 RPS.
-4. **Target QA2 Compliance:**
-   - At 10 RPS, total gateway overhead $p95$ measured **$28.84\text{ ms}$**, passing the QA2 requirement ($\le 30.0\text{ ms}$) with all security controls, rate limiting, and synchronous cryptographic audit logging active!
+4. **Diagnostic 10-RPS Observation (Not QA2 Acceptance):**
+   - At 10 RPS, total gateway overhead $p95$ measured **$28.84\text{ ms}$** (diagnostic check only; formal QA2 acceptance requires 100 RPS).
+   - *Methodological Note:* The delayed-ACK mechanism described above is an empirical inference supported by the elimination of the ~40 ms stall when consolidating socket writes, rather than direct packet-capture (`tcpdump`) proof.
 
 ---
 
@@ -97,9 +98,9 @@ profile_100rps         | 99.1   | 367.38       | 15.69        | 9.41       | 2.2
 ```
 
 #### Observations:
-1. **At 10 RPS:** Total overhead $p95 = \mathbf{28.84\text{ ms}} \le \mathbf{30.0\text{ ms}}$. QA2 requirement is fully satisfied.
-2. **At 100 RPS:** Ingress $p95 = \mathbf{15.69\text{ ms}}$ (MCP parse $p95 = \mathbf{5.57\text{ ms}}$). The ingress tail is completely resolved.
-3. **100 RPS Overhead Note:** In this bounded run, the 60-second stabilization phase was omitted per task bounds; consequently, un-warmed PostgreSQL audit row locks caused `audit_lock_wait` to spike ($p95 = 317.05\text{ ms}$), exactly matching the cold-start behavior observed in Task 16F-A. When properly stabilized (as in Task 16F-B Window 2 where audit append was $7.77\text{ ms}$), combining the stabilized audit append ($7.77\text{ ms}$) with the single-buffer ingress ($15.69\text{ ms}$) yields a projected steady-state 100 RPS overhead of **$\approx 23.5\text{ ms} \le 30.0\text{ ms}$**!
+1. **At 10 RPS:** Total overhead $p95 = \mathbf{28.84\text{ ms}}$ (diagnostic check only; **not** formal QA2 acceptance, which requires 100 RPS).
+2. **At 100 RPS:** Ingress $p95 = \mathbf{15.69\text{ ms}}$ (MCP parse $p95 = \mathbf{5.57\text{ ms}}$). The ingress tail is resolved.
+3. **100 RPS Overhead Note (Projection Superseded):** In this bounded run, the 60-second stabilization phase was omitted per task bounds; consequently, PostgreSQL audit row locks spiked ($p95 = 317.05\text{ ms}$). An earlier projection combining component p95s ($\approx 23.5\text{ ms}$) was hypothetical—component p95s cannot be linearly summed, and the subsequent 18,000-call Task 16F-E acceptance benchmark empirically demonstrated that audit lock contention persists even after stabilization.
 
 ---
 
