@@ -1,8 +1,8 @@
-# AgentGate — Architecture Decision Record: QA2 Performance Optimization (ADR-005)
+﻿# AgentGate â€” Architecture Decision Record: QA2 Performance Optimization (ADR-005)
 
-**Status:** APPROVED & PHASE 1 EXPERIMENT EXECUTED  
-**Date:** November 24, 2026  
-**Context:** CSE 444 Project 1 — AgentGate Quality Attribute QA2 Performance Verification  
+**Status:** APPROVED & PHASE 1 EXPERIMENT EXECUTED
+**Date:** November 24, 2026
+**Context:** CSE 444 Project 1 â€” AgentGate Quality Attribute QA2 Performance Verification
 **Authoritative QA2 Requirement:**
 > *"The gateway adds no more than 30 ms at p95 to a tool call at 100 calls per second, excluding approval waits."*
 
@@ -51,7 +51,7 @@ Before modifying core architectural boundaries or adopting risky asynchronous au
 ## 4. Empirical Experiment: HikariCP Connection Pool Sizing (Task 16F-B)
 
 ### 4.1 Hypothesis
-The catastrophic tail latency in both `audit_lock_ms` and `permission_check_ms` was primarily induced by **HikariCP connection pool starvation**. Under 20 concurrent worker threads dispatching 100 RPS, 8 to 9 connections in the 10-connection pool were continuously tied up in transactions waiting for the row lock, leaving only 1–2 connections for all incoming requests.
+The catastrophic tail latency in both `audit_lock_ms` and `permission_check_ms` was primarily induced by **HikariCP connection pool starvation**. Under 20 concurrent worker threads dispatching 100 RPS, 8 to 9 connections in the 10-connection pool were continuously tied up in transactions waiting for the row lock, leaving only 1â€“2 connections for all incoming requests.
 
 Expanding HikariCP `maximum-pool-size` from 10 to 30 in `application-benchmark.yml` was predicted to eliminate pool starvation, allowing incoming threads to acquire connections without delay.
 
@@ -103,10 +103,30 @@ Visual evidence generated:
 
 ---
 
-## 6. Next Steps: Closing the Final $28.78\text{ ms}$ Gap
+## 6. Historical Evolution from Task 16F-B
 
-To bring gateway-added tail latency from $58.78\text{ ms}$ down below the authoritative $30.0\text{ ms}$ SLA:
-1. **Analyze Security Ingress Pipeline:** Investigate the Spring Security filter chain traversal between `BenchmarkTimingFilter` (servlet entry) and `DynamicGovernedToolCallback.call()`:
-   - Stateless JWT decoding and Keycloak public key verification caching.
-   - Filter order and virtual thread handoff optimization.
-2. **Execute Full QA2 Acceptance Benchmark:** Once security ingress is streamlined, execute the formal 3-run 18,000-request benchmark suite (`benchmark_qa2_load.py`) to verify compliance with $p95 \le 30.0\text{ ms}$.
+Following Task 16F-B, the dominant remaining tail latency component was identified as the ~$48\text{ ms}$ pre-pipeline interval previously labeled `security_ingress`.
+
+---
+
+## 7. Empirical Addendum: Pre-Pipeline Latency Decomposition (Task 16F-C)
+
+In Task 16F-C, high-resolution nanosecond checkpoints ($T_0 \to T_1 \to T_2 \to T_3 \to T_4$) decomposed the pre-pipeline interval into four mutually exclusive spans:
+1. `ingress_auth` ($T_1 - T_0$): Spring Security filter chain & Nimbus RS256 JWT decoding.
+2. `ingress_routing` ($T_2 - T_1$): Spring MVC `DispatcherServlet` routing & MCP context extraction.
+3. `ingress_mcp_parse` ($T_3 - T_2$): Spring AI MCP Streamable HTTP transport framing, SSE stream processing, and tool callback resolution.
+4. `ingress_callback_prep` ($T_4 - T_3$): Thread-local agent lookup, logging, and Jackson argument parsing.
+
+### 7.1 Measured Decomposition (Window 2 @ 100 RPS, 3,000 requests)
+- **Auth & JWT (`ingress_auth`):** $p50 = 0.94\text{ ms}$, $p95 = 3.48\text{ ms}$ (7.1% of ingress tail).
+- **MVC Routing (`ingress_routing`):** $p50 = 0.24\text{ ms}$, $p95 = 0.72\text{ ms}$ (1.5% of ingress tail).
+- **Callback Prep (`ingress_callback_prep`):** $p50 = 0.05\text{ ms}$, $p95 = 0.28\text{ ms}$ (0.6% of ingress tail).
+- **MCP Transport & Parsing (`ingress_mcp_parse`):** $p50 = 41.58\text{ ms}$, $p95 = 47.38\text{ ms}$ (**96.8% of ingress tail**).
+
+Visual evidence generated:
+- [qa2_ingress_decomposition.png](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/charts/qa2_ingress_decomposition.png): Multi-panel chart illustrating the 4-segment ingress decomposition, Window 2 CDF, and pre-pipeline vs governance comparison.
+
+### 7.2 Decision & Next Step
+The hypothesis that Spring Security or JWT verification causes the ~44 ms interval was **decisively disproven**. The primary latency contributor is **Spring AI MCP Streamable HTTP transport message processing** ($T_3 - T_2$).
+
+Proposed next step (Task 16F-D): Investigate Spring AI MCP transport settings and logging levels (e.g. disabling `DEBUG` logging on `org.springframework.ai.mcp` in benchmark profile) under explicit reviewer sign-off.
