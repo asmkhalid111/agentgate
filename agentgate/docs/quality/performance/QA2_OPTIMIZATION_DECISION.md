@@ -126,7 +126,20 @@ In Task 16F-C, high-resolution nanosecond checkpoints ($T_0 \to T_1 \to T_2 \to 
 Visual evidence generated:
 - [qa2_ingress_decomposition.png](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/charts/qa2_ingress_decomposition.png): Multi-panel chart illustrating the 4-segment ingress decomposition, Window 2 CDF, and pre-pipeline vs governance comparison.
 
-### 7.2 Decision & Next Step
-The hypothesis that Spring Security or JWT verification causes the ~44 ms interval was **decisively disproven**. The primary latency contributor is **Spring AI MCP Streamable HTTP transport message processing** ($T_3 - T_2$).
+### 7.2 Diagnostic Transition
+The hypothesis that Spring Security or JWT verification causes the ~44 ms interval was **decisively disproven**. The primary latency contributor was isolated to the $T_2 \to T_3$ socket read / MCP message processing interval.
 
-Proposed next step (Task 16F-D): Investigate Spring AI MCP transport settings and logging levels (e.g. disabling `DEBUG` logging on `org.springframework.ai.mcp` in benchmark profile) under explicit reviewer sign-off.
+---
+
+## 8. Empirical Addendum: Transport Latency Experiment & Delayed-ACK Resolution (Task 16F-D)
+
+Task 16F-D conducted a controlled diagnostic experiment testing client socket transmission buffering against server-side Spring AI MCP processing:
+
+1. **Root Cause Confirmed:** Standard CPython `http.client.HTTPConnection` transmits headers and body across two separate `send()` calls. Even with `TCP_NODELAY = 1`, this split write induces a ~40 ms delayed-ACK pause on the Linux TCP stack before the body reaches Tomcat's socket buffer.
+2. **Single-Buffer Verification:** Implementing `SingleBufferHTTPConnection` (consolidating headers and body into a single `sendall()` buffer) eliminated the delayed-ACK pause completely:
+   - **$T_2 \to T_3$ (MCP Parse) Latency:** $47.38\text{ ms} \to \mathbf{5.57\text{ ms}}$ at $p95$ (**$-88.2\%$**). In isolated probes: $40.01\text{ ms} \to \mathbf{1.98\text{ ms}}$ (**$-95.1\%$**).
+   - **Pre-Pipeline Security Ingress:** $48.02\text{ ms} \to \mathbf{15.69\text{ ms}}$ at 100 RPS; $\mathbf{8.20\text{ ms}}$ at 10 RPS.
+   - **10 RPS Total Overhead:** $\mathbf{28.84\text{ ms}} \le \mathbf{30.0\text{ ms}}$ (QA2 compliant).
+3. **Cryptographic Integrity:** Cryptographic audit verification confirmed 30,310 / 30,310 valid records (100% verified, 0 corrupted).
+4. **Architectural Confirmation:** Spring AI MCP and Spring Security are exonerated. No production security, authorization, or audit semantics required alteration.
+5. **Report & Evidence:** Full methodology and metrics documented in [QA2_TRANSPORT_EXPERIMENT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_TRANSPORT_EXPERIMENT.md) and chart [qa2_transport_comparison.png](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/charts/qa2_transport_comparison.png).
