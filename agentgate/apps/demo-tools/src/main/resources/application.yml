@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: agentgate-demo-tools
+  ai:
+    mcp:
+      server:
+        protocol: STREAMABLE
+        name: agentgate-demo-tools-mcp
+        version: 1.0.0
+        streamable-http:
+          mcp-endpoint: /mcp
 
 management:
   endpoints:

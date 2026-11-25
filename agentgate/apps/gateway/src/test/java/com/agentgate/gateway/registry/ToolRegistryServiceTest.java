@@ -11,12 +11,15 @@ import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.registry.domain.RiskLevel;
 import com.agentgate.gateway.registry.repository.RegisteredToolRepository;
 import com.agentgate.gateway.registry.service.OpenApiImporterService;
+import com.agentgate.testsupport.DownstreamMcpTestServerApp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
@@ -182,47 +185,55 @@ public class ToolRegistryServiceTest {
     @Test
     @DisplayName("ToolExecutionPipeline should execute downstream MCP protocol tools")
     void pipeline_shouldSupportMcpProtocolTools() {
-        RegisteredTool mcpTool = new RegisteredTool(
-                "tool-mcp-test",
-                "downstream_mcp_echo",
-                "Downstream MCP service",
-                "{\"type\":\"object\"}",
-                RiskLevel.LOW,
-                "AI Ops",
-                "http://localhost:9090/mcp",
-                ProtocolType.MCP,
-                "POST",
-                true,
-                Instant.now(),
-                Instant.now()
-        );
-        repository.save(mcpTool);
-        repository.addPermission("downstream_mcp_echo", "agent-finance-bot");
+        try (ConfigurableApplicationContext downstreamCtx = SpringApplication.run(
+                DownstreamMcpTestServerApp.class,
+                "--server.port=0",
+                "--spring.main.banner-mode=off",
+                "--spring.flyway.enabled=false",
+                "--spring.ai.mcp.server.enabled=false")) {
+            String port = downstreamCtx.getEnvironment().getProperty("local.server.port");
+            RegisteredTool mcpTool = new RegisteredTool(
+                    "tool-mcp-test",
+                    "inventory_check",
+                    "Downstream MCP service",
+                    "{\"type\":\"object\",\"properties\":{\"sku\":{\"type\":\"string\"}}}",
+                    RiskLevel.LOW,
+                    "AI Ops",
+                    "http://localhost:" + port + "/mcp",
+                    ProtocolType.MCP,
+                    "POST",
+                    true,
+                    Instant.now(),
+                    Instant.now()
+            );
+            repository.save(mcpTool);
+            repository.addPermission("inventory_check", "agent-finance-bot");
 
-        policyRepository.save(new PolicyRule(
-                "pol-mcp-test",
-                "Allow MCP Echo",
-                "agent-finance-*",
-                "downstream_mcp_echo",
-                List.of(),
-                PolicyAction.ALLOW,
-                false,
-                1,
-                1,
-                true
-        ));
-        evaluator.reloadPolicies();
+            policyRepository.save(new PolicyRule(
+                    "pol-mcp-test",
+                    "Allow MCP Inventory",
+                    "agent-finance-*",
+                    "inventory_check",
+                    List.of(),
+                    PolicyAction.ALLOW,
+                    false,
+                    1,
+                    1,
+                    true
+            ));
+            evaluator.reloadPolicies();
 
-        ToolExecutionContext ctx = new ToolExecutionContext(
-                "agent-finance-bot",
-                "downstream_mcp_echo",
-                Map.of("message", "hello-mcp"),
-                null,
-                RiskLevel.LOW
-        );
+            ToolExecutionContext ctx = new ToolExecutionContext(
+                    "agent-finance-bot",
+                    "inventory_check",
+                    Map.of("sku", "SKU-TEST-1"),
+                    null,
+                    RiskLevel.LOW
+            );
 
-        ToolExecutionResult result = pipeline.execute(ctx);
-        assertTrue(result.success());
-        assertNotNull(result.data());
+            ToolExecutionResult result = pipeline.execute(ctx);
+            assertTrue(result.success());
+            assertNotNull(result.data());
+        }
     }
 }
