@@ -72,11 +72,15 @@ public class DynamicGovernedToolCallback implements ToolCallback {
             throw new IllegalArgumentException(safeJsonError("Invalid JSON arguments: " + e.getMessage()));
         }
 
+        var requestAttributes = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        String subject = requestAttributes == null ? null : (String) requestAttributes.getAttribute(
+                com.agentgate.gateway.identity.DelegationFilter.SUBJECT,
+                org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST);
         ToolExecutionContext context = new ToolExecutionContext(
                 callingAgent,
                 tool.name(),
                 arguments,
-                null,
+                subject,
                 tool.riskLevel(),
                 agentRoles
         );
