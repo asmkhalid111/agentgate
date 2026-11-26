@@ -30,9 +30,9 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 ## Common requirements
 | ID | Requirement paraphrase | Milestone(s) / Delivery Day | Evidence | Status |
 |---|---|---|---|---|
-| C1 | Java21/25, Boot4, Compose one command, 8GB RAM, free services | Baseline & Day 1–3 | `docker compose up --build -d`, memory measurements (~1,006.6 MiB baseline) | PARTIALLY IMPLEMENTED (Baseline in M01) |
-| C2 | Profiles/env, validated typed properties, no Git secrets | Baseline & Day 1–3 | Config/test, secret scan, `.env.example` | PARTIALLY IMPLEMENTED (Baseline in M01) |
-| C3 | springdoc OpenAPI, endpoint security, validation, RFC9457, pagination | C3/C4 follow-up | Protected gateway OpenAPI, validated inputs, Problem Details and bounded list pages | VERIFIED for gateway scope |
+| C1 | Java 21, Spring Boot 4, Maven, one-command Compose startup on 8 GB RAM, free services | M09 | [Source build, readiness, and memory measurements](../milestones/M09/COMPLETION.md) | PARTIALLY VERIFIED (physical 8 GB host pending) |
+| C2 | Profiles and environment, validated typed properties, no repository secrets | M09 | [Configuration and fixture review](../milestones/M09/COMPLETION.md) | PARTIALLY VERIFIED (literal demo credentials remain) |
+| C3 | OpenAPI, security, validation, RFC 9457 and pagination | M05 / M09 | [Gateway API verification](../milestones/M09/COMPLETION.md) | VERIFIED for gateway scope |
 | C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | C3/C4 follow-up | Actuator health/readiness and metrics plus matching gateway/demo-tools JSON trace IDs on REST and MCP calls | VERIFIED |
 | C5 | JUnit 5 unit and slice tests, Testcontainers, runnable QA scripts, CI | C5 checkpoint | [Local verification and CI status](../milestones/M07/COMPLETION.md) | PARTIALLY VERIFIED (hosted CI pending) |
 | C6 | ArchUnit or Modulith architecture enforcement | Baseline & Day 1–3 | `ModularMonolithArchitectureTest` passes with zero cyclic dependencies | PARTIALLY IMPLEMENTED (Baseline in M01) |

@@ -2,7 +2,8 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: apps/gateway/Dockerfile
+      dockerfile: Dockerfile.compose
+      target: gateway
     container_name: agentgate-gateway
     ports:
       - "8080:8080"
@@ -40,7 +41,8 @@ services:
   demo-tools:
     build:
       context: .
-      dockerfile: apps/demo-tools/Dockerfile
+      dockerfile: Dockerfile.compose
+      target: demo-tools
     container_name: agentgate-demo-tools
     ports:
       - "8082:8082"
