@@ -16,6 +16,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -25,6 +27,35 @@ public class JwtSecurityIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Test
+    void docsAndMetricsRequireAdministrativeAccess() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/v3/api-docs").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.openapi").exists());
+        mockMvc.perform(get("/actuator/health/readiness")).andExpect(status().isOk());
+        mockMvc.perform(get("/actuator/metrics").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.names").isArray());
+    }
+
+    @Test
+    void registryEnforcesPageBoundsAndReturnsProblemDetails() throws Exception {
+        String path = "/api/v1/registry/tools";
+        var admin = jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        mockMvc.perform(get(path).with(jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT"))))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        mockMvc.perform(get(path).param("size", "101").with(admin))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        mockMvc.perform(get(path).param("page", "2147483647").param("size", "100").with(admin))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{}").with(admin))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
 
     @Test
     @DisplayName("Actuator health endpoint should be publicly accessible without authentication")

@@ -12,9 +12,11 @@ import java.util.Map;
  */
 @Service
 public class DemoMcpInventoryService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DemoMcpInventoryService.class);
 
     @Tool(name = "inventory_check", description = "Check warehouse inventory availability for a product SKU")
     public Map<String, Object> checkInventory(@ToolParam(description = "Product SKU identifier") String sku) {
+        log.info("Handling demo MCP inventory lookup");
         String normalizedSku = (sku != null && !sku.isBlank()) ? sku.trim() : "UNKNOWN";
         return Map.of(
                 "sku", normalizedSku,

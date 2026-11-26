@@ -6,7 +6,11 @@ import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.resilience.config.ResilienceProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import io.modelcontextprotocol.client.McpClient;
+import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -34,6 +38,14 @@ public class McpDownstreamToolAdapter implements ToolAdapter {
     private static final Logger log = LoggerFactory.getLogger(McpDownstreamToolAdapter.class);
 
     private final ObjectMapper objectMapper;
+    private Tracer tracer = Tracer.NOOP;
+    private Propagator propagator = Propagator.NOOP;
+
+    @Autowired(required = false)
+    void setTracing(Tracer tracer, Propagator propagator) {
+        this.tracer = tracer;
+        this.propagator = propagator;
+    }
     private final ResilienceProperties resilienceProperties;
     private final McpDownstreamProperties downstreamProperties;
     private final ConcurrentHashMap<String, McpSyncClient> clientCache = new ConcurrentHashMap<>();
@@ -147,10 +159,20 @@ public class McpDownstreamToolAdapter implements ToolAdapter {
             HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport.builder(baseUrl)
                     .endpoint(endpointPath)
                     .connectTimeout(connectTimeout)
+                    .httpRequestCustomizer((builder, method, uri, body, context) -> {
+                        if (context.get("traceContext") instanceof io.micrometer.tracing.TraceContext trace) {
+                            propagator.inject(trace, builder, (request, name, value) -> request.setHeader(name, value));
+                        }
+                    })
                     .build();
 
             McpSyncClient client = McpClient.sync(transport)
                     .requestTimeout(readTimeout)
+                    .transportContextProvider(() -> {
+                        Span span = tracer.currentSpan();
+                        return span == null ? McpTransportContext.EMPTY
+                                : McpTransportContext.create(Map.of("traceContext", span.context()));
+                    })
                     .build();
             client.initialize();
             log.info("Initialized downstream MCP client for '{}' at {}{}", toolName, baseUrl, endpointPath);

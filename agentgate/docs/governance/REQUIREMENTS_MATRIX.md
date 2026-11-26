@@ -32,8 +32,8 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 |---|---|---|---|---|
 | C1 | Java21/25, Boot4, Compose one command, 8GB RAM, free services | Baseline & Day 1–3 | `docker compose up --build -d`, memory measurements (~1,006.6 MiB baseline) | PARTIALLY IMPLEMENTED (Baseline in M01) |
 | C2 | Profiles/env, validated typed properties, no Git secrets | Baseline & Day 1–3 | Config/test, secret scan, `.env.example` | PARTIALLY IMPLEMENTED (Baseline in M01) |
-| C3 | springdoc OpenAPI, endpoint security, validation, RFC9457, pagination | Baseline & Day 1–3 | ProblemDetails in `GlobalExceptionHandler`, Actuator health | PARTIALLY IMPLEMENTED (Baseline in M01) |
-| C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | Baseline & Day 1–3 | Logback MDC pattern configured with traceId and spanId | PARTIALLY IMPLEMENTED (Baseline in M01) |
+| C3 | springdoc OpenAPI, endpoint security, validation, RFC9457, pagination | C3/C4 follow-up | Protected gateway OpenAPI, validated inputs, Problem Details and bounded list pages | VERIFIED for gateway scope |
+| C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | C3/C4 follow-up | Actuator health/readiness and metrics plus matching gateway/demo-tools JSON trace IDs on REST and MCP calls | VERIFIED |
 | C5 | JUnit5/slice, Testcontainers, QA executable scripts, CI runs all | Baseline & Day 3 | 10/10 tests passing (`mvn test`), CI workflow in Day 3 | PARTIALLY IMPLEMENTED (Baseline in M01; Full Suite in Day 3) |
 | C6 | ArchUnit or Modulith architecture enforcement | Baseline & Day 1–3 | `ModularMonolithArchitectureTest` passes with zero cyclic dependencies | PARTIALLY IMPLEMENTED (Baseline in M01) |
 | C7 | C4 context/container/component, 4 ADRs w measured evidence, >=6 scenario utility tree + sensitivity/tradeoffs | Baseline & Day 3 | Diagrams, ADR drafts in M00; empirical benchmark evidence in Day 3 | DRAFTED (M00; Empirical Evidence in Day 3) |

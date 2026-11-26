@@ -1,0 +1,17 @@
+http://localhost:8080 /actuator/health 200 UP
+http://localhost:8080 /actuator/health/readiness 200 UP
+http://localhost:8082 /actuator/health 200 UP
+http://localhost:8082 /actuator/health/readiness 200 UP
+/actuator/metrics anonymous=401 admin=200
+/v3/api-docs anonymous=401 admin=200
+Successful governed call inventory_check b92822b298efa54450078ecde44bf4a0
+Successful governed call orders_get 07a78ef0d2cf651d45d5900b9a23ab5d
+Temporary trace-check policy cleanup HTTP 204
+gateway REST matching JSON log records: 11
+{"@timestamp": "2026-11-26T06:44:13.256637283Z", "@version": "1", "message": "Secured POST /mcp", "logger_name": "org.springframework.security.web.FilterChainProxy", "thread_name": "tomcat-handler-22", "level": "DEBUG", "level_value": 10000, "traceId": "07a78ef0d2cf651d45d5900b9a23ab5d", "spanId": "d008c13453cad707", "tags": ["COMMONS-LOGGING"]}
+gateway MCP matching JSON log records: 13
+{"@timestamp": "2026-11-26T06:44:12.704215069Z", "@version": "1", "message": "Secured POST /mcp", "logger_name": "org.springframework.security.web.FilterChainProxy", "thread_name": "tomcat-handler-19", "level": "DEBUG", "level_value": 10000, "traceId": "b92822b298efa54450078ecde44bf4a0", "spanId": "9a96340aa35d4c4c", "tags": ["COMMONS-LOGGING"]}
+demo-tools REST matching JSON log records: 1
+{"@timestamp": "2026-11-26T06:44:13.192362051Z", "@version": "1", "message": "Handling demo order lookup", "logger_name": "com.agentgate.demotools.controller.MockOrderController", "thread_name": "http-nio-8082-exec-6", "level": "INFO", "level_value": 20000, "traceId": "07a78ef0d2cf651d45d5900b9a23ab5d", "spanId": "7ba2e901da0600fb"}
+demo-tools MCP matching JSON log records: 2
+{"@timestamp": "2026-11-26T06:44:12.352772626Z", "@version": "1", "message": "Handling demo MCP inventory lookup", "logger_name": "com.agentgate.demotools.mcp.DemoMcpInventoryService", "thread_name": "http-nio-8082-exec-4", "level": "INFO", "level_value": 20000, "traceId": "b92822b298efa54450078ecde44bf4a0", "spanId": "3111cbddbcd7c2a9"}

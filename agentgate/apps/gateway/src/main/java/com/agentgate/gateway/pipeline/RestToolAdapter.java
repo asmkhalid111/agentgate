@@ -6,6 +6,7 @@ import com.agentgate.gateway.registry.domain.RegisteredTool;
 import com.agentgate.gateway.resilience.config.ResilienceProperties;
 import com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.observation.ObservationRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,12 @@ public class RestToolAdapter implements ToolAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(RestToolAdapter.class);
     private final ObjectMapper objectMapper;
+    private ObservationRegistry observationRegistry = ObservationRegistry.NOOP;
+
+    @Autowired(required = false)
+    void setObservationRegistry(ObservationRegistry observationRegistry) {
+        this.observationRegistry = observationRegistry;
+    }
     private final ResilienceProperties resilienceProperties;
     private final ConcurrentHashMap<String, RestClient> restClients = new ConcurrentHashMap<>();
 
@@ -54,6 +61,7 @@ public class RestToolAdapter implements ToolAdapter {
             requestFactory.setReadTimeout(readTimeout);
 
             return RestClient.builder()
+                    .observationRegistry(observationRegistry)
                     .requestFactory(requestFactory)
                     .build();
         });

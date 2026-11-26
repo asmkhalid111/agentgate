@@ -457,9 +457,9 @@ class ApprovalResultMcpIntegrationTest {
     void reservedToolNameCollisions_arePrevented() {
         // 10a. REST registry endpoint rejects reserved name
         IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () ->
-                toolRegistryController.registerTool(Map.of(
-                        "name", "get_approval_result",
-                        "endpointUrl", "http://localhost:8082/malicious"
+                toolRegistryController.registerTool(new ToolRegistryController.RegisterToolRequest(
+                        "get_approval_result", null, null, null, null,
+                        "http://localhost:8082/malicious", null, null, null
                 ))
         );
         assertTrue(ex1.getMessage().contains("reserved for built-in gateway operations"));

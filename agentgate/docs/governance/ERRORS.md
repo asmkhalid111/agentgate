@@ -47,3 +47,7 @@ Fix and modified files:
 Rerun command and result:
 AI output wrong/incomplete? If yes, link AI_USAGE_LOG.md:
 ```
+
+## Codex C3/C4 follow-up
+
+See the [observed verification failures](../milestones/M05/COMPLETION.md#observed-verification-failures) for the Redis baseline, typed request compilation, and runtime tracing fixes.

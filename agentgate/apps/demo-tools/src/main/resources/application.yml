@@ -24,3 +24,8 @@ management:
       probes:
         enabled: true
 
+
+logging:
+  structured:
+    format:
+      console: logstash

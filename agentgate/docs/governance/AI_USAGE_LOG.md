@@ -77,3 +77,7 @@ Track tools, significant prompt summaries or paths, review outcomes, and actual 
 - **What was Incorrect/Incomplete:** In Spring AI 2.0.2, tools must be explicitly exposed to the MCP server specification via a `ToolCallbackProvider` bean. Without it, `McpServerAutoConfiguration` reports `Registered tools: 0` and `tools/list` returns empty.
 - **Review Evidence that Exposed it:** MCP client spike returned `{"jsonrpc":"2.0","id":11,"result":{"tools":[]}}` and tool calls failed with `Unknown tool`.
 - **Change Made & Re-verification:** Created `apps/gateway/src/main/java/com/agentgate/gateway/config/McpConfig.java` declaring `@Bean public ToolCallbackProvider demoToolsCallbackProvider(DemoToolsMcpProvider p) { return ToolCallbackProvider.from(ToolCallbacks.from(p)); }`. Gateway log confirmed `Registered tools: 2` and discovery test passed.
+
+## Codex C3/C4 follow-up
+
+The user requested an FR1 baseline check followed by an approval-gated C3/C4 pass. Codex initially missed a direct test caller of the registry controller and omitted the Brave runtime bridge from the first build. A clean compile and live trace check exposed these gaps. The test caller and application dependencies were corrected. See the [completion report](../milestones/M05/COMPLETION.md).
