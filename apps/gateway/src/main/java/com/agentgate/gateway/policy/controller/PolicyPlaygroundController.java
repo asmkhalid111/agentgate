@@ -26,7 +26,7 @@ public class PolicyPlaygroundController {
 
     public record PlaygroundRequest(
             String agentId,
-            String toolName,
+            @jakarta.validation.constraints.NotBlank String toolName,
             Map<String, Object> arguments,
             String userId,
             Map<String, Object> userContext,
@@ -44,7 +44,7 @@ public class PolicyPlaygroundController {
     ) {}
 
     @PostMapping
-    public ResponseEntity<PlaygroundResponse> testPolicyCall(@RequestBody PlaygroundRequest request) {
+    public ResponseEntity<PlaygroundResponse> testPolicyCall(@jakarta.validation.Valid @RequestBody PlaygroundRequest request) {
         RiskLevel risk = RiskLevel.LOW;
         if (request.riskLevel() != null && !request.riskLevel().isBlank()) {
             try {

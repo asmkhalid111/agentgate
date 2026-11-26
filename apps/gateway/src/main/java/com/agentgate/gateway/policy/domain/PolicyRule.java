@@ -4,9 +4,9 @@ import java.util.List;
 
 public record PolicyRule(
         String id,
-        String name,
-        String agentPattern,
-        String toolPattern,
+        @jakarta.validation.constraints.NotBlank String name,
+        @jakarta.validation.constraints.NotBlank String agentPattern,
+        @jakarta.validation.constraints.NotBlank String toolPattern,
         List<StructuredCondition> conditions,
         PolicyAction action,
         boolean dryRun,

@@ -2,6 +2,10 @@ package com.agentgate.gateway.config;
 
 import com.agentgate.gateway.identity.JwtAgentAuthenticationConverter;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -121,18 +125,35 @@ public class SecurityConfig {
      */
     @Bean
     @Order(1)
-    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtAgentAuthenticationConverter converter)
-            throws Exception {
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtAgentAuthenticationConverter converter,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver problemResolver) throws Exception {
+        var bearerEntryPoint = new BearerTokenAuthenticationEntryPoint();
+        var bearerDeniedHandler = new BearerTokenAccessDeniedHandler();
+        org.springframework.security.web.AuthenticationEntryPoint entryPoint = (request, response, exception) -> {
+            bearerEntryPoint.commence(request, response, exception);
+            if (request.getServletPath().startsWith("/api/v1/") || request.getRequestURI()
+                    .startsWith(request.getContextPath() + "/api/v1/")) {
+                problemResolver.resolveException(request, response, null, exception);
+            }
+        };
+        org.springframework.security.web.access.AccessDeniedHandler deniedHandler = (request, response, exception) -> {
+            bearerDeniedHandler.handle(request, response, exception);
+            if (request.getRequestURI().startsWith(request.getContextPath() + "/api/v1/")) {
+                problemResolver.resolveException(request, response, null, exception);
+            }
+        };
         http
-                .securityMatcher("/mcp", "/mcp/**", "/api/v1/**", "/actuator/**", "/swagger-ui/**", "/v3/api-docs/**",
-                        "/error")
+                .securityMatcher("/mcp", "/mcp/**", "/api/v1/**", "/actuator/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+                        "/v3/api-docs.yaml", "/error")
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Public observability and documentation endpoints
-                        .requestMatchers("/actuator/health", "/actuator/info", "/error", "/swagger-ui/**",
-                                "/v3/api-docs/**")
-                        .permitAll()
+                        // Compose probes and error dispatch
+                        .requestMatchers("/actuator/health", "/actuator/health/liveness",
+                                "/actuator/health/readiness", "/error").permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs",
+                                "/v3/api-docs/**", "/v3/api-docs.yaml", "/actuator/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "SCOPE_tool:admin")
                         // Protected MCP protocol endpoint (strictly requires agent:invoke scope)
                         .requestMatchers("/mcp", "/mcp/**").hasAuthority("SCOPE_agent:invoke")
                         // Protected Human Approval REST API (strictly requires ROLE_APPROVER)
@@ -152,7 +173,10 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "SCOPE_tool:admin")
                         // Deny all other unmapped routes in this chain
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(oauth2 -> oauth2
+                .exceptionHandling(errors -> errors.authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(deniedHandler))
+                .oauth2ResourceServer(oauth2 -> oauth2.authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(deniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
                 .addFilterAfter(new com.agentgate.gateway.pipeline.benchmark.BenchmarkSecurityExitFilter(),
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class);

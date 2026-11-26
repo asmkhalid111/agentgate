@@ -9,9 +9,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/orders")
 public class MockOrderController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MockOrderController.class);
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getOrder(@PathVariable("id") String id) {
+        log.info("Handling demo order lookup");
         if (id != null && id.contains("fail")) {
             return ResponseEntity.status(500).body(Map.of(
                     "error", "Simulated downstream internal server error",

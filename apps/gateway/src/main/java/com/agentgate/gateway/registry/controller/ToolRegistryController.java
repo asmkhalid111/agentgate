@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 
 @RestController
@@ -46,34 +47,46 @@ public class ToolRegistryController {
     }
 
     @GetMapping
-    public List<RegisteredTool> listTools() {
-        return repository.findAll();
+    public List<RegisteredTool> listTools(
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int page,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(100) int size) {
+        return repository.findAll().stream()
+                .sorted(java.util.Comparator.comparing(RegisteredTool::name))
+                .skip((long) page * size)
+                .limit(size)
+                .toList();
     }
 
     @GetMapping("/{name}")
     public ResponseEntity<RegisteredTool> getTool(@PathVariable String name) {
         return repository.findByName(name)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
+    public record RegisterToolRequest(@NotBlank String name, String description, String inputSchema,
+            String riskLevel, String owningTeam, String endpointUrl, String protocolType, String httpMethod,
+            Boolean enabled) {}
+
+    public record OpenApiImportRequest(@NotBlank String spec, String baseUrl, String owningTeam) {}
+
+    public record GrantPermissionRequest(@NotBlank String agentId) {}
+
     @PostMapping
-    public ResponseEntity<RegisteredTool> registerTool(@RequestBody Map<String, Object> request) {
-        String name = (String) request.get("name");
-        if (name == null || name.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<RegisteredTool> registerTool(@Valid @RequestBody RegisterToolRequest request) {
+        String name = request.name();
         if (isReservedToolName(name)) {
             throw new IllegalArgumentException("Tool name '" + name + "' is reserved for built-in gateway operations");
         }
-        String description = (String) request.getOrDefault("description", "");
-        String inputSchema = (String) request.getOrDefault("inputSchema", "{\"type\":\"object\"}");
-        String riskStr = (String) request.getOrDefault("riskLevel", "LOW");
-        String owningTeam = (String) request.getOrDefault("owningTeam", "Default Team");
-        String endpointUrl = (String) request.get("endpointUrl");
-        String protocolStr = (String) request.getOrDefault("protocolType", "REST");
-        String httpMethod = (String) request.getOrDefault("httpMethod", "POST");
-        boolean enabled = (boolean) request.getOrDefault("enabled", true);
+        String description = java.util.Objects.requireNonNullElse(request.description(), "");
+        String inputSchema = java.util.Objects.requireNonNullElse(request.inputSchema(), "{\"type\":\"object\"}");
+        String riskStr = java.util.Objects.requireNonNullElse(request.riskLevel(), "LOW");
+        String owningTeam = java.util.Objects.requireNonNullElse(request.owningTeam(), "Default Team");
+        String endpointUrl = request.endpointUrl();
+        String protocolStr = java.util.Objects.requireNonNullElse(request.protocolType(), "REST");
+        String httpMethod = java.util.Objects.requireNonNullElse(request.httpMethod(), "POST");
+        boolean enabled = !Boolean.FALSE.equals(request.enabled());
 
         RegisteredTool tool = new RegisteredTool(
                 UUID.randomUUID().toString(),
@@ -105,14 +118,10 @@ public class ToolRegistryController {
     }
 
     @PostMapping("/import-openapi")
-    public ResponseEntity<List<RegisteredTool>> importOpenApi(@RequestBody Map<String, String> request) throws Exception {
-        String spec = request.get("spec");
-        String baseUrl = request.getOrDefault("baseUrl", "");
-        String owningTeam = request.getOrDefault("owningTeam", "Imported API");
-
-        if (spec == null || spec.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<List<RegisteredTool>> importOpenApi(@Valid @RequestBody OpenApiImportRequest request) throws Exception {
+        String spec = request.spec();
+        String baseUrl = java.util.Objects.requireNonNullElse(request.baseUrl(), "");
+        String owningTeam = java.util.Objects.requireNonNullElse(request.owningTeam(), "Imported API");
 
         List<RegisteredTool> imported = importerService.importOpenApi(spec, baseUrl, owningTeam);
         for (RegisteredTool tool : imported) {
@@ -122,18 +131,21 @@ public class ToolRegistryController {
     }
 
     @GetMapping("/{toolName}/permissions")
-    public List<String> getPermissions(@PathVariable String toolName) {
-        return repository.getPermittedAgents(toolName);
+    public List<String> getPermissions(@PathVariable String toolName,
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int page,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(100) int size) {
+        return repository.getPermittedAgents(toolName).stream()
+                .sorted()
+                .skip((long) page * size)
+                .limit(size)
+                .toList();
     }
 
     @PostMapping("/{toolName}/permissions")
-    public ResponseEntity<Void> grantPermission(@PathVariable String toolName, @RequestBody Map<String, String> request) {
-        String agentId = request.get("agentId");
-        if (agentId != null && !agentId.isBlank()) {
-            repository.addPermission(toolName, agentId);
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.badRequest().build();
+    public ResponseEntity<Void> grantPermission(@PathVariable String toolName, @Valid @RequestBody GrantPermissionRequest request) {
+        repository.addPermission(toolName, request.agentId());
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{toolName}/permissions/{agentId}")

@@ -26,19 +26,26 @@ public class PolicyAdminController {
     }
 
     @GetMapping
-    public List<PolicyRule> listPolicies() {
-        return repository.findAllIncludeDisabled();
+    public List<PolicyRule> listPolicies(
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int page,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(100) int size) {
+        return repository.findAllIncludeDisabled().stream()
+                .sorted(java.util.Comparator.comparing(PolicyRule::id))
+                .skip((long) page * size)
+                .limit(size)
+                .toList();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<PolicyRule> getPolicy(@PathVariable String id) {
         return repository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     @PostMapping
-    public ResponseEntity<PolicyRule> createOrUpdatePolicy(@RequestBody PolicyRule rule) {
+    public ResponseEntity<PolicyRule> createOrUpdatePolicy(@jakarta.validation.Valid @RequestBody PolicyRule rule) {
         String ruleId = (rule.id() != null && !rule.id().isBlank()) ? rule.id() : UUID.randomUUID().toString();
         PolicyRule ruleToSave = new PolicyRule(
                 ruleId,
