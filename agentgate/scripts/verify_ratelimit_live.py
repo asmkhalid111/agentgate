@@ -1,4 +1,6 @@
 import urllib.request
+from local_config import credential
+
 import urllib.parse
 import json
 import subprocess
@@ -52,7 +54,7 @@ def main():
     print("=== AgentGate Live FR6 (Task 11B) Quota & Write Cap Verification ===")
     
     print("\n1. Acquiring token for agent-finance-bot...")
-    token = get_token("agent-finance-bot", "finance_dev_secret_123")
+    token = get_token("agent-finance-bot", credential("AGENT_CLIENT_SECRET"))
     print("   Token acquired.")
 
     print("\n2. Initializing MCP session on Gateway...")

@@ -18,9 +18,7 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Configure disposable local fixture credentials
-        run: |
-          echo "KEYCLOAK_WEB_CLIENT_SECRET=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
-          echo "KEYCLOAK_HUMAN_ADMIN_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+        run: python scripts/init_local_env.py
       - name: Start Redis for existing gateway integration tests
         run: docker compose up -d --wait redis
       - name: Run unit, MVC slice, storage, architecture and outage tests

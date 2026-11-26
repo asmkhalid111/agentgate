@@ -7,6 +7,8 @@ Verifies:
 - Task 1.3: Policy Playground & Schema Validation (FR9)
 """
 
+from local_config import credential
+
 import sys
 import json
 import time
@@ -19,15 +21,15 @@ GATEWAY_MCP_URL = "http://localhost:8080/mcp"
 CLIENTS = {
     "finance": {
         "client_id": "agent-finance-bot",
-        "client_secret": "finance_dev_secret_123"
+        "client_secret": credential("AGENT_CLIENT_SECRET")
     },
     "support": {
         "client_id": "agent-support-bot",
-        "client_secret": "support_dev_secret_123"
+        "client_secret": credential("AGENT_SUPPORT_SECRET")
     },
     "unauthorized": {
         "client_id": "agent-unauthorized-bot",
-        "client_secret": "unauth_dev_secret_123"
+        "client_secret": credential("AGENT_UNAUTH_SECRET")
     }
 }
 

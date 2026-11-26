@@ -12,6 +12,8 @@ Demonstrates:
   8. Isolated disposable tampering detection checks.
 """
 
+from local_config import credential
+
 import http.cookiejar
 import json
 import os
@@ -44,9 +46,9 @@ def load_env():
 load_env()
 
 WEB_CLIENT_SECRET = os.environ.get("KEYCLOAK_WEB_CLIENT_SECRET")
-ADMIN_PASSWORD = os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD", "admin_dev_password_123"))
-APPROVER_PASSWORD = os.environ.get("KEYCLOAK_APPROVER_PASSWORD", "approver_dev_password_123")
-AGENT_CLIENT_SECRET = os.environ.get("AGENT_CLIENT_SECRET", "finance_dev_secret_123")
+ADMIN_PASSWORD = os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD"))
+APPROVER_PASSWORD = credential("KEYCLOAK_APPROVER_PASSWORD")
+AGENT_CLIENT_SECRET = credential("AGENT_CLIENT_SECRET")
 
 def get_client_token(client_id, client_secret):
     data = urllib.parse.urlencode({

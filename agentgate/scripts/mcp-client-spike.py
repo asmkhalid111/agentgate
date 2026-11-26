@@ -4,6 +4,8 @@ Protocol: Streamable HTTP MCP (Spring AI 2.0.2 / Spring Boot 4.0.9)
 Identity: Keycloak 26.x OpenID Connect Token Verification
 """
 
+from local_config import credential
+
 import sys
 import json
 import requests
@@ -14,15 +16,15 @@ GATEWAY_MCP_URL = "http://localhost:8080/mcp"
 CLIENTS = {
     "support": {
         "client_id": "agent-support-bot",
-        "client_secret": "support_dev_secret_123"
+        "client_secret": credential("AGENT_SUPPORT_SECRET")
     },
     "finance": {
         "client_id": "agent-finance-bot",
-        "client_secret": "finance_dev_secret_123"
+        "client_secret": credential("AGENT_CLIENT_SECRET")
     },
     "unauthorized": {
         "client_id": "agent-unauthorized-bot",
-        "client_secret": "unauth_dev_secret_123"
+        "client_secret": credential("AGENT_UNAUTH_SECRET")
     }
 }
 

@@ -18,6 +18,8 @@ Demonstrates end-to-end against live Docker Compose stack:
   14. Cryptographic SHA-256 audit chain verification of all failure, fast-rejection, and recovery events.
 """
 
+from local_config import credential
+
 import http.cookiejar
 import json
 import os
@@ -77,7 +79,7 @@ KEYCLOAK_BASE_URL = os.environ.get("KEYCLOAK_BASE_URL", _default_kc)
 KEYCLOAK_TOKEN_URL = f"{KEYCLOAK_BASE_URL}/realms/agentgate/protocol/openid-connect/token"
 
 AGENT_CLIENT_ID = "agent-finance-bot"
-AGENT_CLIENT_SECRET = os.environ.get("AGENT_CLIENT_SECRET", "finance_dev_secret_123")
+AGENT_CLIENT_SECRET = credential("AGENT_CLIENT_SECRET")
 
 def get_client_token(client_id, client_secret):
     """M2M Client Credentials Grant for machine agent service accounts."""

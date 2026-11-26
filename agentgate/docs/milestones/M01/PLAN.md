@@ -147,7 +147,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/agentgate_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-agentgate}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-<POSTGRES_PASSWORD>}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/agentgate
@@ -187,7 +187,7 @@ services:
     environment:
       POSTGRES_DB: agentgate_db
       POSTGRES_USER: ${POSTGRES_USER:-agentgate}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-<POSTGRES_PASSWORD>}
     volumes:
       - agentgate-pgdata:/var/lib/postgresql/data
     mem_limit: 256m
@@ -220,7 +220,7 @@ services:
     command: ["start-dev", "--import-realm"]
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev_password}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-<KEYCLOAK_ADMIN_PASSWORD>}
       KC_HTTP_RELATIVE_PATH: /
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
