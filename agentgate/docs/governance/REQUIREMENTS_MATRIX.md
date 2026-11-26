@@ -23,7 +23,7 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 |---|---|---|---|---|
 | QA1 | 30 malicious: 100% blocked/held; 200 legitimate: <=5% false blocks | Day 3 | Red-team script `scripts/qa/qa1_security_suite.py` results | PLANNED (Day 3) |
 | QA2 | <=30ms gateway overhead p95 at 100 calls/sec, approvals excluded | Day 3 | Benchmark script `scripts/qa/qa2_performance_benchmark.py` | PLANNED (Day 3) |
-| QA3 | Audit query <1 min; any stored-row edit caught by verify | Day 3 | Stopwatch walkthrough and `AuditVerificationTest` tamper test | PLANNED (Day 3) |
+| QA3 | Audit query <1 min; any stored-row edit caught by verify | Day 3 | [Timed lookup and tamper checks](../quality/QA3_AUDITABILITY.md) | VERIFIED on local stack |
 | QA4 | Policy-store outage: medium/high fail closed; low last known <=5m | Day 1 | Time-controlled outage test with logs in `PolicyOutageFailSafeTest` | PLANNED (Day 1) |
 | QA5 | New developer adds REST tool in <10min with zero code edits | Day 3 | Timed walkthrough guide `docs/adoption/QA5_WALKTHROUGH.md` | PLANNED (Day 3) |
 
