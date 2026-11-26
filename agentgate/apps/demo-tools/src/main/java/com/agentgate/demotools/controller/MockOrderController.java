@@ -1,6 +1,10 @@
 package com.agentgate.demotools.controller;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -11,14 +15,13 @@ import java.util.Map;
 public class MockOrderController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MockOrderController.class);
 
+    public record RefundRequest(@Positive Number amount) {}
+
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getOrder(@PathVariable("id") String id) {
+    public ResponseEntity<Map<String, Object>> getOrder(@PathVariable("id") @jakarta.validation.constraints.NotBlank String id) {
         log.info("Handling demo order lookup");
         if (id != null && id.contains("fail")) {
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "Simulated downstream internal server error",
-                    "orderId", id
-            ));
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Simulated downstream internal server error");
         }
         if (id != null && id.contains("delay")) {
             try {
@@ -39,13 +42,10 @@ public class MockOrderController {
 
     @PostMapping("/{id}/refund")
     public ResponseEntity<Map<String, Object>> issueRefund(
-            @PathVariable("id") String id,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @PathVariable("id") @jakarta.validation.constraints.NotBlank String id,
+            @Valid @RequestBody(required = false) RefundRequest body) {
         if (id != null && id.contains("fail")) {
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "Simulated downstream refund failure",
-                    "orderId", id
-            ));
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Simulated downstream refund failure");
         }
         if (id != null && id.contains("delay")) {
             try {
@@ -53,7 +53,7 @@ public class MockOrderController {
             } catch (InterruptedException ignored) {
             }
         }
-        Object amount = body != null ? body.getOrDefault("amount", 500.0) : 500.0;
+        Number amount = body != null && body.amount() != null ? body.amount() : 500.0;
         return ResponseEntity.ok(Map.of(
                 "refundId", "ref-" + System.currentTimeMillis(),
                 "orderId", id,

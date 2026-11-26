@@ -30,6 +30,7 @@ import urllib.request
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT_DIR, "scripts"))
 from verify_qa1_security import get_client_token, get_user_token
+from local_config import credential
 
 DATA_DIR = os.path.join(ROOT_DIR, "scripts", "benchmarks", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -250,6 +251,7 @@ def run_phase(name, is_governed, pool, duration_sec, target_rps, token, session_
     }
 
     direct_headers = {
+        "X-AgentGate-Demo-Token": credential("AGENTGATE_DEMO_TOKEN") if not is_governed else "",
         "Accept": "application/json",
         "Connection": "keep-alive"
     }

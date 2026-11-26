@@ -1,5 +1,6 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.common.DemoServiceCredential;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.registry.domain.ProtocolType;
 import com.agentgate.gateway.registry.domain.RegisteredTool;
@@ -31,6 +32,13 @@ public class RestToolAdapter implements ToolAdapter {
     private final ObjectMapper objectMapper;
     private ObservationRegistry observationRegistry = ObservationRegistry.NOOP;
 
+    private DemoServiceCredential demoCredential = new DemoServiceCredential("", "");
+
+    @Autowired
+    void setDemoCredential(DemoServiceCredential demoCredential) {
+        this.demoCredential = demoCredential;
+    }
+
     @Autowired(required = false)
     void setObservationRegistry(ObservationRegistry observationRegistry) {
         this.observationRegistry = observationRegistry;
@@ -54,6 +62,7 @@ public class RestToolAdapter implements ToolAdapter {
             Duration readTimeout = resilienceProperties.getReadTimeout(name);
 
             HttpClient httpClient = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.NEVER)
                     .connectTimeout(connectTimeout)
                     .build();
 
@@ -90,7 +99,9 @@ public class RestToolAdapter implements ToolAdapter {
 
             HttpMethod method = HttpMethod.valueOf(tool.httpMethod().toUpperCase());
             RestClient restClient = getRestClient(tool.name());
-            RestClient.RequestBodySpec spec = restClient.method(method).uri(URI.create(resolvedUrl));
+            URI target = URI.create(resolvedUrl);
+            RestClient.RequestBodySpec spec = restClient.method(method).uri(target);
+            spec.headers(headers -> demoCredential.apply(target, headers::set));
 
             if (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.PATCH) {
                 spec.contentType(MediaType.APPLICATION_JSON);
@@ -98,12 +109,18 @@ public class RestToolAdapter implements ToolAdapter {
             }
 
             long downstreamStartNs = System.nanoTime();
-            String responseBody = spec.retrieve().body(String.class);
+            var response = spec.retrieve().toEntity(String.class);
+            String responseBody = response.getBody();
             long downstreamDurationNs = System.nanoTime() - downstreamStartNs;
             if (BenchmarkTimingContext.isTimingEnabled()) {
                 BenchmarkTimingContext.setDownstreamDurationNs(downstreamDurationNs);
             }
             long latency = downstreamDurationNs / 1_000_000;
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                return ToolExecutionResult.failure("Unexpected downstream HTTP status " + response.getStatusCode(),
+                        latency, null, response.getStatusCode().value());
+            }
 
             Object parsedData;
             try {

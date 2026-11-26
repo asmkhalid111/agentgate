@@ -41,6 +41,8 @@ services:
     container_name: agentgate-benchmark-demo-tools
     ports:
       - "8083:8082"
+    environment:
+      AGENTGATE_DEMO_TOKEN: ${AGENTGATE_DEMO_TOKEN:?Set AGENTGATE_DEMO_TOKEN in .env}
     mem_limit: 192m
     networks:
       - default
@@ -61,6 +63,8 @@ services:
     ports:
       - "8081:8080"
     environment:
+      AGENTGATE_DEMO_ORIGIN: http://benchmark-demo-tools:8082
+      AGENTGATE_DEMO_TOKEN: ${AGENTGATE_DEMO_TOKEN:?Set AGENTGATE_DEMO_TOKEN in .env}
       SPRING_PROFILES_ACTIVE: dev,benchmark
       POSTGRES_HOST: benchmark-postgres
       POSTGRES_PORT: 5432

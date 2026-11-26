@@ -1,5 +1,6 @@
 package com.agentgate.gateway.pipeline;
 
+import com.agentgate.gateway.common.DemoServiceCredential;
 import com.agentgate.gateway.common.ToolExecutionContext;
 import com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext;
 import com.agentgate.gateway.registry.domain.ProtocolType;
@@ -40,6 +41,13 @@ public class McpDownstreamToolAdapter implements ToolAdapter {
     private final ObjectMapper objectMapper;
     private Tracer tracer = Tracer.NOOP;
     private Propagator propagator = Propagator.NOOP;
+
+    private DemoServiceCredential demoCredential = new DemoServiceCredential("", "");
+
+    @Autowired
+    void setDemoCredential(DemoServiceCredential demoCredential) {
+        this.demoCredential = demoCredential;
+    }
 
     @Autowired(required = false)
     void setTracing(Tracer tracer, Propagator propagator) {
@@ -159,7 +167,9 @@ public class McpDownstreamToolAdapter implements ToolAdapter {
             HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport.builder(baseUrl)
                     .endpoint(endpointPath)
                     .connectTimeout(connectTimeout)
+                    .customizeClient(builder -> builder.followRedirects(java.net.http.HttpClient.Redirect.NEVER))
                     .httpRequestCustomizer((builder, method, uri, body, context) -> {
+                        demoCredential.apply(uri, builder::setHeader);
                         if (context.get("traceContext") instanceof io.micrometer.tracing.TraceContext trace) {
                             propagator.inject(trace, builder, (request, name, value) -> request.setHeader(name, value));
                         }
