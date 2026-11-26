@@ -118,7 +118,14 @@ class ToolExecutionTimeoutTest {
         assertFalse(result.success());
         assertNotNull(result.error());
         String errLower = result.error().toLowerCase();
-        assertTrue(errLower.contains("timed out") || errLower.contains("timeout") || errLower.contains("cancelled"));
+        boolean timedOut = errLower.contains("timed out") || errLower.contains("timeout") || errLower.contains("cancelled");
+        for (Throwable cause = result.cause(); cause != null; cause = cause.getCause()) {
+            timedOut |= cause instanceof java.net.http.HttpTimeoutException
+                    || cause instanceof java.net.SocketTimeoutException
+                    || cause instanceof java.util.concurrent.TimeoutException
+                    || cause instanceof java.util.concurrent.CancellationException;
+        }
+        assertTrue(timedOut, () -> "Expected a downstream timeout, got " + result.cause());
         // Aborted around 400ms, definitely well before 1500ms
         assertTrue(elapsed < 1400, "Adapter should have timed out before server finished (elapsed: " + elapsed + "ms)");
     }
