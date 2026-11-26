@@ -36,9 +36,9 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 | C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | C3/C4 follow-up | Actuator health/readiness and metrics plus matching gateway/demo-tools JSON trace IDs on REST and MCP calls | VERIFIED |
 | C5 | JUnit 5 unit and slice tests, Testcontainers, runnable QA scripts, CI | C5 checkpoint | [Local verification and CI status](../milestones/M07/COMPLETION.md) | PARTIALLY VERIFIED (hosted CI pending) |
 | C6 | ArchUnit or Modulith architecture enforcement | Baseline & Day 1–3 | `ModularMonolithArchitectureTest` passes with zero cyclic dependencies | PARTIALLY IMPLEMENTED (Baseline in M01) |
-| C7 | C4 context/container/component, 4 ADRs w measured evidence, >=6 scenario utility tree + sensitivity/tradeoffs | Baseline & Day 3 | Diagrams, ADR drafts in M00; empirical benchmark evidence in Day 3 | DRAFTED (M00; Empirical Evidence in Day 3) |
-| C8 | Pattern table maps pattern to requirement/classes/rejected option | Baseline & Day 3 | Pattern justification table in M00; class mapping in Day 3 | PLANNED (Baseline in M00; Implementation in Days 1-3) |
-| C9 | Report all QAs, raw data + charts, failed runs and remediation | Day 3 | Evidence files / raw data charts in `docs/quality/QA_EVIDENCE_REPORT.md` | PLANNED (Day 3) |
+| C7 | C4 diagrams, four evidence-backed ADRs, and utility tree with sensitivity and trade-offs | M08 | [Diagram, ADR and utility-tree evidence](../milestones/M08/COMPLETION.md) | COMPLETE |
+| C8 | Implemented patterns mapped to requirements, participating classes and rejected options | M08 | [Pattern justification](../architecture/PATTERN_MAP.md) | COMPLETE |
+| C9 | Results, raw data, charts, failed runs and remediation for every quality attribute | M08 | [Consolidated quality evidence report](../quality/QA_EVIDENCE_REPORT.md) | PARTIALLY VERIFIED (independent QA5 result pending) |
 | C10 | Implement instructor checkpoint change and report core vs added files | M-CR | Standby for instructor-issued request and delta note | STANDBY |
 | C11 | Incremental Git history and AI log with >=3 genuine error/fix cases | All | `git log`, AI log (12 AI errors tracked and remediated) | IN PROGRESS |
 | C12 | 15-minute ADR walk-through and live small change | Day 3 | Defense checklist in `docs/defence/DEFENCE_REHEARSAL.md` | PLANNED (Day 3) |

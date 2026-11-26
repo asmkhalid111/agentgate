@@ -1,16 +1,13 @@
-# Mini-ATAM utility tree (C7) — candidate scenarios
+# Mini-ATAM utility tree
 
-At least six concrete scenarios, with sensitivity and trade-off points, are required. These are **targets from the handout**, not measured results. In M10 attach evidence and ratings.
+Each row is a leaf of the AgentGate utility tree. The driver groups related leaves. The priority ratings use H for high and M for medium, with business importance first and implementation risk second.
 
-| Scenario | Quality driver | Stimulus and response target | Sensitivity/trade-off to evaluate | Evidence |
+| Driver | Scenario and response measure | Priority | Sensitivity point | Trade-off and evidence |
 |---|---|---|---|---|
-| S1 | Security | Malicious MCP tool call denied/held; 30/30 red-team pass | Default-deny vs legitimate false blocks | PENDING |
-| S2 | Performance | 100 cps, gateway-added p95 <=30ms | Audit persistence and policy lookup vs latency | PENDING |
-| S3 | Auditability | Explain any call <1 minute; tampering detected | Hash-chain serialization vs throughput | PENDING |
-| S4 | Availability | Policy store down; high/medium fail closed, low uses cache <=5m | Availability vs policy freshness | PENDING |
-| S5 | Modifiability | Unknown developer adds REST tool <10m, no code | Importer convenience vs validation/SSRF | PENDING |
-| S6 | Safety/operability | Kill agent/tool/writes immediately and cancel approvals | Cache speed vs emergency consistency | PENDING |
-| S7 | Resilience | Downstream fails; timeout/circuit opens and hides tool until recovered | Fast suppression vs false-negative health | PENDING |
-| S8 | Resource fit | Full Compose up on 8GB laptop | Memory/observability depth vs simplicity | PENDING |
-
-In final tree classify priorities and write at least three sensitivity and trade-off discussions based on evidence.
+| Security | During normal operation, block or hold every malicious call and falsely block no more than 5% of legitimate calls. | H/H | Policy defaults, identity binding and approval rule order | Default denial limits unauthorized use and can harm adoption if rules are absent. The recorded suite blocked or held 38/38 malicious cases and falsely blocked 0/200 legitimate calls. [QA1](../milestones/M04/QA1_SECURITY_REPORT.md) |
+| Performance | At 100 calls/sec, add at most 30 ms p95. | H/H | Serialized audit head update and commit cost | Synchronous audit improves recoverability and integrity at a measured latency cost. Original p95 was 342.05 ms at 99.85 calls/sec. [QA2](performance/QA2_FINAL_ACCEPTANCE.md) |
+| Auditability | An auditor explains a call within 60 seconds and verification flags a stored record edit. | H/M | Search filters, canonical event serialization and chain continuity | More audit fields improve explanations and require careful redaction. A known-term lookup took 0.332 seconds, and three isolated tamper cases passed. [QA3](QA3_AUDITABILITY.md) |
+| Availability | During a policy-store query outage, immediately deny medium/high risk and stop low-risk fallback at five minutes. | H/H | Risk classification and snapshot age | A longer fallback improves availability and increases exposure to stale decisions. Tests passed at the 299/300/301-second boundaries. [QA4](QA4_POLICY_STORE_OUTAGE_VERIFICATION.md) |
+| Modifiability | An unfamiliar developer imports and governs a REST tool in under ten minutes without code changes. | H/M | OpenAPI compatibility, inferred risk and policy setup | Defaults shorten onboarding and need operator review. The rehearsal took 8.40 seconds, with the independent trial pending. [QA5](../adoption/QA5_WALKTHROUGH.md) |
+| Policy operability | After an administrator activates a rule version, a subsequent governed call reflects it within ten seconds. | H/M | Immediate reload and five-second scheduled refresh | More frequent refresh reduces staleness and increases database load. The live demo observed two updates in 0.12 and 0.10 seconds. [FR3](../milestones/M06/COMPLETION.md) |
+| Resilience | When a downstream tool fails repeatedly, the breaker suppresses dispatch and discovery until recovery. | H/M | Failure classification, failure threshold and open interval | Faster suppression protects capacity and can hide a transiently unhealthy tool longer than necessary. Circuit-breaker and MCP discovery regressions passed in Maven verification. [C5](../milestones/M07/COMPLETION.md) |
