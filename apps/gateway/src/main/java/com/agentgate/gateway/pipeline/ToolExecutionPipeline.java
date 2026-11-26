@@ -302,7 +302,18 @@ public class ToolExecutionPipeline {
 
         // Policy Evaluation (FR3, QA4)
         long tPolicyStart = System.nanoTime();
-        PolicyDecision decision = policyEvaluator.evaluate(enrichedContext);
+        ToolExecutionContext policyContext = enrichedContext;
+        if (context.userId() != null && "orders_get".equals(tool.name())) {
+            var policyArguments = new java.util.HashMap<>(context.arguments());
+            policyArguments.remove("customerId");
+            Object orderId = policyArguments.get("orderId");
+            if (orderId instanceof String id) {
+                toolRepository.findDemoOrderOwner(id).ifPresent(owner -> policyArguments.put("customerId", owner));
+            }
+            policyContext = new ToolExecutionContext(context.agentId(), tool.name(), policyArguments,
+                    context.userId(), tool.riskLevel(), context.agentRoles());
+        }
+        PolicyDecision decision = policyEvaluator.evaluate(policyContext);
         long tPolicyNs = System.nanoTime() - tPolicyStart;
         if (com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.isTimingEnabled()) {
             com.agentgate.gateway.pipeline.benchmark.BenchmarkTimingContext.setPolicyNs(tPolicyNs);

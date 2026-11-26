@@ -38,6 +38,11 @@ public class RegisteredToolRepository {
         );
     }
 
+    public Optional<String> findDemoOrderOwner(String orderId) {
+        return jdbcClient.sql("SELECT owner_subject FROM demo_order_owners WHERE order_id = :id")
+                .param("id", orderId).query(String.class).optional();
+    }
+
     public List<RegisteredTool> findAll() {
         return jdbcClient.sql("SELECT * FROM registered_tools ORDER BY name ASC")
                 .query(this::mapRow)

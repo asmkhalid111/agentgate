@@ -109,3 +109,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(event_timestamp)
 CREATE INDEX IF NOT EXISTS idx_audit_log_agent_tool ON audit_log(agent_id, tool_name);
 CREATE INDEX IF NOT EXISTS idx_audit_log_approval_id ON audit_log(approval_id);
 
+
+CREATE TABLE IF NOT EXISTS demo_order_owners (
+    order_id VARCHAR(255) PRIMARY KEY,
+    owner_subject VARCHAR(255) NOT NULL
+);

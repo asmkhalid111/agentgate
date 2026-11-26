@@ -125,7 +125,7 @@ public class SecurityConfig {
      */
     @Bean
     @Order(1)
-    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtAgentAuthenticationConverter converter,
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtAgentAuthenticationConverter converter, JwtDecoder decoder,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver problemResolver) throws Exception {
         var bearerEntryPoint = new BearerTokenAuthenticationEntryPoint();
         var bearerDeniedHandler = new BearerTokenAccessDeniedHandler();
@@ -178,6 +178,8 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2.authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(deniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+                .addFilterAfter(new com.agentgate.gateway.identity.DelegationFilter(decoder),
+                        org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new com.agentgate.gateway.pipeline.benchmark.BenchmarkSecurityExitFilter(),
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class);
 
