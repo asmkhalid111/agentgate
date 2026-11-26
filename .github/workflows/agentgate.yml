@@ -35,6 +35,9 @@ jobs:
           python scripts/verify_qa1_security.py
         env:
           QA1_RESULTS_PATH: target/c5/qa1-results.json
+      - name: C3 demo API and protected downstream calls
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
+        run: python scripts/verify_demo_api.py | tee target/c5/demo-api.log
       - name: QA3 authenticated audit lookup and delegated calls
         if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         run: python scripts/verify_delegated_orders.py | tee target/c5/qa3.log

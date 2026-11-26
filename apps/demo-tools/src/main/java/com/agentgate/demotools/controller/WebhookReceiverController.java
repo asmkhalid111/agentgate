@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * Minimal webhook receiver endpoint in demo-tools for local notification demonstration (FR4).
@@ -21,11 +23,14 @@ public class WebhookReceiverController {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookReceiverController.class);
 
+    public record ApprovalNotification(@NotBlank String approvalId, @NotBlank String toolName,
+                                       @NotBlank String status) {}
+
     @PostMapping("/approvals")
-    public ResponseEntity<Map<String, Object>> receiveApprovalWebhook(@RequestBody Map<String, Object> payload) {
-        String approvalId = payload != null ? String.valueOf(payload.get("approvalId")) : "unknown";
-        String toolName = payload != null ? String.valueOf(payload.get("toolName")) : "unknown";
-        String status = payload != null ? String.valueOf(payload.get("status")) : "unknown";
+    public ResponseEntity<Map<String, Object>> receiveApprovalWebhook(@Valid @RequestBody ApprovalNotification payload) {
+        String approvalId = payload.approvalId();
+        String toolName = payload.toolName();
+        String status = payload.status();
 
         log.info("DemoTools: Received approval webhook notification: approvalId='{}', toolName='{}', status='{}'",
                 approvalId, toolName, status);

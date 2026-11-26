@@ -1,5 +1,6 @@
 package com.agentgate.gateway.approval.webhook;
 
+import com.agentgate.gateway.common.DemoServiceCredential;
 import com.agentgate.gateway.approval.domain.ApprovalRequest;
 import com.agentgate.gateway.approval.event.ApprovalCreatedEvent;
 import org.slf4j.Logger;
@@ -7,7 +8,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+
+import java.net.URI;
+import java.net.http.HttpClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -38,6 +42,13 @@ public class ApprovalWebhookNotifier {
     private final ApprovalWebhookProperties properties;
     private final RestClient restClient;
 
+    private DemoServiceCredential demoCredential = new DemoServiceCredential("", "");
+
+    @Autowired
+    void setDemoCredential(DemoServiceCredential demoCredential) {
+        this.demoCredential = demoCredential;
+    }
+
     @Autowired
     public ApprovalWebhookNotifier(ApprovalWebhookProperties properties) {
         this(properties, createDefaultRestClient(properties));
@@ -49,8 +60,9 @@ public class ApprovalWebhookNotifier {
     }
 
     private static RestClient createDefaultRestClient(ApprovalWebhookProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutDuration());
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(properties.getConnectTimeoutDuration()).followRedirects(HttpClient.Redirect.NEVER).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
         factory.setReadTimeout(properties.getReadTimeoutDuration());
         return RestClient.builder()
                 .requestFactory(factory)
@@ -98,13 +110,19 @@ public class ApprovalWebhookNotifier {
         );
 
         try {
-            restClient.post()
-                    .uri(targetUrl)
+            URI target = URI.create(targetUrl);
+            var response = restClient.post()
+                    .uri(target)
+                    .headers(headers -> demoCredential.apply(target, headers::set))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
                     .toBodilessEntity();
 
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                log.warn("Approval webhook to '{}' returned {}", targetUrl, response.getStatusCode());
+                return false;
+            }
             log.info("Approval webhook delivered successfully for request '{}' to '{}'",
                     payload.approvalId(), targetUrl);
             return true;

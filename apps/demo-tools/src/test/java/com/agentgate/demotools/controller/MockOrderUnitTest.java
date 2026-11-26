@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class MockOrderUnitTest {
     @Test
     void refundUsesRequestedAmount() {
-        var response = new MockOrderController().issueRefund("demo", java.util.Map.of("amount", 120));
+        var response = new MockOrderController().issueRefund("demo", new MockOrderController.RefundRequest(120));
         assertEquals(120, response.getBody().get("refundAmount"));
     }
 }
