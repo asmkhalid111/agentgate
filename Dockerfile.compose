@@ -1,0 +1,24 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /source
+ENV MAVEN_OPTS="-Xmx384m -XX:ActiveProcessorCount=2 -XX:+UseSerialGC"
+COPY pom.xml ./
+COPY apps/gateway/pom.xml apps/gateway/
+COPY apps/demo-tools/pom.xml apps/demo-tools/
+COPY apps/gateway/src/main apps/gateway/src/main
+COPY apps/demo-tools/src/main apps/demo-tools/src/main
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -Dmaven.test.skip=true package
+
+FROM eclipse-temurin:21-jre-alpine AS runtime
+WORKDIR /app
+RUN apk add --no-cache curl
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
+
+FROM runtime AS gateway
+COPY --from=build /source/apps/gateway/target/gateway-*.jar app.jar
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseSerialGC"
+EXPOSE 8080
+
+FROM runtime AS demo-tools
+COPY --from=build /source/apps/demo-tools/target/demo-tools-*.jar app.jar
+ENV JAVA_OPTS="-Xmx128m -Xms64m -XX:+UseSerialGC"
+EXPOSE 8082

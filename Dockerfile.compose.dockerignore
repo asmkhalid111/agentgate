@@ -1,0 +1,13 @@
+**
+!pom.xml
+!apps/
+!apps/gateway/
+!apps/gateway/pom.xml
+!apps/gateway/src/
+!apps/gateway/src/main/
+!apps/gateway/src/main/**
+!apps/demo-tools/
+!apps/demo-tools/pom.xml
+!apps/demo-tools/src/
+!apps/demo-tools/src/main/
+!apps/demo-tools/src/main/**

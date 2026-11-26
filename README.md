@@ -1,9 +1,20 @@
 # AgentGate
 
-**CSE 444 — Software Architecture and Design Patterns**
+AgentGate is the CSE 444 governance gateway for MCP and REST tool calls. Docker Compose runs the Java 21 and Spring Boot 4 gateway, demo tools, Keycloak, PostgreSQL, and Redis locally.
 
-An instructional governance gateway for MCP/REST tool calls. Current state: **project governance pack only; application implementation has NOT begun**.
+## Start the demo
 
-See [START_HERE.md](START_HERE.md), [roadmap](docs/governance/ROADMAP.md), [requirement traceability](docs/governance/REQUIREMENTS_MATRIX.md), and [agent instructions](AGENTS.md).
+Use Docker Desktop with Linux containers and open a terminal in the AgentGate application directory. For a new installation, copy .env.example to .env and set the local PostgreSQL and Keycloak passwords and the Keycloak web-client secret. Keep the populated file private. The development realm contains demo agents for local verification.
 
-> This README must be updated in M01 with actual start instructions, demo accounts (without credentials), endpoint paths, quick-start and evidence links.
+~~~console
+docker compose up --build -d --wait
+~~~
+
+Compose builds both applications from source with Maven. A first build downloads public images and dependencies. Once it finishes, the gateway is on localhost:8080, the demo tool service is on localhost:8082, and Keycloak is on localhost:8180.
+
+- Check gateway readiness at http://localhost:8080/actuator/health/readiness.
+- Use /mcp on the gateway for governed agent requests and /approvals for the browser approval interface.
+- Use the administrator role to read /v3/api-docs or inspect audit records under /api/v1/admin/audit.
+- Use the [QA5 walkthrough](docs/adoption/QA5_WALKTHROUGH.md) for the independent onboarding trial.
+
+[Start here](START_HERE.md) · [Roadmap](docs/governance/ROADMAP.md) · [Requirements matrix](docs/governance/REQUIREMENTS_MATRIX.md) · [Architecture diagrams](docs/architecture/C4_DIAGRAMS.md) · [Quality evidence](docs/quality/QA_EVIDENCE_REPORT.md)
