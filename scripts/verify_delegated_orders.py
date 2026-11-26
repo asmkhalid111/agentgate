@@ -107,6 +107,18 @@ def main():
         assert lookup(other).get("isError")
         rows = sql(f"SELECT agent_id,user_id,policy_rule_id,outcome FROM audit_log WHERE user_id='{subject}' AND (redacted_arguments_json LIKE '%{own}%' OR redacted_arguments_json LIKE '%{other}%') ORDER BY sequence_number;")
         assert "agent-finance-bot|" + subject in rows and "pol-read-orders" in rows and "SUCCESS" in rows and "DEN" in rows, rows
+        lookup_start = time.monotonic()
+        for order_id, outcome, expected_rule in ((own, "SUCCESS", "pol-read-orders"), (other, "BLOCKED", "DEFAULT_DENY")):
+            response = requests.get(GATEWAY + "/api/v1/admin/audit", headers=admin, timeout=10,
+                                    params={"agentId": "agent-finance-bot", "toolName": "orders_get",
+                                            "outcome": outcome, "size": 100})
+            response.raise_for_status()
+            assert any(row["userId"] == subject and row["policyRuleId"] == expected_rule
+                       and json.loads(row["redactedArgumentsJson"]).get("orderId") == order_id
+                       for row in response.json()["content"])
+        elapsed = time.monotonic() - lookup_start
+        assert elapsed < 60
+        print(f"QA3 authenticated lookup of both decisions took {elapsed:.3f}s.")
         print("Own-order allow and cross-customer denial passed. Audit records:", rows)
         policy = {"id": rule, "name": rule, "agentPattern": "agent-finance-bot", "toolPattern": "orders_get",
                   "conditions": [{"field":"orderId","operator":"EQ","value":own}],

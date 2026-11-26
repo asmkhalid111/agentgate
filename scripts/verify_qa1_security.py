@@ -634,7 +634,7 @@ def main():
     print(f"Overall QA1 Verdict:          {verdict_str}")
     print("=" * 80)
 
-    out_results_path = os.path.join(os.path.dirname(__file__), "data", "qa1_security_results.json")
+    out_results_path = os.environ.get("QA1_RESULTS_PATH", os.path.join(os.path.dirname(__file__), "data", "qa1_security_results.json"))
     summary = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "verdict": verdict_str,
