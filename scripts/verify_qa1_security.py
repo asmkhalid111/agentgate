@@ -10,6 +10,8 @@ Implements:
   - Full Confusion Matrix Output & Machine-Readable JSON Report
 """
 
+from local_config import credential
+
 import http.cookiejar
 import json
 import os
@@ -41,18 +43,9 @@ def load_env():
 
 load_env()
 
-CLIENT_SECRETS = {
-    "agent-support-bot": os.environ.get("AGENT_SUPPORT_SECRET", "support_dev_secret_123"),
-    "agent-finance-bot": os.environ.get("AGENT_CLIENT_SECRET", "finance_dev_secret_123"),
-    "agent-unauthorized-bot": os.environ.get("AGENT_UNAUTH_SECRET", "unauth_dev_secret_123"),
-    "agentgate-web": os.environ.get("KEYCLOAK_WEB_CLIENT_SECRET", "web_dev_secret_123")
-}
+CLIENT_SECRETS = {'agent-finance-bot': 'AGENT_CLIENT_SECRET', 'agent-support-bot': 'AGENT_SUPPORT_SECRET', 'agent-unauthorized-bot': 'AGENT_UNAUTH_SECRET', 'agentgate-web': 'KEYCLOAK_WEB_CLIENT_SECRET'}
 
-USER_PASSWORDS = {
-    "human-approver": os.environ.get("KEYCLOAK_APPROVER_PASSWORD", "approver_dev_password_123"),
-    "human-admin": os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD", "admin_dev_password_123")),
-    "human-user": "user_dev_password_123"
-}
+USER_PASSWORDS = {'human-admin': 'KEYCLOAK_HUMAN_ADMIN_PASSWORD', 'human-approver': 'KEYCLOAK_APPROVER_PASSWORD', 'human-user': 'KEYCLOAK_HUMAN_USER_PASSWORD'}
 
 TOKEN_CACHE = {}
 MCP_SESSION_CACHE = {}
@@ -90,7 +83,7 @@ def get_client_token(client_id: str) -> str:
         if time.time() < exp_time - 30:
             return token
 
-    secret = CLIENT_SECRETS.get(client_id, "finance_dev_secret_123")
+    secret = credential(CLIENT_SECRETS[client_id])
     data = urllib.parse.urlencode({
         "grant_type": "client_credentials",
         "client_id": client_id,
@@ -113,8 +106,8 @@ def get_user_token(username: str) -> str:
         if time.time() < exp_time - 30:
             return token
 
-    password = USER_PASSWORDS.get(username, "approver_dev_password_123")
-    client_secret = CLIENT_SECRETS.get("agentgate-web", "web_dev_secret_123")
+    password = credential(USER_PASSWORDS[username])
+    client_secret = credential(CLIENT_SECRETS["agentgate-web"])
 
     cookie_jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))

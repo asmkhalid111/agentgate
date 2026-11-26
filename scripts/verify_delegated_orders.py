@@ -1,4 +1,6 @@
 import base64
+from local_config import credential
+
 import hashlib
 import json
 import secrets
@@ -57,13 +59,13 @@ def user_assertion():
             action = urljoin(response.url, form.action)
             assert action.startswith(BASE + "/")
             fields = {"accept": "yes"} if "consent" in action else {"username": user["username"],
-                "password": user["credentials"][0]["value"]}
+                "password": credential("KEYCLOAK_HUMAN_USER_PASSWORD")}
             response = session.post(action, data={**form.fields, **fields}, headers=cookies,
                                     allow_redirects=False, timeout=10)
     assert location.startswith(CALLBACK + "?")
     token = session.post(AUTH + "/token", data={"grant_type": "authorization_code",
         "code": parse_qs(urlparse(location).query)["code"][0], "code_verifier": verifier,
-        "redirect_uri": CALLBACK, "client_id": finance["clientId"], "client_secret": finance["secret"]}, timeout=10)
+        "redirect_uri": CALLBACK, "client_id": finance["clientId"], "client_secret": credential("AGENT_CLIENT_SECRET")}, timeout=10)
     token.raise_for_status()
     return token.json()["access_token"]
 

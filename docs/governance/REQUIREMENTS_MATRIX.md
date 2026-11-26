@@ -30,8 +30,8 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 ## Common requirements
 | ID | Requirement paraphrase | Milestone(s) / Delivery Day | Evidence | Status |
 |---|---|---|---|---|
-| C1 | Java 21, Spring Boot 4, Maven, one-command Compose startup on 8 GB RAM, free services | M09 | [Source build, readiness, and memory measurements](../milestones/M09/COMPLETION.md) | PARTIALLY VERIFIED (physical 8 GB host pending) |
-| C2 | Profiles and environment, validated typed properties, no repository secrets | M09 | [Configuration and fixture review](../milestones/M09/COMPLETION.md) | PARTIALLY VERIFIED (literal demo credentials remain) |
+| C1 | Java 21, Spring Boot 4, Maven, one-command Compose startup on 8 GB RAM, free services | M09 | [Startup verification](../milestones/M09/COMPLETION.md) | OWNER ACCEPTED (physical 8 GB host unverified) |
+| C2 | Profiles and environment, validated typed properties, no repository secrets | M10 | [Fresh local provisioning and runtime verification](../milestones/M10/COMPLETION.md) | VERIFIED for current files |
 | C3 | OpenAPI, security, validation, RFC 9457 and pagination | M05 / M09 | [Gateway API verification](../milestones/M09/COMPLETION.md) | VERIFIED for gateway scope |
 | C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | C3/C4 follow-up | Actuator health/readiness and metrics plus matching gateway/demo-tools JSON trace IDs on REST and MCP calls | VERIFIED |
 | C5 | JUnit 5 unit and slice tests, Testcontainers, runnable QA scripts, CI | C5 checkpoint | [Local verification and CI status](../milestones/M07/COMPLETION.md) | PARTIALLY VERIFIED (hosted CI pending) |

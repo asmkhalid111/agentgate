@@ -1,4 +1,6 @@
 import urllib.request
+from local_config import credential
+
 import urllib.parse
 import urllib.error
 import http.cookiejar
@@ -35,8 +37,8 @@ load_env_file()
 
 WEB_CLIENT_SECRET = os.environ.get("KEYCLOAK_WEB_CLIENT_SECRET")
 ADMIN_PASSWORD = os.environ.get("KEYCLOAK_HUMAN_ADMIN_PASSWORD", os.environ.get("HUMAN_ADMIN_PASSWORD"))
-APPROVER_PASSWORD = os.environ.get("KEYCLOAK_APPROVER_PASSWORD", "approver_dev_password_123")
-AGENT_CLIENT_SECRET = os.environ.get("AGENT_CLIENT_SECRET", "finance_dev_secret_123")
+APPROVER_PASSWORD = credential("KEYCLOAK_APPROVER_PASSWORD")
+AGENT_CLIENT_SECRET = credential("AGENT_CLIENT_SECRET")
 
 if not WEB_CLIENT_SECRET:
     raise RuntimeError("KEYCLOAK_WEB_CLIENT_SECRET must be configured in environment or .env file")

@@ -82,7 +82,7 @@
       "name": "Finance Automation Bot",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "finance_dev_secret_123",
+      "secret": "${AGENT_CLIENT_SECRET}",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": true,
       "consentRequired": true,
@@ -125,7 +125,7 @@
       "name": "Customer Support Bot",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "support_dev_secret_123",
+      "secret": "${AGENT_SUPPORT_SECRET}",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
@@ -145,7 +145,7 @@
       "name": "Unauthorized Rogue Bot",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "unauth_dev_secret_123",
+      "secret": "${AGENT_UNAUTH_SECRET}",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
@@ -255,7 +255,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "approver_dev_password_123",
+          "value": "${KEYCLOAK_APPROVER_PASSWORD}",
           "temporary": false
         }
       ]
@@ -290,7 +290,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "user_dev_password_123",
+          "value": "${KEYCLOAK_HUMAN_USER_PASSWORD}",
           "temporary": false
         }
       ]

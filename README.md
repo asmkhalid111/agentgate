@@ -4,7 +4,13 @@ AgentGate is the CSE 444 governance gateway for MCP and REST tool calls. Docker 
 
 ## Start the demo
 
-Use Docker Desktop with Linux containers and open a terminal in the AgentGate application directory. For a new installation, copy .env.example to .env and set the local PostgreSQL and Keycloak passwords and the Keycloak web-client secret. Keep the populated file private. The development realm contains demo agents for local verification.
+Use Docker Desktop with Linux containers and open a terminal in the AgentGate application directory. For a new installation, create the private environment file with Python 3.
+
+~~~console
+python scripts/init_local_env.py
+~~~
+
+The script generates local PostgreSQL and Keycloak credentials and preserves an existing .env. To configure values manually, use the keys in .env.example. For existing persistent databases and realms, use the credentials already configured for those services.
 
 ~~~console
 docker compose up --build -d --wait

@@ -13,14 +13,14 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-agentgate_db}
       POSTGRES_USER: ${POSTGRES_USER:-agentgate}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/agentgate
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/certs
       KEYCLOAK_AUTH_URI: http://localhost:8180/realms/agentgate/protocol/openid-connect/auth
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/agentgate/protocol/openid-connect/token
-      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?Set KEYCLOAK_WEB_CLIENT_SECRET in .env}
       AGENTGATE_APPROVAL_WEBHOOK_ENABLED: ${AGENTGATE_APPROVAL_WEBHOOK_ENABLED:-true}
       AGENTGATE_APPROVAL_WEBHOOK_URL: ${AGENTGATE_APPROVAL_WEBHOOK_URL:-http://demo-tools:8082/api/webhook/approvals}
     depends_on:
@@ -62,7 +62,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-agentgate_db}
       POSTGRES_USER: ${POSTGRES_USER:-agentgate}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentgate_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - agentgate-pgdata:/var/lib/postgresql/data
     mem_limit: 256m
@@ -95,11 +95,16 @@ services:
     command: ["start-dev", "--import-realm"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev_password}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_HOSTNAME_URL: http://localhost:8180
       KC_HTTP_RELATIVE_PATH: /
-      KEYCLOAK_HUMAN_ADMIN_PASSWORD: ${KEYCLOAK_HUMAN_ADMIN_PASSWORD}
-      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET}
+      KEYCLOAK_HUMAN_ADMIN_PASSWORD: ${KEYCLOAK_HUMAN_ADMIN_PASSWORD:?Set KEYCLOAK_HUMAN_ADMIN_PASSWORD in .env}
+      KEYCLOAK_APPROVER_PASSWORD: ${KEYCLOAK_APPROVER_PASSWORD:?Set KEYCLOAK_APPROVER_PASSWORD in .env}
+      KEYCLOAK_HUMAN_USER_PASSWORD: ${KEYCLOAK_HUMAN_USER_PASSWORD:?Set KEYCLOAK_HUMAN_USER_PASSWORD in .env}
+      AGENT_CLIENT_SECRET: ${AGENT_CLIENT_SECRET:?Set AGENT_CLIENT_SECRET in .env}
+      AGENT_SUPPORT_SECRET: ${AGENT_SUPPORT_SECRET:?Set AGENT_SUPPORT_SECRET in .env}
+      AGENT_UNAUTH_SECRET: ${AGENT_UNAUTH_SECRET:?Set AGENT_UNAUTH_SECRET in .env}
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?Set KEYCLOAK_WEB_CLIENT_SECRET in .env}
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
     mem_limit: 768m
