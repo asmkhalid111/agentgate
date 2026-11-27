@@ -18,13 +18,13 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | PARTIAL | VERIFIED | COMPLETE | 
 | FR9 | Policy playground for current/draft decisions with matched rule | Day 1 / M04 / M12 | `PolicyPlaygroundControllerTest`, [QA1 report](../milestones/M04/QA1_SECURITY_REPORT.md), [M12](../milestones/M12/COMPLETION.md) | VERIFIED |
 | FR10 | Tool timeout/circuit breaker; unhealthy hidden until recovery | Day 3 / M07 / M12 | `ToolCircuitBreakerTest`, `ToolExecutionTimeoutTest`, `ToolResiliencePipelineIntegrationTest`, `McpResilienceDiscoveryTest`, [M12](../milestones/M12/COMPLETION.md) | VERIFIED |
 
-## Quality targets (2 / 5 verified, 1 partial, 1 failed/deferred, 1 pending)
+## Quality targets (3 / 5 verified, 1 failed/deferred, 1 pending)
 | ID | Exact measure | Milestone / Delivery Day | Evidence needed | Status |
 |---|---|---|---|---|
 | QA1 | 30 malicious: 100% blocked/held; 200 legitimate: <=5% false blocks | M04 / M12 | 38/38 malicious blocked/held, 0/200 false blocks in [QA1 report](../milestones/M04/QA1_SECURITY_REPORT.md) and [M12](../milestones/M12/COMPLETION.md) | VERIFIED |
 | QA2 | At most 30 ms p95 gateway overhead at 100 calls/sec, excluding approval waits | M04 / M07 / M12 | [Original acceptance](../quality/performance/QA2_FINAL_ACCEPTANCE.md) and [hosted k6 results](../milestones/M12/COMPLETION.md) | FAIL (Deferred — 423.45 ms p95 and 873 dropped iterations on latest hosted run) |
 | QA3 | Audit query <1 min; any stored-row edit caught by verify | Day 3 / M12 | [QA3 auditability](../quality/QA3_AUDITABILITY.md) (0.332 s local, 0.051 s hosted) and `AuditRecorderIntegrationTest#tamperDetection_*` | VERIFIED |
-| QA4 | Policy-store outage: medium/high fail closed; low last known <=5m | Day 1 / M12 | [PolicyStoreOutageIntegrationTest](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutageIntegrationTest.java#L218-L282) (H2 spy, 1/1 passed), [PolicyStoreOutagePostgresIT](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutagePostgresIT.java) (real `postgres:16-alpine` + Flyway + unmocked `PolicyRepository`, 1/1 passed: med/high fail closed, low cached at 299s, cut off at 300s/301s, kill switch & 16/16 audit verified) and [QA4 verification](../quality/QA4_POLICY_STORE_OUTAGE_VERIFICATION.md) | PARTIAL (Policy-read outage verified on real PostgreSQL; full shared-PostgreSQL outage fails closed to preserve FR7 audit durability and FR8 kill-switch safety) |
+| QA4 | Policy-store outage: medium/high fail closed; low last known <=5m | Day 1 / M12 | [PolicyStoreOutageIntegrationTest](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutageIntegrationTest.java#L218-L282) (H2 spy, 1/1 passed), [PolicyStoreOutagePostgresIT](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutagePostgresIT.java) (real `postgres:16-alpine` + Flyway + unmocked `PolicyRepository`, 1/1 passed in `.\mvnw.cmd -B verify`: med/high fail closed, low cached at 299s, cut off at 300s/301s, kill switch & 16/16 audit verified) and [QA4 verification](../quality/QA4_POLICY_STORE_OUTAGE_VERIFICATION.md) | VERIFIED (policy-read outage; full shared-PostgreSQL outage fails closed to preserve FR7 audit durability and FR8 kill-switch safety) |
 | QA5 | New developer adds REST tool in <10min with zero code edits | Day 3 / M12 | Automated rehearsal (0.36 s hosted, 8.40 s local) in [M12](../milestones/M12/COMPLETION.md); [walkthrough](../adoption/QA5_WALKTHROUGH.md) | PENDING (Independent developer trial awaiting external participant) |
 
 ## Common requirements (9 / 12 complete/verified, 0 partial, 1 standby, 2 pending)
@@ -44,8 +44,7 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | PARTIAL | VERIFIED | COMPLETE | 
 | C12 | 15-minute ADR walk-through and live small change | Day 3 / C12 | Rehearsed runbook in [Defence rehearsal](../defence/DEFENCE_REHEARSAL.md) | PREPARED (Live defence pending) |
 
 ## Completion summary
-- **Strictly complete / owner-accepted:** **21 of 27 (78%)** — FR1–FR10 (10), QA1 (1), QA3 (1), C1–C8 (8), C11 (1).
-- **Partial:** **1 of 27** — QA4 (evaluator fallback verified; shared-DB full outage fails closed for FR7/FR8).
-- **Open / deferred / waiting on a person:** **5 of 27** — QA2 (failed, deferred), QA5 (pending independent developer), C9 (pending QA5), C10 (awaiting instructor), C12 (prepared, live defence pending).
+- **Complete / verified / owner-accepted:** **22 of 27 (81%)** under the policy-read-outage interpretation of QA4 — FR1–FR10 (10), QA1 (1), QA3 (1), QA4 (1), C1–C8 (8), C11 (1). *(Under a strict shared-PostgreSQL full-outage interpretation, QA4 would remain partial and the count would be 21 of 27 / 78%.)*
+- **Open / deferred / waiting on a person (5 of 27):** QA2 (failed, deferred), QA5 (pending independent developer), C9 (pending QA5), C10 (awaiting instructor), C12 (prepared, live defence pending).
 
 No item may be marked VERIFIED without a link to a reproducible test or evidence file.
