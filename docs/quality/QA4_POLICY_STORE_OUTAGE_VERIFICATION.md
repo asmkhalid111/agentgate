@@ -9,16 +9,16 @@
 
 ## 1. Exact Teacher QA4 Requirement
 
-From [SOURCE_REQUIREMENTS.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/governance/SOURCE_REQUIREMENTS.md#L28):
+From [SOURCE_REQUIREMENTS.md](../governance/SOURCE_REQUIREMENTS.md#L28):
 > **QA4 Fail-safe availability.** If the policy store is unreachable, medium- and high-risk tools fail closed, while low-risk tools keep working on the last known policies for up to 5 minutes.
 
 ---
 
 ## 2. Test Methodology & Failure Injection Technique
 
-- **Test Class:** [PolicyStoreOutageIntegrationTest.java](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutageIntegrationTest.java)
+- **Test Class:** [PolicyStoreOutageIntegrationTest.java](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutageIntegrationTest.java)
 - **Environment & Database:** `@SpringBootTest` (`@ActiveProfiles("test")`) backed by H2 in-memory JDBC database (`jdbc:h2:mem:agentgate_test`) using real `JdbcClient` repositories (`RegisteredToolRepository`, `KillSwitchRepository`, `AuditRepository`, `PolicyRepository`).
-- **Time Control:** Minimal constructor-injected `java.time.Clock` (`ObjectProvider<Clock>` defaulting to `Clock.systemUTC()` in production) added to [StructuredPolicyEvaluator.java](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/main/java/com/agentgate/gateway/policy/service/StructuredPolicyEvaluator.java). A test `@Bean MutableClock` controls elapsed outage time deterministically without `Thread.sleep`.
+- **Time Control:** Minimal constructor-injected `java.time.Clock` (`ObjectProvider<Clock>` defaulting to `Clock.systemUTC()` in production) added to [StructuredPolicyEvaluator.java](../../apps/gateway/src/main/java/com/agentgate/gateway/policy/service/StructuredPolicyEvaluator.java). A test `@Bean MutableClock` controls elapsed outage time deterministically without `Thread.sleep`.
 - **Failure Injection:** `@MockitoSpyBean PolicyRepository` throws `DataAccessResourceFailureException("Simulated policy store unreachable")` on `findAll()`, while `evaluator.reloadPolicies()` is invoked directly—exercising the real cache-retention and fail-safe logic rather than `setSimulatedDbAvailability()`.
 - **Actual Components Executed:** `ToolExecutionPipeline`, `StructuredPolicyEvaluator`, `RegisteredToolRepository`, `KillSwitchService`, `KillSwitchRepository`, `AuditRecorder`, `JdbcAuditRepository`, `AuditVerificationService`, and `@MockitoSpyBean RestToolAdapter` (simulating downstream HTTP responses).
 
@@ -45,14 +45,14 @@ This verification must **not** be presented as equivalent to a live PostgreSQL c
 1. **Injected `PolicyRepository` Exception (`Verified`):** Demonstrates that `StructuredPolicyEvaluator` and `ToolExecutionPipeline` enforce QA4 fallback, 5-minute cutoff, kill switches, and synchronous auditing when the policy store/query fails while the audit ledger, tool registry, and kill-switch store remain reachable.
 2. **Full Shared PostgreSQL Outage (`Fails Closed — Not Low-Risk Available`):** In the deployed `compose.yaml` architecture, `policies`, `registered_tools`, `tool_agent_permissions`, `kill_switches`, and `audit_log` all share a single PostgreSQL instance. If PostgreSQL itself is stopped:
    - `RegisteredToolRepository.findByName()` and `isAgentPermitted()` fail with `DataAccessException` before policy evaluation.
-   - `KillSwitchService.checkBlocked()` catches the DB exception and intentionally fails closed (`KILL_SWITCH_UNAVAILABLE`, [KillSwitchService.java#L77-L81](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/main/java/com/agentgate/gateway/killswitch/service/KillSwitchService.java#L77-L81)).
+   - `KillSwitchService.checkBlocked()` catches the DB exception and intentionally fails closed (`KILL_SWITCH_UNAVAILABLE`, [KillSwitchService.java#L77-L81](../../apps/gateway/src/main/java/com/agentgate/gateway/killswitch/service/KillSwitchService.java#L77-L81)).
    - `AuditRecorder` fails closed because FR7 mandates synchronous durable audit persistence and no asynchronous/local WAL buffer is enabled.
 
 ---
 
 ## 5. Real-PostgreSQL Testcontainers Verification (`PolicyStoreOutagePostgresIT`)
 
-Added [PolicyStoreOutagePostgresIT.java](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutagePostgresIT.java) using a disposable `postgres:16-alpine` Testcontainer migrated by Flyway and the unmocked `PolicyRepository`, `RegisteredToolRepository`, `KillSwitchService`, `AuditRepository`, and `AuditVerificationService`.
+Added [PolicyStoreOutagePostgresIT.java](../../apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutagePostgresIT.java) using a disposable `postgres:16-alpine` Testcontainer migrated by Flyway and the unmocked `PolicyRepository`, `RegisteredToolRepository`, `KillSwitchService`, `AuditRepository`, and `AuditVerificationService`.
 
 - **What failed:** `ALTER TABLE policies RENAME TO policies_outage` caused real `PolicyRepository.findAll()` JDBC queries in `StructuredPolicyEvaluator.reloadPolicies()` to fail against PostgreSQL.
 - **What stayed reachable:** `registered_tools`, `tool_agent_permissions`, `kill_switches`, and `audit_log` in PostgreSQL remained reachable and enforced throughout the outage.

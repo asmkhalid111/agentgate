@@ -10,10 +10,10 @@ Updated: 2026-11-27 (Final Local Engineering Verification Complete on `85f8a5b`)
 ## Current state
 - **Branch & Baseline:** `master` (resumed from `a0018fa`; tested CI revision `3c5fad4` on `origin/review/agentgate-ci`).
 - **Active Reports & Runbook:**
-  - [docs/milestones/M12/COMPLETION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M12/COMPLETION.md) (Hosted CI verification, run `45949032689`)
-  - [docs/quality/QA_EVIDENCE_REPORT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/QA_EVIDENCE_REPORT.md) (Consolidated QA1–QA5 evidence)
-  - [docs/defence/DEFENCE_REHEARSAL.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/defence/DEFENCE_REHEARSAL.md) (15-minute C12 live-defence runbook)
-  - [docs/governance/REQUIREMENTS_MATRIX.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/governance/REQUIREMENTS_MATRIX.md) (Reconciled 27-requirement matrix)
+  - [M12 Completion](../milestones/M12/COMPLETION.md) (Private hosted CI verification, run `45949032689`)
+  - [Quality Evidence Report](../quality/QA_EVIDENCE_REPORT.md) (Consolidated QA1–QA5 evidence)
+  - [Defence Rehearsal](../defence/DEFENCE_REHEARSAL.md) (15-minute C12 live-defence runbook)
+  - [Requirements Matrix](REQUIREMENTS_MATRIX.md) (Reconciled 27-requirement matrix)
 - **Test & CI Status:**
   - **Local Full Verify (`85f8a5b`, `.\mvnw.cmd -B verify`):** **314 passed** (0 failures, 0 errors, 0 skips): `gateway` Surefire **310** (including 6/6 ArchUnit checks in `ModularMonolithArchitectureTest`), `gateway` Failsafe **2** (`ContainerStorageIT` + `PolicyStoreOutagePostgresIT`), `demo-tools` **2**.
   - **Hosted CI (`3c5fad4`, run `45949032689`):** **308 passed**, QA1 **38/38** malicious blocked/held and **0/200** false positives, QA3 **0.051 s** lookup, QA5 automated rehearsal **0.36 s**.
@@ -25,7 +25,7 @@ Updated: 2026-11-27 (Final Local Engineering Verification Complete on `85f8a5b`)
 - **Local Docker Stack (Smoke-checked 2026-11-27):** `docker compose up -d --wait` reported all 5 services healthy; `/actuator/health/readiness` returned `{"status":"UP"}` on both `gateway` (8080) and `demo-tools` (8082).
 
 ## Next Action
-- **Manually rehearse the `/approvals` browser flow** (`KEYCLOAK_APPROVER_PASSWORD` off screen) and **deliver the 15-minute C12 live defence** using [docs/defence/DEFENCE_REHEARSAL.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/defence/DEFENCE_REHEARSAL.md) (or execute **C10** once the instructor issues a checkpoint change request, or run **QA5** once an independent developer is available).
+- **Manually rehearse the `/approvals` browser flow** (`KEYCLOAK_APPROVER_PASSWORD` off screen) and **deliver the 15-minute C12 live defence** using [Defence Rehearsal](../defence/DEFENCE_REHEARSAL.md) (or execute **C10** once the instructor issues a checkpoint change request, or run **QA5** once an independent developer is available).
 
 ## Handoff contract
 After an *approved* milestone update this page with: last approved milestone, commit ID, test results summary, architecture decisions, open blockers and next milestone. Link to `docs/milestones/Mxx/COMPLETION.md` and evidence rather than pasting long reports. Never overwrite a failed test record.
