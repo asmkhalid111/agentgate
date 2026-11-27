@@ -22,7 +22,7 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 | ID | Exact measure | Milestone / Delivery Day | Evidence needed | Status |
 |---|---|---|---|---|
 | QA1 | 30 malicious: 100% blocked/held; 200 legitimate: <=5% false blocks | Day 3 | Red-team script `scripts/qa/qa1_security_suite.py` results | PLANNED (Day 3) |
-| QA2 | <=30ms gateway overhead p95 at 100 calls/sec, approvals excluded | Day 3 | Benchmark script `scripts/qa/qa2_performance_benchmark.py` | PLANNED (Day 3) |
+| QA2 | At most 30 ms p95 gateway overhead at 100 calls/sec, excluding approval waits | M04 / M07 / M12 | [Original acceptance](../quality/performance/QA2_FINAL_ACCEPTANCE.md) and [hosted k6 results](../milestones/M12/COMPLETION.md) | FAIL (423.45 ms p95 and 873 dropped iterations on latest hosted run) |
 | QA3 | Audit query <1 min; any stored-row edit caught by verify | Day 3 | [Timed lookup and tamper checks](../quality/QA3_AUDITABILITY.md) | VERIFIED on local stack |
 | QA4 | Policy-store outage: medium/high fail closed; low last known <=5m | Day 1 | Time-controlled outage test with logs in `PolicyOutageFailSafeTest` | PLANNED (Day 1) |
 | QA5 | New developer adds REST tool in <10min with zero code edits | Day 3 | Timed walkthrough guide `docs/adoption/QA5_WALKTHROUGH.md` | PLANNED (Day 3) |
@@ -34,7 +34,7 @@ Statuses: NOT STARTED | PLANNED | IMPLEMENTED | VERIFIED | BLOCKED.
 | C2 | Profiles and environment, validated typed properties, no repository secrets | M10 | [Fresh local provisioning and runtime verification](../milestones/M10/COMPLETION.md) | VERIFIED for current files |
 | C3 | OpenAPI, security, validation, RFC 9457 and pagination | M05 / M11 | [Gateway and demo verification](../milestones/M11/COMPLETION.md) | VERIFIED locally |
 | C4 | Actuator, Micrometer metrics/tracing, trace ID in JSON logs | C3/C4 follow-up | Actuator health/readiness and metrics plus matching gateway/demo-tools JSON trace IDs on REST and MCP calls | VERIFIED |
-| C5 | JUnit 5 unit and slice tests, Testcontainers, runnable QA scripts, CI | C5 checkpoint | [Local verification and CI status](../milestones/M07/COMPLETION.md) | PARTIALLY VERIFIED (hosted CI pending) |
+| C5 | Unit and slice tests, Testcontainers, runnable QA checks, and CI | M07 / M12 | [Hosted verification and uploaded reports](../milestones/M12/COMPLETION.md) | VERIFIED hosted execution |
 | C6 | ArchUnit or Modulith architecture enforcement | Baseline & Day 1–3 | `ModularMonolithArchitectureTest` passes with zero cyclic dependencies | PARTIALLY IMPLEMENTED (Baseline in M01) |
 | C7 | C4 diagrams, four evidence-backed ADRs, and utility tree with sensitivity and trade-offs | M08 | [Diagram, ADR and utility-tree evidence](../milestones/M08/COMPLETION.md) | COMPLETE |
 | C8 | Implemented patterns mapped to requirements, participating classes and rejected options | M08 | [Pattern justification](../architecture/PATTERN_MAP.md) | COMPLETE |
