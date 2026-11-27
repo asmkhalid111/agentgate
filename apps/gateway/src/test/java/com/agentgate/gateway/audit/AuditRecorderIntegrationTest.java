@@ -24,6 +24,7 @@ import com.agentgate.gateway.killswitch.repository.KillSwitchRepository;
 import com.agentgate.gateway.killswitch.service.KillSwitchService;
 import com.agentgate.gateway.mcp.ApprovalResultMcpProvider;
 import com.agentgate.gateway.pipeline.ApprovedToolExecutionService;
+import com.agentgate.gateway.pipeline.ApprovedToolExecutionListener;
 import com.agentgate.gateway.pipeline.RestToolAdapter;
 import com.agentgate.gateway.pipeline.ToolExecutionPipeline;
 import com.agentgate.gateway.pipeline.ToolExecutionResult;
@@ -73,6 +74,10 @@ class AuditRecorderIntegrationTest {
 
     @Autowired
     private ApprovedToolExecutionService approvedExecutionService;
+
+    // This test drives approved execution synchronously to assert each persisted audit event.
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private ApprovedToolExecutionListener approvedExecutionListener;
 
     @Autowired
     private ApprovalService approvalService;

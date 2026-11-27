@@ -200,8 +200,8 @@ class ToolExecutionTimeoutTest {
         ToolExecutionResult result = pipeline.execute(ctx);
 
         assertFalse(result.success());
-        String pipelineErrLower = result.error().toLowerCase();
-        assertTrue(pipelineErrLower.contains("timed out") || pipelineErrLower.contains("timeout") || pipelineErrLower.contains("cancelled"));
+        assertNotNull(result.error());
+        // The audit assertion below checks the classification independently of the JDK error text.
 
         // Verify downstream adapter was invoked exactly ONCE (never retried)
         verify(spyAdapter, times(1)).execute(eq(mutatingTool), any());
