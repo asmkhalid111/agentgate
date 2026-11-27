@@ -1,6 +1,6 @@
 # AgentGate quality evidence report
 
-This report consolidates the recorded evidence for QA1â€“QA5 through the C5 checkpoint. The runs use different revisions and environments. Each source records the conditions for its own result.
+This report consolidates the recorded evidence for QA1â€“QA5 through the hosted C5 checkpoint. The runs use different revisions and environments. Each source records the conditions for its own result.
 
 | Attribute | Handout measure | Observed result | Status |
 |---|---|---|---|
@@ -9,6 +9,8 @@ This report consolidates the recorded evidence for QA1â€“QA5 through the C5
 | QA3 Auditability | Explain a call in under 60 seconds and detect a stored row edit | Authenticated known-term lookup of two delegated decisions took 0.332 seconds. Three isolated checks detected edited content, middle deletion and tail deletion. | Passed in local walkthrough and isolated tests |
 | QA4 Fail-safe availability | Deny medium/high risk during an outage and allow matching low-risk requests from cache for at most five minutes | Under injected policy-repository failure, medium/high risk never reached the adapter. Matching low risk passed at 299 seconds and was blocked at 300 and 301 seconds. All 16 audit records verified. | Passed for injected policy-repository failure |
 | QA5 Adoption | A developer unfamiliar with AgentGate adds a REST tool in under ten minutes without code changes | Automated rehearsal completed in 8.40 seconds on the local stack. The independent developer trial has no recorded result yet. | Pending independent trial |
+
+The latest [hosted verification artifact](https://github.com/asmkhalid111/agentgate/actions/runs/45949032689/artifacts/15176149154) recorded 38 of 38 malicious calls blocked or held and zero false blocks in 200 legitimate cases. Its QA3 lookup took 0.051 seconds and its automated onboarding rehearsal took 0.36 seconds. The hosted k6 run offered 100 calls per second for 180 seconds, completed 17,127 valid calls, dropped 873 iterations, and measured 423.45 ms p95 gateway overhead. The independent QA5 trial remains pending. [Hosted verification history](../milestones/M12/COMPLETION.md)
 
 ## Raw outputs and reproduction
 
