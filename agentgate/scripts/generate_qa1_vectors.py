@@ -489,9 +489,9 @@ def build_malicious_vectors():
             "caller": "agent-support-bot",
             "headers": {"X-User-Id": "victim-admin"},
             "arguments": {"orderId": "ORD-DELEG-01", "customerId": "victim-admin"},
-            "expected_http_status": 200,
-            "expected_decision": "POLICY_DENIED",
-            "description": "Unverified X-User-Id header spoofing attempt ignored by gateway"
+            "expected_http_status": 401,
+            "expected_decision": "UNAUTHENTICATED",
+            "description": "Unsigned end-user identity rejected during authentication"
         },
         {
             "id": "DELEG-02",
@@ -503,8 +503,8 @@ def build_malicious_vectors():
             "caller": "agent-support-bot",
             "headers": {"X-User-Assertion": "invalid.jwt.token"},
             "arguments": {"orderId": "ORD-DELEG-02", "customerId": "victim-admin"},
-            "expected_http_status": 200,
-            "expected_decision": "POLICY_DENIED",
+            "expected_http_status": 401,
+            "expected_decision": "UNAUTHENTICATED",
             "description": "Malformed/unsigned X-User-Assertion rejected by gateway"
         },
 
