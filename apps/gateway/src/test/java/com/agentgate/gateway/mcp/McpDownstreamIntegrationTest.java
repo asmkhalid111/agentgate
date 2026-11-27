@@ -56,7 +56,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * verifies discovery, authorized execution, unauthorized blocking, SSRF rejection,
  * and SHA-256 audit-chain integrity through the real AgentGate gateway.
  */
-@SpringBootTest(classes = GatewayApplication.class)
+@SpringBootTest(classes = GatewayApplication.class, properties =
+        "spring.datasource.url=jdbc:h2:mem:agentgate_downstream_mcp_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestSecurityConfig.class)
