@@ -1,6 +1,6 @@
 # Project Memory — factual handoff state
 
-Updated: 2026-11-27 (C12 Live Defence Runbook Hardened & Committed)
+Updated: 2026-11-27 (C6 ArchUnit Enforcement Complete)
 
 ## Immutable scope
 - Project: CSE 444 Project 1 — AgentGate; common requirements C1–C12 apply.
@@ -21,8 +21,8 @@ Updated: 2026-11-27 (C12 Live Defence Runbook Hardened & Committed)
   - QA3 Auditability: **0.051 s** hosted lookup (`0.087 s` local rehearsal); 3/3 tamper checks pass.
   - QA4 Fail-safe (**Partial**): Policy-repository outage fallback verified at 299s/300s/301s; full shared-PostgreSQL outage intentionally fails closed to preserve FR7/FR8.
   - QA5 Adoption (**Pending**): Automated rehearsal passed in 0.36 s hosted (8.40 s local); independent developer trial pending.
-  - C6 Architecture Tests (**Partial**): `ModularMonolithArchitectureTest` passes 3 ArchUnit rules (package cycle-freedom, no `ToolAdapter` usage outside `..pipeline..`, and no `..controller..` -> `..pipeline..` bypass); `AuditAdminController`, `PolicyAdminController`, and `ToolRegistryController` still depend directly on `..repository..`.
-- **Completion Count:** **20 of 27 (74%)** strictly complete/owner-accepted (FR1–FR10, QA1, QA3, C1–C5, C7–C8, C11), plus **2 partial** (QA4, C6) and **5 open/deferred/waiting** (QA2, QA5, C9, C10, C12). *(Previous count of 22 of 27 included C6 baseline and QA4.)*
+  - C6 Architecture Tests (**Verified**): `ModularMonolithArchitectureTest` passes 6/6 ArchUnit rules (`.\mvnw.cmd -pl apps/gateway "-Dtest=ModularMonolithArchitectureTest" test`, 0 failures): acyclic feature modules, `ToolAdapter` isolation in `..pipeline..`, no `..controller..` -> `..pipeline..` or JDBC bypass, `..repository..` isolation, and `..guard..` isolation.
+- **Completion Count:** **21 of 27 (78%)** strictly complete/owner-accepted (FR1–FR10, QA1, QA3, C1–C8, C11), plus **1 partial** (QA4) and **5 open/deferred/waiting** (QA2, QA5, C9, C10, C12).
 - **Local Docker Stack (Rehearsed 2026-11-27):** All 5 services healthy (`agentgate-gateway`, `agentgate-demo-tools`, `agentgate-postgres`, `agentgate-redis`, `agentgate-keycloak`). Readiness `UP`, pending `orders_refund` + API `human-approver` rejection verified; `verify_delegated_orders.py` passed discovery, QA3, allow/deny, and live policy v1/v2 updates locally, exiting nonzero on the final `[POLICY_DRY_RUN]` log assertion (kept optional in runbook; passed in hosted CI `45949032689`). Browser UI sign-in and rejection at `/approvals` remain a manual rehearsal item.
 
 ## Next Action

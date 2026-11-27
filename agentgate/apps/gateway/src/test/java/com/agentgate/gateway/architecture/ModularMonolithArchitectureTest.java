@@ -28,5 +28,39 @@ public class ModularMonolithArchitectureTest {
             noClasses().that().resideInAPackage("..controller..")
                     .should().dependOnClassesThat().resideInAPackage("..pipeline..")
                     .because("Admin and approval controllers must not invoke or bypass the governed execution pipeline");
+
+    @ArchTest
+    public static final ArchRule controllers_should_not_embed_jdbc_clients =
+            noClasses().that().resideInAPackage("..controller..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "org.springframework.jdbc..",
+                            "javax.sql.."
+                    )
+                    .because("Controllers must use Repository abstractions rather than embedding database queries (PATTERN_MAP Repository pattern)");
+
+    @ArchTest
+    public static final ArchRule repositories_should_only_depend_on_domain_and_dto =
+            noClasses().that().resideInAPackage("..repository..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "..controller..",
+                            "..service..",
+                            "..pipeline..",
+                            "..mcp..",
+                            "..guard..",
+                            "..ratelimit..",
+                            "..resilience.."
+                    )
+                    .because("Persistence repositories must remain isolated from web, ingress, and orchestration layers");
+
+    @ArchTest
+    public static final ArchRule guards_should_not_depend_on_controllers_repositories_or_pipeline =
+            noClasses().that().resideInAPackage("..guard..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "..controller..",
+                            "..repository..",
+                            "..pipeline..",
+                            "..mcp.."
+                    )
+                    .because("Guards are pluggable execution-pipeline components and must not depend on web, persistence, or transport layers");
 }
 
