@@ -48,4 +48,14 @@ This verification must **not** be presented as equivalent to a live PostgreSQL c
    - `KillSwitchService.checkBlocked()` catches the DB exception and intentionally fails closed (`KILL_SWITCH_UNAVAILABLE`, [KillSwitchService.java#L77-L81](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/main/java/com/agentgate/gateway/killswitch/service/KillSwitchService.java#L77-L81)).
    - `AuditRecorder` fails closed because FR7 mandates synchronous durable audit persistence and no asynchronous/local WAL buffer is enabled.
 
-**Requirements Compliance Assessment:** **QA4 is `PARTIAL`** — policy-evaluator fallback (`<5m` cached low-risk, immediate fail-closed medium/high, `>=5m` cutoff, recovery) is verified end-to-end through `ToolExecutionPipeline`, with the documented architectural boundary that a total shared-PostgreSQL outage fails closed to preserve FR7 synchronous audit durability and FR8 kill-switch safety.
+---
+
+## 5. Real-PostgreSQL Testcontainers Verification (`PolicyStoreOutagePostgresIT`)
+
+Added [PolicyStoreOutagePostgresIT.java](file:///e:/Codes/Software-Architecture-Project/agentgate/apps/gateway/src/test/java/com/agentgate/gateway/policy/PolicyStoreOutagePostgresIT.java) using a disposable `postgres:16-alpine` Testcontainer migrated by Flyway and the unmocked `PolicyRepository`, `RegisteredToolRepository`, `KillSwitchService`, `AuditRepository`, and `AuditVerificationService`.
+
+- **What failed:** `ALTER TABLE policies RENAME TO policies_outage` caused real `PolicyRepository.findAll()` JDBC queries in `StructuredPolicyEvaluator.reloadPolicies()` to fail against PostgreSQL.
+- **What stayed reachable:** `registered_tools`, `tool_agent_permissions`, `kill_switches`, and `audit_log` in PostgreSQL remained reachable and enforced throughout the outage.
+- **Verified behavior:** Medium- and high-risk calls failed closed before dispatch; matching low-risk calls used the cached policy at `T0 + 30s` and `T0 + 299s` while kill-switch activation still blocked them; low-risk calls failed closed at `T0 + 300s` and `T0 + 301s`; recovery (`ALTER TABLE policies_outage RENAME TO policies`) restored policy reloads and `auditVerificationService.verifyIntegrity()` verified all `16` PostgreSQL audit records.
+- **Command & result:** `.\mvnw.cmd -pl apps/gateway "-Dtest=NonExistentTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-Dit.test=PolicyStoreOutagePostgresIT" verify` -> `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0` (`BUILD SUCCESS`, 32.60 s).
+- **Handout alignment:** Satisfies the QA4 policy-store-unreachable scenario while keeping the shared-PostgreSQL full-outage limitation above explicit (`PARTIAL`).
