@@ -1,48 +1,32 @@
 # Project Memory — factual handoff state
 
-Updated: 2026-11-19 (Day 1 Implementation Complete, Awaiting Reviewer Gate)
+Updated: 2026-11-27 (C12 Live Defence Runbook Hardened & Committed)
 
 ## Immutable scope
 - Project: CSE 444 Project 1 — AgentGate; common requirements C1–C12 apply.
 - Goal: meet course requirements with simplest defensible design; postpone cosmetic enhancements.
-- Human student: owns decisions and verifies evidence. ChatGPT: senior architecture reviewer. Antigravity: plan/code/test/report executor, gated by review.
-- Source file uploaded: `CSE444_Course_Projects(1).docx` (not automatically included in repository).
+- Human student: owns decisions and verifies evidence. Instructor handout: `CSE444_Course_Projects.docx` (authoritative).
 
 ## Current state
-- Milestone: **M04 (VERIFICATION, AUDIT & QA ACCEPTANCE)** — Task 16F-B Executed (Awaiting External Reviewer Gate).
-- Active Reports:
-  - [docs/quality/performance/QA2_POOL_SIZING_EXPERIMENT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_POOL_SIZING_EXPERIMENT.md) (Task 16F-B Empirical Validation)
-  - [docs/quality/performance/QA2_OPTIMIZATION_DECISION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_OPTIMIZATION_DECISION.md) (ADR-005 Optimization Architecture Decision)
-  - [docs/quality/performance/QA2_BOTTLENECK_ANALYSIS.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/performance/QA2_BOTTLENECK_ANALYSIS.md) (Task 16E Diagnostic Profiling + Errata)
-- Recent Commits:
-  - `5fa1aa3`: QA1 security acceptance test suite (Task 15b).
-  - `d52b2c8`: QA2 performance benchmark harness implementation (Task 16b).
-  - `54ed1bc`: QA2 verified rerun report & fix (Task 16d).
-  - `b4a4c08`: Root-cause performance profiling and bottleneck analysis (Task 16e).
-- Test status:
-  - Automated Tests: **295/295 passed** (`.\mvnw.cmd test`), 0 failures, 0 errors.
-  - ArchUnit Architecture Test: **Passed** (zero cyclic dependencies across all packages).
-  - QA1 Security Acceptance: **38/38 malicious calls blocked/held, 200/200 legitimate calls permitted (0% FP)**.
-  - QA2 Performance Optimization (Task 16F-B):
-    - HikariCP pool expanded to 30 connections (`maximum-pool-size: 30`, `minimum-idle: 15`).
-    - Audit lock wait p95: **$281.37\text{ ms} \to 2.50\text{ ms}$ (-99.1%)**.
-    - Permission check p95: **$98.76\text{ ms} \to 2.00\text{ ms}$ (-98.0%)**.
-    - Audit commit p95: **$73.21\text{ ms} \to 3.09\text{ ms}$ (-95.8%)**.
-    - Total gateway overhead p95: **$447.71\text{ ms} \to 58.78\text{ ms}$ (-86.9%)**.
-    - Delivered throughput at 100 RPS: **99.84 RPS**.
-    - Audit chain integrity: **13,502 / 13,502 records verified valid**.
-    - Primary remaining factor: Security ingress at $48.02\text{ ms}$ ($81.7\%$ of total overhead).
-- Docker stack: All 5 normal development containers healthy (`agentgate-gateway`, `agentgate-demo-tools`, `agentgate-postgres`, `agentgate-redis`, `agentgate-keycloak`). Benchmark stack cleanly torn down.
+- **Branch & Baseline:** `master` (resumed from `a0018fa`; tested CI revision `3c5fad4` on `origin/review/agentgate-ci`).
+- **Active Reports & Runbook:**
+  - [docs/milestones/M12/COMPLETION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M12/COMPLETION.md) (Hosted CI verification, run `45949032689`)
+  - [docs/quality/QA_EVIDENCE_REPORT.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/quality/QA_EVIDENCE_REPORT.md) (Consolidated QA1–QA5 evidence)
+  - [docs/defence/DEFENCE_REHEARSAL.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/defence/DEFENCE_REHEARSAL.md) (15-minute C12 live-defence runbook)
+  - [docs/governance/REQUIREMENTS_MATRIX.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/governance/REQUIREMENTS_MATRIX.md) (Reconciled 27-requirement matrix)
+- **Test & CI Status (Hosted CI `3c5fad4`, run `45949032689`):**
+  - Automated Maven Tests: **308 passed**, 0 failures, 0 errors, 0 skips (unit, slice, Testcontainers Postgres/Redis, ArchUnit cycle check, QA3 tamper, QA4 outage).
+  - QA1 Security: **38/38 malicious blocked or held, 0/200 legitimate falsely blocked**.
+  - QA2 Performance (**Deferred**): **423.45 ms p95**, **873 dropped iterations** at 100 calls/sec (target `<= 30 ms p95`); excluded from work plan.
+  - QA3 Auditability: **0.051 s** hosted lookup (`0.087 s` local rehearsal); 3/3 tamper checks pass.
+  - QA4 Fail-safe (**Partial**): Policy-repository outage fallback verified at 299s/300s/301s; full shared-PostgreSQL outage intentionally fails closed to preserve FR7/FR8.
+  - QA5 Adoption (**Pending**): Automated rehearsal passed in 0.36 s hosted (8.40 s local); independent developer trial pending.
+  - C6 Architecture Tests (**Partial**): `ModularMonolithArchitectureTest` checks package cycle-freedom only; layer/module boundary rules not yet added.
+- **Completion Count:** **20 of 27 (74%)** strictly complete/owner-accepted (FR1–FR10, QA1, QA3, C1–C5, C7–C8, C11), plus **2 partial** (QA4, C6) and **5 open/deferred/waiting** (QA2, QA5, C9, C10, C12). *(Previous count of 22 of 27 included C6 baseline and QA4.)*
+- **Local Docker Stack (Rehearsed 2026-11-27):** All 5 services healthy (`agentgate-gateway`, `agentgate-demo-tools`, `agentgate-postgres`, `agentgate-redis`, `agentgate-keycloak`). Readiness `UP`, pending `orders_refund` + API `human-approver` rejection verified; `verify_delegated_orders.py` passed discovery, QA3, allow/deny, and live policy v1/v2 updates locally, exiting nonzero on the final `[POLICY_DRY_RUN]` log assertion (kept optional in runbook; passed in hosted CI `45949032689`). Browser UI sign-in and rejection at `/approvals` remain a manual rehearsal item.
 
-## Implementation cautions & findings recorded for future milestones / days
-1. **Day 2 (Pluggable Guard Pipeline):** Implement schema validation, clearance-based PII redaction, and oversize truncation in `pipeline.guard`.
-2. **Day 2 (Human Approval State Machine):** 5-state model (`PENDING`, `APPROVED`, `REJECTED`, `EXPIRED`, `CANCELLED`) with Redis state storage and TTL expiration.
-3. **Day 2 (Safety Controls & Kill Switches):** Atomic write caps and rate limits via Redis scripts; global and per-agent emergency kill switches.
-4. **Day 3 (Audit Durability):** Minimal durable PostgreSQL audit chain with persistent append-only fallback journal for DB outages (Reviewer Amendment 2).
-5. **General Pipeline Execution (Per-Call Authorization):** Enforce tool authorization on every invocation, not merely at MCP session initialization (verified in Day 1).
-
-## Next Delivery Step
-- **Reviewer Inspection Gate for M02 (Day 1)** — Halt and await external reviewer approval of [docs/milestones/M02/COMPLETION.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/milestones/M02/COMPLETION.md) before proceeding to M03 (Day 2: Guards, Approvals & Safety Controls).
+## Next Action
+- **Manually rehearse the `/approvals` browser flow** (`KEYCLOAK_APPROVER_PASSWORD` off screen) and **deliver the 15-minute C12 live defence** using [docs/defence/DEFENCE_REHEARSAL.md](file:///e:/Codes/Software-Architecture-Project/agentgate/docs/defence/DEFENCE_REHEARSAL.md) (or execute **C10** once the instructor issues a checkpoint change request, or run **QA5** once an independent developer is available).
 
 ## Handoff contract
 After an *approved* milestone update this page with: last approved milestone, commit ID, test results summary, architecture decisions, open blockers and next milestone. Link to `docs/milestones/Mxx/COMPLETION.md` and evidence rather than pasting long reports. Never overwrite a failed test record.
