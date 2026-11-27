@@ -100,26 +100,25 @@ class ApprovalWebhookIntegrationTest {
     @Test
     @DisplayName("2. Rolled-back transaction does NOT dispatch webhook notification (Correction A)")
     void rolledBackTransaction_doesNotDispatchWebhook() throws Exception {
-        reset(webhookNotifier);
         TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
 
-        assertThrows(RuntimeException.class, () -> {
-            txTemplate.execute(status -> {
-                approvalService.createRequest(
-                        "agent-rollback-bot",
-                        "user-102",
-                        "orders_refund",
-                        "pol-large-refund",
-                        Map.of("amount", 9999.0),
-                        Duration.ofMinutes(15)
-                );
-                // Force transaction rollback
-                throw new RuntimeException("Simulated transaction rollback");
-            });
+        ApprovalRequest rolledBack = txTemplate.execute(status -> {
+            ApprovalRequest request = approvalService.createRequest(
+                    "agent-rollback-bot",
+                    "user-102",
+                    "orders_refund",
+                    "pol-large-refund",
+                    Map.of("amount", 9999.0),
+                    Duration.ofMinutes(15)
+            );
+            status.setRollbackOnly();
+            return request;
         });
 
-        // Ensure webhook was NEVER dispatched because transaction rolled back
-        verify(webhookNotifier, after(500).never()).sendWebhook(any());
+        assertNotNull(rolledBack);
+        assertTrue(approvalRepository.findById(rolledBack.id()).isEmpty());
+        verify(webhookNotifier, after(500).never()).sendWebhook(argThat(request ->
+                rolledBack.id().equals(request.id())));
     }
 
     @Test
@@ -138,7 +137,8 @@ class ApprovalWebhookIntegrationTest {
         );
 
         // Verify webhook attempted
-        verify(webhookNotifier, timeout(3000).times(1)).sendWebhook(any());
+        verify(webhookNotifier, timeout(3000).times(1)).sendWebhook(argThat(notified ->
+                request.id().equals(notified.id())));
 
         // Verify database state is strictly preserved as PENDING
         Optional<ApprovalRequest> persisted = approvalRepository.findById(request.id());
