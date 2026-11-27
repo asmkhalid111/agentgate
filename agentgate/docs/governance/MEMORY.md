@@ -1,6 +1,6 @@
 # Project Memory — factual handoff state
 
-Updated: 2026-11-27 (C6 ArchUnit Enforcement Complete)
+Updated: 2026-11-27 (QA4 Bounded Verification Recorded)
 
 ## Immutable scope
 - Project: CSE 444 Project 1 — AgentGate; common requirements C1–C12 apply.
@@ -19,7 +19,7 @@ Updated: 2026-11-27 (C6 ArchUnit Enforcement Complete)
   - QA1 Security: **38/38 malicious blocked or held, 0/200 legitimate falsely blocked**.
   - QA2 Performance (**Deferred**): **423.45 ms p95**, **873 dropped iterations** at 100 calls/sec (target `<= 30 ms p95`); excluded from work plan.
   - QA3 Auditability: **0.051 s** hosted lookup (`0.087 s` local rehearsal); 3/3 tamper checks pass.
-  - QA4 Fail-safe (**Partial**): Policy-repository outage fallback verified at 299s/300s/301s; full shared-PostgreSQL outage intentionally fails closed to preserve FR7/FR8.
+  - QA4 Fail-safe (**Partial**): `PolicyStoreOutageIntegrationTest` (`.\mvnw.cmd -pl apps/gateway "-Dtest=PolicyStoreOutageIntegrationTest" test`, 1/1 passed) verifies `PolicyRepository.findAll()` outage fallback (med/high fail closed before dispatch, low-risk cached at 299s, cut off at 300s/301s, 16/16 audit verified); full shared-PostgreSQL outage intentionally fails closed to preserve FR7/FR8.
   - QA5 Adoption (**Pending**): Automated rehearsal passed in 0.36 s hosted (8.40 s local); independent developer trial pending.
   - C6 Architecture Tests (**Verified**): `ModularMonolithArchitectureTest` passes 6/6 ArchUnit rules (`.\mvnw.cmd -pl apps/gateway "-Dtest=ModularMonolithArchitectureTest" test`, 0 failures): acyclic feature modules, `ToolAdapter` isolation in `..pipeline..`, no `..controller..` -> `..pipeline..` or JDBC bypass, `..repository..` isolation, and `..guard..` isolation.
 - **Completion Count:** **21 of 27 (78%)** strictly complete/owner-accepted (FR1–FR10, QA1, QA3, C1–C8, C11), plus **1 partial** (QA4) and **5 open/deferred/waiting** (QA2, QA5, C9, C10, C12).
